@@ -24,7 +24,7 @@ repositories {
 }
 
 sourceCompatibility = 11
-group "io.kestra.task.io"
+group "io.kestra.task.fs"
 
 tasks.withType(JavaCompile) {
     options.encoding = "UTF-8"
@@ -46,6 +46,8 @@ dependencies {
     compileOnly group: "org.kestra", name: "core", version: kestraVersion
 
     implementation group: 'org.apache.commons', name: 'commons-vfs2', version: '2.6.0'
+    implementation group: 'com.jcraft', name: 'jsch', version: '0.1.55'
+    compile group: 'commons-net', name: 'commons-net', version: '3.6'
 }
 
 

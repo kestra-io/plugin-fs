@@ -1,0 +1,10 @@
+version: "3.6"
+
+
+
+services:
+  sftp:
+      build: docker/sftp
+      ports:
+          - "6622:22"
+      command: foo:pass:1001
