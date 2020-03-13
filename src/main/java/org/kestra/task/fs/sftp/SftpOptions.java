@@ -7,10 +7,12 @@ import org.apache.commons.vfs2.provider.sftp.SftpFileSystemConfigBuilder;
 import org.kestra.task.fs.VfsTask;
 
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 
 public class SftpOptions {
     private VfsTask sftp;
+    private File tempFile;
 
     public SftpOptions(VfsTask sftp) {
         this.sftp = sftp;
@@ -22,21 +24,26 @@ public class SftpOptions {
         SftpFileSystemConfigBuilder.getInstance().setUserDirIsRoot(options, true);
         SftpFileSystemConfigBuilder.getInstance().setSessionTimeoutMillis(options, 10000);
 
-
-//        File tempFile = File.createTempFile("prefix-", "-suffix");
-//
-//        tempFile.delete();
-
-
-        String keyPath = sftp.getAuth().getKeyPath();
+        String keyPath = sftp.getAuth().getKeyfile();
         if (keyPath != null) {
+            tempFile = File.createTempFile("sftp-key-", "");
+            FileWriter myWriter = new FileWriter(tempFile);
+            myWriter.write(keyPath);
+            myWriter.close();
+
             IdentityInfo identityInfo = null;
             if (sftp.getPassPhrase() != null) {
-                identityInfo = new IdentityInfo(new File(keyPath), sftp.getPassPhrase().getBytes());
+                identityInfo = new IdentityInfo(tempFile, sftp.getPassPhrase().getBytes());
             } else {
-                identityInfo = new IdentityInfo(new File(keyPath));
+                identityInfo = new IdentityInfo(tempFile);
             }
             SftpFileSystemConfigBuilder.getInstance().setIdentityProvider(options, identityInfo);
+        }
+    }
+
+    public void cleanup() {
+        if (tempFile != null) {
+            tempFile.delete();
         }
     }
 }

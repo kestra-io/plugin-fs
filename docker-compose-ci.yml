@@ -8,3 +8,9 @@ services:
       ports:
           - "6622:22"
       command: foo:pass:1001
+      volumes:
+        - ${HOME}/.ssh/id_rsa.pub:/home/foo/.ssh/authorized_keys   
+#  sftp-deb:
+#      build: docker/sftp-deb
+#      ports:
+#          - "6722:22"

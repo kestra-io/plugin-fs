@@ -9,31 +9,40 @@ import org.apache.commons.vfs2.FileSystemException;
 import org.apache.commons.vfs2.FileSystemOptions;
 import org.apache.commons.vfs2.provider.sftp.IdentityInfo;
 import org.apache.commons.vfs2.provider.sftp.SftpFileSystemConfigBuilder;
+import org.kestra.core.exceptions.IllegalVariableEvaluationException;
+import org.kestra.core.runners.RunContext;
+import org.kestra.task.fs.VfsTask;
+import org.kestra.task.fs.sftp.SftpDownload;
 
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Pattern;
 import java.io.File;
 
-//@JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "type", visible = true, include = JsonTypeInfo.As.EXISTING_PROPERTY)
-//@SuperBuilder
 @Getter
-//@NoArgsConstructor
 public class Auth {
 
     private String username;
     private String password;
-    private String keyPath;
+    private String keyfile;
     private String passPhrase;
+    private String host;
+    private String port;
 
-    public Auth(String username, String password, String keyPath, String passPhrase) throws FileSystemException {
-        this.username = username;
-        this.password = password;
-        this.keyPath = keyPath;
+    public Auth(RunContext runContext, VfsTask task) throws IllegalVariableEvaluationException {
+        username = runContext.render(task.getUsername());
+        password = runContext.render(task.getPassword());
+        keyfile = runContext.render(task.getKeyfile());
+        passPhrase = runContext.render(task.getPassPhrase());
+        host = runContext.render(task.getHost());
+        port = runContext.render(task.getPort());
     }
 
-
     public String getBasicAuth() {
-        return !username.equals("") && !password.equals("") ? username + ":" + password + "@" : "";
+        return password != null ? username + ":" + password + "@" : username + "@";
+    }
+
+    public String getSftpUri(String filepath) {
+        return "sftp://" + getBasicAuth() + host + ":" + port + "/" + filepath;
     }
 }

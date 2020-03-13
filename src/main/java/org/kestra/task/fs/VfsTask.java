@@ -14,26 +14,28 @@ import org.slf4j.Logger;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
+import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 
 @SuperBuilder
 @ToString
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-public abstract class VfsTask extends Task implements RunnableTask<VfsTask.Output>, OptionsInterface{
+public abstract class VfsTask extends Task implements RunnableTask<Output> {
     @InputProperty(
-        description = "file path",
-        body = "Remote file path location on remote server that will be uploaded / downloaded to local file system",
+        description = "from file path",
+        body = "From file system where file will be read / write",
         dynamic = true // If the variables will be rendered with template {{ }}
     )
-    protected String remotePath;
+    protected String to;
     @InputProperty(
-        description = "Local file path",
-        body = "File path location on local file system where file will be read / write",
+        description = "to file path",
+        body = "To file system where file will be read / write",
         dynamic = true // If the variables will be rendered with template {{ }}
     )
-    protected String localPath;
+    protected String from;
 
     @NotNull
     @Valid
@@ -82,67 +84,4 @@ public abstract class VfsTask extends Task implements RunnableTask<VfsTask.Outpu
     protected String port;
     protected FileSystemOptions options;
 
-    @Override
-    public VfsTask.Output run(RunContext runContext) throws IOException, IllegalVariableEvaluationException {
-        FileSystemManager fsm = VFS.getManager();
-        remotePath = runContext.render(remotePath);
-        localPath = runContext.render(localPath);
-        auth = new Auth(runContext.render(username), runContext.render(password), runContext.render(keyfile), runContext.render(passPhrase));
-
-        host = runContext.render(host);
-        port = runContext.render(port);
-        options = new FileSystemOptions();
-        String localUri = "file://" + localPath;
-        String remoteUri = remoteUri();
-        addFsOptions();
-        FileObject local = fsm.resolveFile(localUri);
-        FileObject remote = fsm.resolveFile(remoteUri, options);
-        beforeFileSync();
-        doCopy(remote, local);
-        afterFileSync();
-        local.close();
-        remote.close();
-
-        Logger logger = runContext.logger(getClass());
-        String render = runContext.render("file " + remotePath + " uploaded to sftp @ " + localPath);
-        logger.debug(render);
-        return buildOutput(remotePath, localPath);
-
-    }
-
-    protected abstract void afterFileSync();
-
-    protected abstract void beforeFileSync();
-
-    protected abstract String remoteUri();
-
-    protected abstract VfsTask.Output buildOutput(String remotePath, String localPath);
-
-    protected abstract void doCopy(FileObject remote, FileObject local) throws FileSystemException;
-
-    public abstract void addFsOptions() throws IOException;
-
-
-    /**
-     * Input or Output can be nested as you need
-     */
-    @Builder
-    @Getter
-    public static class Output implements org.kestra.core.models.tasks.Output {
-        @OutputProperty(
-            description = "Short description for this output",
-            body = "Full description of this output"
-        )
-        private OutputChild child;
-    }
-
-    @Builder
-    @Getter
-    public static class OutputChild implements org.kestra.core.models.tasks.Output {
-        @OutputProperty(
-            description = "Short description for this output",
-            body = "Full description of this output"
-        )
-        private String value;
-    }
 }
