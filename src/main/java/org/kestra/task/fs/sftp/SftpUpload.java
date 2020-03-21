@@ -1,20 +1,23 @@
 package org.kestra.task.fs.sftp;
 
-import lombok.*;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.vfs2.*;
-import org.kestra.core.exceptions.IllegalVariableEvaluationException;
 import org.kestra.core.models.annotations.Documentation;
+import org.kestra.core.models.annotations.InputProperty;
+import org.kestra.core.models.tasks.RunnableTask;
 import org.kestra.core.runners.RunContext;
-import org.kestra.task.fs.Output;
-import org.kestra.task.fs.VfsTask;
-import org.kestra.task.fs.VfsTaskException;
-import org.kestra.task.fs.auths.Auth;
 import org.slf4j.Logger;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.net.URI;
 
 @SuperBuilder
@@ -23,23 +26,32 @@ import java.net.URI;
 @Getter
 @NoArgsConstructor
 @Documentation(
-        description = "Download file from Sftp server to local file system",
-        body = "This task connects to remote sftp server and copy file to local file system with given inputs"
+    description = "Upload a file to a sftp server",
+    body = "This task connects to remote sftp server and upload a file from kestra storage"
 )
-public class SftpUpload extends VfsTask {
-    public Output run(RunContext runContext) throws Exception {
+public class SftpUpload extends AbstractSftpTask implements RunnableTask<SftpOutput> {
+    @InputProperty(
+        description = "The file path to copy",
+        dynamic = true
+    )
+    private String from;
+
+    @InputProperty(
+        description = "The destination path",
+        dynamic = true
+    )
+    private String to;
+
+    @SuppressWarnings({"CaughtExceptionImmediatelyRethrown"})
+    public SftpOutput run(RunContext runContext) throws Exception {
         Logger logger = runContext.logger(getClass());
+
+        //noinspection resource never close the global instance
         FileSystemManager fsm = VFS.getManager();
 
-        // auth
-        auth = new Auth(runContext, this);
-        host = runContext.render(host);
-        port = runContext.render(port);
-        options = new FileSystemOptions();
-
         // from & to
-        String toPath = runContext.render(this.getTo());
-        URI to = new URI(auth.getSftpUri(toPath));
+        String toPath = runContext.render(this.to);
+        URI to = new URI(this.sftpUri(runContext, toPath));
         URI from = new URI(runContext.render(this.from));
 
         // copy from to a temp files
@@ -48,31 +60,32 @@ public class SftpUpload extends VfsTask {
             "." + FilenameUtils.getExtension(from.getPath())
         );
 
-        try (OutputStream outputStream = new FileOutputStream(tempFile)){
+        // copy from to a temp file
+        try (OutputStream outputStream = new FileOutputStream(tempFile)) {
             IOUtils.copy(runContext.uriToInputStream(from), outputStream);
         }
 
-        SftpOptions sftpOptions = new SftpOptions(this);
-        sftpOptions.addFsOptions();
+        // connection options
+        FileSystemOptions options = this.fsOptions(runContext);
 
+        // upload
         try {
-            FileObject local = fsm.resolveFile(tempFile.toURI());
-            FileObject remote = fsm.resolveFile(to.toString(), options);
-            remote.copyFrom(local, Selectors.SELECT_SELF);
-            local.close();
-            remote.close();
+            try (FileObject local = fsm.resolveFile(tempFile.toURI());
+                 FileObject remote = fsm.resolveFile(to.toString(), options);
+            ) {
+                remote.copyFrom(local, Selectors.SELECT_SELF);
+            }
+
+            logger.debug("File '{}' uploaded to '{}'", from, to);
+
+            return SftpOutput.builder()
+                .from(from)
+                .to(to)
+                .build();
         } catch (IOException error) {
             throw error;
         } finally {
-            sftpOptions.cleanup();
-            tempFile.delete();
+           //  cleanup.run();
         }
-
-        logger.info("file {} uploaded to sftp {}", from, to);
-
-        return Output.builder()
-            .from(from)
-            .to(to)
-            .build();
     }
 }

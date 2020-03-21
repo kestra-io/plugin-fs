@@ -1,20 +1,20 @@
 package org.kestra.task.fs.sftp;
 
-import lombok.*;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.vfs2.*;
-import org.kestra.core.exceptions.IllegalVariableEvaluationException;
 import org.kestra.core.models.annotations.Documentation;
+import org.kestra.core.models.annotations.InputProperty;
+import org.kestra.core.models.tasks.RunnableTask;
 import org.kestra.core.runners.RunContext;
-import org.kestra.task.fs.Output;
-import org.kestra.task.fs.VfsTask;
-import org.kestra.task.fs.VfsTaskException;
-import org.kestra.task.fs.auths.Auth;
 import org.slf4j.Logger;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
 import java.net.URI;
 
 @SuperBuilder
@@ -23,50 +23,56 @@ import java.net.URI;
 @Getter
 @NoArgsConstructor
 @Documentation(
-    description = "Download file from Sftp server to local file system",
-    body = "This task connects to remote sftp server and copy file to local file system with given inputs"
+    description = "Download file from sftp server",
+    body = "This task connects to remote sftp server and copy file to kestra file storage"
 )
-public class SftpDownload extends VfsTask {
-    public Output run(RunContext runContext) throws Exception {
+public class SftpDownload extends AbstractSftpTask implements RunnableTask<SftpOutput> {
+    @InputProperty(
+        description = "The fully-qualified URIs that point to destination path",
+        dynamic = true
+    )
+    protected String from;
+
+    @SuppressWarnings({"CaughtExceptionImmediatelyRethrown"})
+    public SftpOutput run(RunContext runContext) throws Exception {
         Logger logger = runContext.logger(getClass());
+
+        //noinspection resource never close the global instance
         FileSystemManager fsm = VFS.getManager();
 
-        // auth
-        auth = new Auth(runContext, this);
-        options = new FileSystemOptions();
+        // path
+        URI from = new URI(this.sftpUri(runContext, this.from));
 
-        // from
-        String fromPath = runContext.render(this.getFrom());
-        URI from = new URI(auth.getSftpUri(fromPath));
-
-        // copy from to a temp files
+        // temp file where download will be copied
         File tempFile = File.createTempFile(
             this.getClass().getSimpleName().toLowerCase() + "_",
             "." + FilenameUtils.getExtension(from.getPath())
         );
 
-        SftpOptions sftpOptions = new SftpOptions(this);
-        sftpOptions.addFsOptions();
-        URI storageUri = null;
+        // connection options
+        FileSystemOptions options = this.fsOptions(runContext);
+
+        // download
         try {
-            FileObject local = fsm.resolveFile(tempFile.toURI());
-            FileObject remote = fsm.resolveFile(from.toString(), options);
-            local.copyFrom(remote, Selectors.SELECT_SELF);
-            local.close();
-            remote.close();
-            storageUri = runContext.putTempFile(tempFile);
+            try (
+                FileObject local = fsm.resolveFile(tempFile.toURI());
+                FileObject remote = fsm.resolveFile(from.toString(), options)
+            ) {
+                local.copyFrom(remote, Selectors.SELECT_SELF);
+            }
+
+            URI storageUri = runContext.putTempFile(tempFile);
+
+            logger.debug("File '{}' download to '{}'", from, storageUri);
+
+            return SftpOutput.builder()
+                .from(from)
+                .to(storageUri)
+                .build();
         } catch (IOException error) {
             throw error;
         } finally {
-            sftpOptions.cleanup();
-            tempFile.delete();
+            //  cleanup.run();
         }
-
-        logger.info("file {} uploaded to sftp {}", from, storageUri);
-
-        return Output.builder()
-            .from(from)
-            .to(storageUri)
-            .build();
     }
 }

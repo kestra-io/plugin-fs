@@ -8,13 +8,14 @@ import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.Test;
 import org.kestra.core.runners.RunContext;
 import org.kestra.core.storages.StorageInterface;
-import org.kestra.task.fs.Output;
 
 import javax.inject.Inject;
 import java.io.*;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Objects;
+import java.util.UUID;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -28,32 +29,38 @@ class SftpTest {
     private StorageInterface storageInterface;
 
     @Test
-    void run() throws Exception {
-        testSftp(true);
+    void password() throws Exception {
         testSftp(false);
+    }
+
+    @Test
+    void authKey() throws Exception {
+        testSftp(true);
     }
 
     void testSftp(Boolean keyAuth) throws Exception {
         File applicationFile = new File(Objects.requireNonNull(SftpTest.class.getClassLoader()
             .getResource("application.yml"))
-            .toURI());
+            .toURI()
+        );
         URI source = storageInterface.put(
             new URI("/" + FriendlyId.createFriendlyId()),
             new FileInputStream(applicationFile)
         );
+        RunContext runContext = new RunContext(this.applicationContext, new HashMap<>());
 
-        String sftpPath = "upload/testSftpSource";
+        String sftpPath = "upload/" + UUID.randomUUID().toString();
 
+        File file = new File(System.getProperty("user.dir") + "/id_rsa");
+        byte[] data;
+        try (FileInputStream fis = new FileInputStream(file)) {
+            data = new byte[(int) file.length()];
+            fis.read(data);
+        }
+        String keyFileContent = new String(data, StandardCharsets.UTF_8);
 
-        File file = new File(System.getProperty("user.home") + "/.ssh/id_rsa");
-        FileInputStream fis = new FileInputStream(file);
-        byte[] data = new byte[(int) file.length()];
-        fis.read(data);
-        fis.close();
-        String keyFileContent = new String(data, "UTF-8");
-
-        RunContext runContextUpload = new RunContext(this.applicationContext, new HashMap<String, Object>());
-        var ulbuild = SftpUpload.builder()
+        // Upload task
+        var uploadTask = SftpUpload.builder()
             .from(source.toString())
             .to(sftpPath)
             .host("localhost")
@@ -61,30 +68,33 @@ class SftpTest {
             .username("foo");
 
         if (keyAuth) {
-            ulbuild.keyfile(keyFileContent).passPhrase("testPassPhrase");
+            uploadTask = uploadTask
+                .keyfile(keyFileContent)
+                .passphrase("testPassPhrase");
         } else {
-            ulbuild.password("pass");
+            uploadTask.password("pass");
         }
-        SftpUpload taskUpload = ulbuild.build();
-        Output runOutputUpload = taskUpload.run(runContextUpload);
 
-        new HashMap<String, Object>();
-        String localPathCheck = "/tmp/sftp_test_file_download";
-        var dlbuild = SftpDownload.builder()
+        SftpUpload taskUpload = uploadTask.build();
+        taskUpload.run(runContext);
+
+        // Download task
+        var downloadTask = SftpDownload.builder()
             .from(sftpPath)
             .host("localhost")
             .port("6622")
             .username("foo");
 
         if (keyAuth) {
-            dlbuild.keyfile(keyFileContent).passPhrase("testPassPhrase");
+            downloadTask = downloadTask
+                .keyfile(keyFileContent);
+               //  .passphrase("testPassPhrase");
         } else {
-            ulbuild.password("pass");
+            downloadTask = downloadTask.password("pass");
         }
-        SftpDownload taskDownload = dlbuild.build();
 
-        RunContext runContextDownload = new RunContext(this.applicationContext, new HashMap<String, Object>());
-        Output runOutputDownload = taskDownload.run(runContextDownload);
+        SftpDownload taskDownload = downloadTask.build();
+        SftpOutput runOutputDownload = taskDownload.run(runContext);
         URI to = runOutputDownload.getTo();
 
         // copy from to a temp files
@@ -94,20 +104,24 @@ class SftpTest {
         );
 
         try (OutputStream outputStream = new FileOutputStream(tempFile)) {
-            IOUtils.copy(runContextDownload.uriToInputStream(to), outputStream);
+            IOUtils.copy(runContext.uriToInputStream(to), outputStream);
         }
 
-        //load transfered file
-        FileInputStream fisCheck = new FileInputStream(tempFile);
-        byte[] dataCheck = new byte[(int) tempFile.length()];
-        fisCheck.read(dataCheck);
-        fisCheck.close();
-        //load source file
-        FileInputStream fisCheckCompare = new FileInputStream(applicationFile);
-        byte[] dataCheckCompare = new byte[(int) applicationFile.length()];
-        fisCheckCompare.read(dataCheckCompare);
-        fisCheckCompare.close();
+        // load transfered file
+        byte[] dataCheck;
+        try (FileInputStream fisCheck = new FileInputStream(tempFile)) {
+            dataCheck = new byte[(int) tempFile.length()];
+            fisCheck.read(dataCheck);
+        }
+
+        // load source file
+        byte[] dataCheckCompare;
+        try (FileInputStream fisCheckCompare = new FileInputStream(applicationFile)) {
+            dataCheckCompare = new byte[(int) applicationFile.length()];
+            fisCheckCompare.read(dataCheckCompare);
+        }
+
         //compare content with go and back on sftp server
-        assertThat(new String(dataCheck, "UTF-8"), is(new String(dataCheckCompare, "UTF-8")));
+        assertThat(new String(dataCheck, StandardCharsets.UTF_8), is(new String(dataCheckCompare, StandardCharsets.UTF_8)));
     }
 }
