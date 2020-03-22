@@ -1,9 +1,6 @@
 package org.kestra.task.fs.sftp;
 
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
+import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.vfs2.FileSystemOptions;
 import org.apache.commons.vfs2.provider.sftp.IdentityInfo;
@@ -60,7 +57,7 @@ public abstract class AbstractSftpTask extends AbstractVfsTask {
             "/" + runContext.render(filepath);
     }
 
-    protected FileSystemOptions fsOptions(RunContext runContext) throws IOException, IllegalVariableEvaluationException {
+    protected FsOptionWithCleanUp fsOptions(RunContext runContext) throws IOException, IllegalVariableEvaluationException {
         SftpFileSystemConfigBuilder instance = SftpFileSystemConfigBuilder.getInstance();
 
         FileSystemOptions options = new FileSystemOptions();
@@ -84,8 +81,17 @@ public abstract class AbstractSftpTask extends AbstractVfsTask {
             }
 
             instance.setIdentityProvider(options, identityInfo);
-        }
 
-        return options;
+            return new FsOptionWithCleanUp(options, sftpKey::delete);
+        } else {
+            return new FsOptionWithCleanUp(options, () -> {});
+        }
+    }
+
+    @AllArgsConstructor
+    @Getter
+    public static class FsOptionWithCleanUp {
+        private FileSystemOptions options;
+        private Runnable cleanup;
     }
 }

@@ -50,13 +50,13 @@ public class SftpDownload extends AbstractSftpTask implements RunnableTask<SftpO
         );
 
         // connection options
-        FileSystemOptions options = this.fsOptions(runContext);
+        FsOptionWithCleanUp fsOptionWithCleanUp = this.fsOptions(runContext);
 
         // download
         try {
             try (
                 FileObject local = fsm.resolveFile(tempFile.toURI());
-                FileObject remote = fsm.resolveFile(from.toString(), options)
+                FileObject remote = fsm.resolveFile(from.toString(), fsOptionWithCleanUp.getOptions())
             ) {
                 local.copyFrom(remote, Selectors.SELECT_SELF);
             }
@@ -72,7 +72,7 @@ public class SftpDownload extends AbstractSftpTask implements RunnableTask<SftpO
         } catch (IOException error) {
             throw error;
         } finally {
-            //  cleanup.run();
+            fsOptionWithCleanUp.getCleanup().run();
         }
     }
 }
