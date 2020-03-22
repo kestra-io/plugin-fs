@@ -19,5 +19,7 @@
 
     <logger name="org.kestra" level="INFO" />
     <logger name="flow" level="INFO" />
+    <logger name="com.jcraft" level="TRACE" />
+    <logger name="org.apache.commons.vfs2" level="TRACE" />
 
 </configuration>

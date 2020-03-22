@@ -19,6 +19,13 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      # Services
+      - name: Build the docker-compose stack
+        run: |
+          ssh-keygen -f id_rsa -q -N "" -P "testPassPhrase"
+          docker-compose -f docker-compose-ci.yml up -d
+          docker exec task-fs_sftp_1 chown -R foo /home/foo/upload
+
       # Caches
       - name: Gradle cache
         uses: actions/cache@v1
@@ -45,3 +52,23 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew check --no-daemon
 
+      # Publish package
+      - name: Publish package
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          BINTRAY_USER: ${{ secrets.BINTRAY_USER }}
+          BINTRAY_KEY: ${{ secrets.BINTRAY_KEY }}
+        run: ./gradlew bintrayUpload --parallel --no-daemon
+
+      # Slack
+      - name: Slack notification
+        uses: 8398a7/action-slack@v2
+        if: always()
+        with:
+          status: ${{ job.status }}
+          username: Github Actions
+          icon_emoji: ':octocat:'
+          channel: '#kestra'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
