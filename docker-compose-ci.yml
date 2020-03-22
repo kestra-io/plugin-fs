@@ -2,9 +2,9 @@ version: "3.6"
 
 services:
   sftp:
-    build: docker/sftp
+    image: atmoz/sftp
     ports:
       - "6622:22"
-    command: foo:pass:1001
+    command: "foo:pass:1001:1001:upload"
     volumes:
       - ${PWD}/id_rsa.pub:/home/foo/.ssh/authorized_keys

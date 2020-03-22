@@ -19,15 +19,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Create local ssh key for unit tests purposes
-        run: |
-          ssh-keygen -f id_rsa -q -N "" -P ""
-          ls -lh
-          pwd
-
       # Services
       - name: Build the docker-compose stack
-        run: docker-compose -f docker-compose-ci.yml up -d
+        run: |
+          ssh-keygen -f id_rsa -q -N "" -P "testPassPhrase"
+          docker-compose -f docker-compose-ci.yml up -d
+          docker exec task-fs_sftp_1 chown -R foo /home/foo/upload
 
       # Caches
       - name: Gradle cache

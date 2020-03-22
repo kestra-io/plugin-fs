@@ -87,8 +87,8 @@ class SftpTest {
 
         if (keyAuth) {
             downloadTask = downloadTask
-                .keyfile(keyFileContent);
-               //  .passphrase("testPassPhrase");
+                .keyfile(keyFileContent)
+                .passphrase("testPassPhrase");
         } else {
             downloadTask = downloadTask.password("pass");
         }
