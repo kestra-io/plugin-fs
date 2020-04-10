@@ -29,7 +29,7 @@ import java.net.URI;
     description = "Upload a file to a sftp server",
     body = "This task connects to remote sftp server and upload a file from kestra storage"
 )
-public class SftpUpload extends AbstractSftpTask implements RunnableTask<SftpOutput> {
+public class Upload extends AbstractSftpTask implements RunnableTask<SftpOutput> {
     @InputProperty(
         description = "The file path to copy",
         dynamic = true

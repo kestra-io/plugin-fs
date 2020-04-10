@@ -26,7 +26,7 @@ import java.net.URI;
     description = "Download file from sftp server",
     body = "This task connects to remote sftp server and copy file to kestra file storage"
 )
-public class SftpDownload extends AbstractSftpTask implements RunnableTask<SftpOutput> {
+public class Download extends AbstractSftpTask implements RunnableTask<SftpOutput> {
     @InputProperty(
         description = "The fully-qualified URIs that point to destination path",
         dynamic = true

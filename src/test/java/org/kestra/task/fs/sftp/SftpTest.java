@@ -60,7 +60,7 @@ class SftpTest {
         String keyFileContent = new String(data, StandardCharsets.UTF_8);
 
         // Upload task
-        var uploadTask = SftpUpload.builder()
+        var uploadTask = Upload.builder()
             .from(source.toString())
             .to(sftpPath)
             .host("localhost")
@@ -75,11 +75,11 @@ class SftpTest {
             uploadTask.password("pass");
         }
 
-        SftpUpload taskUpload = uploadTask.build();
+        Upload taskUpload = uploadTask.build();
         taskUpload.run(runContext);
 
         // Download task
-        var downloadTask = SftpDownload.builder()
+        var downloadTask = Download.builder()
             .from(sftpPath)
             .host("localhost")
             .port("6622")
@@ -93,7 +93,7 @@ class SftpTest {
             downloadTask = downloadTask.password("pass");
         }
 
-        SftpDownload taskDownload = downloadTask.build();
+        Download taskDownload = downloadTask.build();
         SftpOutput runOutputDownload = taskDownload.run(runContext);
         URI to = runOutputDownload.getTo();
 
