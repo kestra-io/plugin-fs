@@ -89,6 +89,7 @@ dependencies {
 
     // libs
     testImplementation group: 'com.devskiller.friendly-id', name: 'friendly-id', version: '1.1.0'
+    testImplementation "io.micronaut:micronaut-http-server-netty"
 }
 
 /**********************************************************************************************************************\
