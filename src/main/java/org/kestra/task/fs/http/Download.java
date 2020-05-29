@@ -1,19 +1,15 @@
 package org.kestra.task.fs.http;
 
-import io.micronaut.http.HttpMethod;
 import io.micronaut.http.HttpRequest;
-import io.micronaut.http.MutableHttpRequest;
 import io.micronaut.http.client.DefaultHttpClient;
-import io.micronaut.http.client.DefaultHttpClientConfiguration;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.io.FilenameUtils;
 import org.kestra.core.models.annotations.Documentation;
-import org.kestra.core.models.annotations.InputProperty;
+import org.kestra.core.models.annotations.Example;
 import org.kestra.core.models.annotations.OutputProperty;
 import org.kestra.core.models.executions.metrics.Counter;
 import org.kestra.core.models.tasks.RunnableTask;
-import org.kestra.core.models.tasks.Task;
 import org.kestra.core.runners.RunContext;
 import org.slf4j.Logger;
 
@@ -33,35 +29,18 @@ import java.util.Map;
     description = "Download file from http server",
     body = "This task connects to http server and copy file to kestra file storage"
 )
-public class Download extends Task implements RunnableTask<Download.Output> {
-    @InputProperty(
-        description = "The fully-qualified URIs that point to destination http server",
-        dynamic = true
-    )
-    protected String uri;
-
-    @InputProperty(
-        description = "The http method to use"
-    )
-    @Builder.Default
-    protected HttpMethod method = HttpMethod.GET;
-
-    @InputProperty(
-        description = "The full body as string",
-        dynamic = true
-    )
-    protected String body;
-
-    @InputProperty(
-        description = "The header to pass to current request"
-    )
-    protected Map<CharSequence, CharSequence> headers;
-
+@Example(
+    code = {
+        "headers: ",
+        "  user-agent: \"kestra-io\"",
+        "uri: \"https://server.com/file\""
+    }
+)
+public class Download extends AbstractHttp implements RunnableTask<Download.Output> {
     public Download.Output run(RunContext runContext) throws Exception {
         Logger logger = runContext.logger(getClass());
-
-        // path
         URI from = new URI(runContext.render(this.uri));
+
 
         // temp file where download will be copied
         File tempFile = File.createTempFile(
@@ -69,31 +48,17 @@ public class Download extends Task implements RunnableTask<Download.Output> {
             "." + FilenameUtils.getExtension(from.getPath())
         );
 
-        // @todo
-        // configuration
-        DefaultHttpClientConfiguration configuration = new DefaultHttpClientConfiguration();
-        // configuration.setSslConfiguration(new SslConfiguration());
-
-        // request
-        MutableHttpRequest<String> request = HttpRequest
-            .create(method, from.toString());
-
-        if (this.body != null) {
-            request.body(runContext.render(body));
-        }
-
-        if (this.headers != null) {
-            request.headers(this.headers);
-        }
-
         // output
         Output.OutputBuilder builder = Output.builder();
 
         // do it
         try (
-            DefaultHttpClient client = new DefaultHttpClient(from.toURL(), configuration);
+            DefaultHttpClient client = this.client(runContext);
             BufferedOutputStream output = new BufferedOutputStream(new FileOutputStream(tempFile));
         ) {
+            @SuppressWarnings("unchecked")
+            HttpRequest<String> request = this.request(runContext);
+
             Long size = client
                 .exchangeStream(request)
                 .map(response -> {
@@ -124,7 +89,7 @@ public class Download extends Task implements RunnableTask<Download.Output> {
 
             output.flush();
 
-            runContext.metric(Counter.of("content.length", size));
+            runContext.metric(Counter.of("response.length", size, this.tags(request, null)));
             builder.uri(runContext.putTempFile(tempFile));
 
             logger.debug("File '{}' download to '{}'", from, builder.uri);
