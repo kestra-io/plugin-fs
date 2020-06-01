@@ -100,7 +100,7 @@ public class Request extends AbstractHttp implements RunnableTask<Request.Output
     @Getter
     public static class Output implements org.kestra.core.models.tasks.Output {
         @OutputProperty(
-            description = "The url of the downloaded file on kestra storage"
+            description = "The url of the current request"
         )
         private final URI uri;
 
