@@ -11,6 +11,7 @@ import io.micronaut.runtime.server.EmbeddedServer;
 import io.micronaut.test.annotation.MicronautTest;
 import org.junit.jupiter.api.Test;
 import org.kestra.core.runners.RunContext;
+import org.kestra.core.runners.RunContextFactory;
 import org.kestra.core.utils.TestsUtils;
 
 import java.net.URI;
@@ -23,7 +24,7 @@ import static org.hamcrest.Matchers.is;
 class RequestTest {
     public static final String FILE = "http://www.mocky.io/v2/5ed0ce483500009300ff9f55";
     @Inject
-    private ApplicationContext applicationContext;
+    private RunContextFactory runContextFactory;
 
     @Test
     void run() throws Exception {
@@ -35,7 +36,7 @@ class RequestTest {
             .uri(url)
             .build();
 
-        RunContext runContext = TestsUtils.mockRunContext(this.applicationContext, task, ImmutableMap.of());
+        RunContext runContext = TestsUtils.mockRunContext(this.runContextFactory, task, ImmutableMap.of());
 
         Request.Output output = task.run(runContext);
 
@@ -55,7 +56,7 @@ class RequestTest {
             .allowFailed(true)
             .build();
 
-        RunContext runContext = TestsUtils.mockRunContext(this.applicationContext, task, ImmutableMap.of());
+        RunContext runContext = TestsUtils.mockRunContext(this.runContextFactory, task, ImmutableMap.of());
 
         Request.Output output = task.run(runContext);
 
@@ -81,7 +82,7 @@ class RequestTest {
                 .build();
 
 
-            RunContext runContext = TestsUtils.mockRunContext(this.applicationContext, task, ImmutableMap.of());
+            RunContext runContext = TestsUtils.mockRunContext(this.runContextFactory, task, ImmutableMap.of());
 
             Request.Output output = task.run(runContext);
 

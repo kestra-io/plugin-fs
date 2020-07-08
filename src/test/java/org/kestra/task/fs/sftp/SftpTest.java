@@ -1,21 +1,23 @@
 package org.kestra.task.fs.sftp;
 
 import com.devskiller.friendly_id.FriendlyId;
-import io.micronaut.context.ApplicationContext;
 import io.micronaut.test.annotation.MicronautTest;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.Test;
 import org.kestra.core.runners.RunContext;
+import org.kestra.core.runners.RunContextFactory;
 import org.kestra.core.storages.StorageInterface;
 
-import javax.inject.Inject;
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
 import java.util.Objects;
 import java.util.UUID;
+import javax.inject.Inject;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -23,7 +25,7 @@ import static org.hamcrest.Matchers.is;
 @MicronautTest
 class SftpTest {
     @Inject
-    private ApplicationContext applicationContext;
+    private RunContextFactory runContextFactory;
 
     @Inject
     private StorageInterface storageInterface;
@@ -47,7 +49,7 @@ class SftpTest {
             new URI("/" + FriendlyId.createFriendlyId()),
             new FileInputStream(applicationFile)
         );
-        RunContext runContext = new RunContext(this.applicationContext, new HashMap<>());
+        RunContext runContext = runContextFactory.of();
 
         String sftpPath = "upload/" + UUID.randomUUID().toString();
 
