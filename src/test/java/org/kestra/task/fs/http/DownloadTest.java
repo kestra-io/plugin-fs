@@ -1,11 +1,11 @@
 package org.kestra.task.fs.http;
 
 import com.google.common.collect.ImmutableMap;
-import io.micronaut.context.ApplicationContext;
 import io.micronaut.test.annotation.MicronautTest;
 import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.Test;
 import org.kestra.core.runners.RunContext;
+import org.kestra.core.runners.RunContextFactory;
 import org.kestra.core.storages.StorageInterface;
 import org.kestra.core.utils.TestsUtils;
 
@@ -20,7 +20,7 @@ import static org.hamcrest.Matchers.is;
 class DownloadTest {
     public static final String FILE = "https://file-examples.com/wp-content/uploads/2017/02/file_example_CSV_5000.csv";
     @Inject
-    private ApplicationContext applicationContext;
+    private RunContextFactory runContextFactory;
 
     @Inject
     private StorageInterface storageInterface;
@@ -33,7 +33,7 @@ class DownloadTest {
             .uri(FILE)
             .build();
 
-        RunContext runContext = TestsUtils.mockRunContext(this.applicationContext, task, ImmutableMap.of());
+        RunContext runContext = TestsUtils.mockRunContext(this.runContextFactory, task, ImmutableMap.of());
 
         Download.Output output = task.run(runContext);
 
