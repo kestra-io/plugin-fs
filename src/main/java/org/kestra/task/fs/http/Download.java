@@ -60,25 +60,17 @@ public class Download extends AbstractHttp implements RunnableTask<Download.Outp
             HttpRequest<String> request = this.request(runContext);
 
             Long size = client
-                .exchangeStream(request)
-                .map(response -> {
-                    if (builder.code == null) {
-                        builder
-                            .code(response.code())
-                            .headers(response.getHeaders().asMap());
-                    }
+                .dataStream(request)
+                .map(body -> {
+                    byte[] bytes = body.toByteArray();
+                    output.write(body.toByteArray());
 
-                    if (response.getBody().isPresent()) {
-                        byte[] bytes = response.getBody().get().toByteArray();
-                        output.write(bytes);
-
-                        return (long) bytes.length;
-                    } else {
-                        return 0L;
-                    }
+                    return (long) bytes.length;
                 })
                 .reduce(Long::sum)
                 .blockingGet();
+
+            output.flush();
 
             if (builder.headers.containsKey("Content-Length")) {
                 long length = Long.parseLong(builder.headers.get("Content-Length").get(0));
