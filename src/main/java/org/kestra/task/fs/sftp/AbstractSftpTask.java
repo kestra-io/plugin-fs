@@ -46,7 +46,19 @@ public abstract class AbstractSftpTask extends AbstractVfsTask {
     protected String passphrase;
 
     protected String basicAuth(RunContext runContext) throws IllegalVariableEvaluationException {
-        return password != null ? runContext.render(username) + ":" + runContext.render(password) + "@" : runContext.render(username) + "@";
+        String username = runContext.render(this.username);
+        String password = runContext.render(this.password);
+
+        if (username != null && password != null) {
+            return username + ":" + password + "@";
+        }
+
+        if (username != null) {
+            return username + "@";
+
+        }
+
+        return "";
     }
 
     protected String sftpUri(RunContext runContext, String filepath) throws IllegalVariableEvaluationException {
