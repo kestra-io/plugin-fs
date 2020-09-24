@@ -44,7 +44,7 @@ public class Upload extends AbstractSftpTask implements RunnableTask<SftpOutput>
 
     @SuppressWarnings({"CaughtExceptionImmediatelyRethrown"})
     public SftpOutput run(RunContext runContext) throws Exception {
-        Logger logger = runContext.logger(getClass());
+        Logger logger = runContext.logger();
 
         //noinspection resource never close the global instance
         FileSystemManager fsm = VFS.getManager();

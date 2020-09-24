@@ -49,7 +49,7 @@ public class Request extends AbstractHttp implements RunnableTask<Request.Output
     protected boolean allowFailed = false;
 
     public Request.Output run(RunContext runContext) throws Exception {
-        Logger logger = runContext.logger(getClass());
+        Logger logger = runContext.logger();
 
         try (
             DefaultHttpClient client = this.client(runContext);
