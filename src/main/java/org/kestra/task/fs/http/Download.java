@@ -38,7 +38,7 @@ import java.util.Map;
 )
 public class Download extends AbstractHttp implements RunnableTask<Download.Output> {
     public Download.Output run(RunContext runContext) throws Exception {
-        Logger logger = runContext.logger(getClass());
+        Logger logger = runContext.logger();
         URI from = new URI(runContext.render(this.uri));
 
 
