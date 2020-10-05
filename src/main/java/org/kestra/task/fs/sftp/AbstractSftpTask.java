@@ -77,6 +77,8 @@ public abstract class AbstractSftpTask extends AbstractVfsTask {
         instance.setStrictHostKeyChecking(options, "no");
         instance.setUserDirIsRoot(options, true);
         instance.setSessionTimeoutMillis(options, 10000);
+        // see https://issues.apache.org/jira/browse/VFS-766
+        instance.setDisableDetectExecChannel(options, true);
 
         String keyContent = runContext.render(this.keyfile);
         if (keyContent != null) {
