@@ -1,0 +1,19 @@
+id: sftp-listen
+namespace: org.kestra.tests
+
+triggers:
+  - id: watch
+    type: org.kestra.task.fs.sftp.Trigger
+    host: localhost
+    port: 6622
+    username: foo
+    password: pass
+    from: "/upload/{{ globals.random }}/"
+    interval: PT10S
+    action: MOVE
+    moveDirectory: "/upload/{{ globals.random }}-move/"
+
+tasks:
+  - id: end
+    type: org.kestra.core.tasks.debugs.Return
+    format: "{{task.id}} > {{taskrun.startDate}}"
