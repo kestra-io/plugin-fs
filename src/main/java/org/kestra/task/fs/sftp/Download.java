@@ -33,33 +33,20 @@ public class Download extends AbstractSftpTask implements RunnableTask<SftpOutpu
     )
     protected String from;
 
-    @SuppressWarnings({"CaughtExceptionImmediatelyRethrown"})
     public SftpOutput run(RunContext runContext) throws Exception {
         Logger logger = runContext.logger();
 
-        //noinspection resource never close the global instance
         FileSystemManager fsm = VFS.getManager();
 
         // path
         URI from = new URI(this.sftpUri(runContext, this.from));
-
-        // temp file where download will be copied
-        File tempFile = File.createTempFile(
-            this.getClass().getSimpleName().toLowerCase() + "_",
-            "." + FilenameUtils.getExtension(from.getPath())
-        );
 
         // connection options
         FsOptionWithCleanUp fsOptionWithCleanUp = this.fsOptions(runContext);
 
         // download
         try {
-            try (
-                FileObject local = fsm.resolveFile(tempFile.toURI());
-                FileObject remote = fsm.resolveFile(from.toString(), fsOptionWithCleanUp.getOptions())
-            ) {
-                local.copyFrom(remote, Selectors.SELECT_SELF);
-            }
+            File tempFile = download(fsm, fsOptionWithCleanUp.getOptions(), from);
 
             URI storageUri = runContext.putTempFile(tempFile);
 
@@ -69,10 +56,26 @@ public class Download extends AbstractSftpTask implements RunnableTask<SftpOutpu
                 .from(from)
                 .to(storageUri)
                 .build();
-        } catch (IOException error) {
-            throw error;
         } finally {
             fsOptionWithCleanUp.getCleanup().run();
         }
+    }
+
+    static File download(FileSystemManager fsm, FileSystemOptions fileSystemOptions, URI from) throws IOException {
+        // temp file where download will be copied
+        File tempFile = File.createTempFile(
+            Download.class.getSimpleName().toLowerCase() + "_",
+            "." + FilenameUtils.getExtension(from.getPath())
+        );
+
+        try (
+            FileObject local = fsm.resolveFile(tempFile.toURI());
+            FileObject remote = fsm.resolveFile(from.toString(), fileSystemOptions)
+        ) {
+            local.copyFrom(remote, Selectors.SELECT_SELF);
+        }
+
+        return tempFile;
+
     }
 }
