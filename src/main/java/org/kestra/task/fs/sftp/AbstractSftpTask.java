@@ -2,6 +2,8 @@ package org.kestra.task.fs.sftp;
 
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.vfs2.FileSystemOptions;
 import org.apache.commons.vfs2.provider.sftp.IdentityInfo;
 import org.apache.commons.vfs2.provider.sftp.SftpFileSystemConfigBuilder;
@@ -13,6 +15,8 @@ import org.kestra.task.fs.AbstractVfsTask;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 @SuperBuilder
 @ToString
@@ -46,8 +50,16 @@ public abstract class AbstractSftpTask extends AbstractVfsTask {
     protected String passphrase;
 
     protected String basicAuth(RunContext runContext) throws IllegalVariableEvaluationException {
-        String username = runContext.render(this.username);
-        String password = runContext.render(this.password);
+        return basicAuth(
+            runContext,
+            this.username,
+            this.password
+        );
+    }
+
+    static String basicAuth(RunContext runContext, String username, String password) throws IllegalVariableEvaluationException {
+        username = runContext.render(username);
+        password = runContext.render(password);
 
         if (username != null && password != null) {
             return username + ":" + password + "@";
@@ -62,14 +74,26 @@ public abstract class AbstractSftpTask extends AbstractVfsTask {
     }
 
     protected String sftpUri(RunContext runContext, String filepath) throws IllegalVariableEvaluationException {
+        return sftpUri(runContext, this.host, this.port, this.username , this.password, filepath);
+    }
+
+    static String sftpUri(RunContext runContext, String host, String port, String username, String password, String filepath) throws IllegalVariableEvaluationException {
         return "sftp://" +
-            basicAuth(runContext) +
+            basicAuth(runContext, username, password) +
             runContext.render(host) +
             ":" + runContext.render(port) +
-            "/" + runContext.render(filepath);
+            "/" + StringUtils.stripStart(runContext.render(filepath), "/");
     }
 
     protected FsOptionWithCleanUp fsOptions(RunContext runContext) throws IOException, IllegalVariableEvaluationException {
+        return fsOptions(
+            runContext,
+            this.keyfile,
+            this.passphrase
+        );
+    }
+
+    static FsOptionWithCleanUp fsOptions(RunContext runContext, String keyfile, String passphrase) throws IOException, IllegalVariableEvaluationException {
         SftpFileSystemConfigBuilder instance = SftpFileSystemConfigBuilder.getInstance();
 
         FileSystemOptions options = new FileSystemOptions();
@@ -80,7 +104,7 @@ public abstract class AbstractSftpTask extends AbstractVfsTask {
         // see https://issues.apache.org/jira/browse/VFS-766
         instance.setDisableDetectExecChannel(options, true);
 
-        String keyContent = runContext.render(this.keyfile);
+        String keyContent = runContext.render(keyfile);
         if (keyContent != null) {
             File sftpKey = File.createTempFile("sftp-key-", "");
             try (FileWriter myWriter = new FileWriter(sftpKey)) {
@@ -88,8 +112,8 @@ public abstract class AbstractSftpTask extends AbstractVfsTask {
             }
 
             IdentityInfo identityInfo;
-            if (this.getPassphrase() != null) {
-                identityInfo = new IdentityInfo(sftpKey, runContext.render(this.passphrase).getBytes());
+            if (passphrase != null) {
+                identityInfo = new IdentityInfo(sftpKey, runContext.render(passphrase).getBytes());
             } else {
                 identityInfo = new IdentityInfo(sftpKey);
             }
@@ -101,6 +125,20 @@ public abstract class AbstractSftpTask extends AbstractVfsTask {
             return new FsOptionWithCleanUp(options, () -> {});
         }
     }
+
+    protected static URI output(URI uri) throws URISyntaxException {
+        return new URI(
+            uri.getScheme(),
+            uri.getHost(),
+            uri.getPath(),
+            uri.getFragment()
+        );
+    }
+
+    protected static boolean isDirectory(URI uri) {
+        return ("/" + FilenameUtils.getPath(uri.getPath())).equals(uri.getPath());
+    }
+
 
     @AllArgsConstructor
     @Getter
