@@ -9,6 +9,7 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.vfs2.*;
 import org.kestra.core.models.annotations.Documentation;
+import org.kestra.core.models.annotations.Example;
 import org.kestra.core.models.annotations.InputProperty;
 import org.kestra.core.models.tasks.RunnableTask;
 import org.kestra.core.runners.RunContext;
@@ -26,8 +27,17 @@ import java.net.URI;
 @Getter
 @NoArgsConstructor
 @Documentation(
-    description = "Upload a file to a sftp server",
-    body = "This task connects to remote sftp server and upload a file from kestra storage"
+    description = "Upload a file to a sftp server"
+)
+@Example(
+    code = {
+        "host: localhost",
+        "port: 6622",
+        "username: foo",
+        "password: pass",
+        "from: \"{{ outputs.taskid.uri }}\"",
+        "to: \"/upload/dir2/file.txt\"",
+    }
 )
 public class Upload extends AbstractSftpTask implements RunnableTask<SftpOutput> {
     @InputProperty(

@@ -3,9 +3,9 @@ package org.kestra.task.fs.sftp;
 import com.google.common.collect.ImmutableMap;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.vfs2.FileNotFolderException;
 import org.apache.commons.vfs2.FileSystemManager;
+import org.apache.commons.vfs2.FileType;
 import org.apache.commons.vfs2.VFS;
 import org.kestra.core.models.annotations.Documentation;
 import org.kestra.core.models.annotations.Example;
@@ -27,7 +27,6 @@ import java.util.stream.Collectors;
 import javax.annotation.RegEx;
 import javax.validation.constraints.NotNull;
 
-import static org.kestra.core.utils.Rethrow.throwConsumer;
 import static org.kestra.core.utils.Rethrow.throwFunction;
 
 @SuperBuilder
@@ -52,7 +51,7 @@ import static org.kestra.core.utils.Rethrow.throwFunction;
         "      - id: return",
         "        type: org.kestra.core.tasks.debugs.Return",
         "        format: \"{{taskrun.value}}\"",
-        "    value: \"{{ jq trigger '.uri' true }}\"",
+        "    value: \"{{ jq trigger '.files[].uri' true }}\"",
         "",
         "triggers:",
         "  - id: watch",
@@ -61,13 +60,13 @@ import static org.kestra.core.utils.Rethrow.throwFunction;
         "    port: 6622",
         "    username: foo",
         "    password: pass",
-        "    from: \"/upload/{{ globals.random }}/\"",
+        "    from: \"/in/\"",
         "    interval: PT10S",
         "    action: MOVE",
-        "    moveDirectory: \"/upload/{{ globals.random }}-move/\"",
+        "    moveDirectory: \"/archive/\"",
     }
 )
-public class Trigger extends AbstractTrigger implements PollingTriggerInterface {
+public class Trigger extends AbstractTrigger implements PollingTriggerInterface, AbstractSftpInterface {
     @InputProperty(
         description = "The interval between test of triggers"
     )
@@ -123,7 +122,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface 
         dynamic = true
     )
     @NotNull
-    private Action action;
+    private Downloads.Action action;
 
     @InputProperty(
         description = "The destination directory in case off `MOVE` ",
@@ -164,7 +163,14 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface 
             .keyfile(this.keyfile)
             .passphrase(this.passphrase)
             .build();
-        List.Output run = task.run(runContext);
+
+        List.Output run;
+        try {
+            run = task.run(runContext);
+        } catch (FileNotFolderException fileNotFolderException) {
+            logger.debug("From path doesn't exist '{}'", String.join(", ", fileNotFolderException.getInfo()));
+            return Optional.empty();
+        }
 
         if (run.getFiles().size() == 0) {
             return Optional.empty();
@@ -172,9 +178,10 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface 
 
         String executionId = IdUtils.create();
 
-        java.util.List<URI> list = run
+        java.util.List<org.kestra.task.fs.sftp.models.File> list = run
             .getFiles()
             .stream()
+            .filter(file -> file.getFileType() == FileType.FILE)
             .map(throwFunction(file -> {
                 File download = Download.download(
                     fsm,
@@ -190,48 +197,17 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface 
 
                 logger.debug("File '{}' download to '{}'", from, storageUri);
 
-                return storageUri;
+                return file.withPath(storageUri);
             }))
             .collect(Collectors.toList());
 
-        if (this.action == Action.DELETE) {
-            run
-                .getFiles()
-                .forEach(throwConsumer(file -> {
-                    Delete delete = Delete.builder()
-                        .id(this.id)
-                        .type(Delete.class.getName())
-                        .uri(file.getPath().toString())
-                        .host(this.host)
-                        .port(this.port)
-                        .username(this.username)
-                        .password(this.password)
-                        .keyfile(this.keyfile)
-                        .passphrase(this.passphrase)
-                        .build();
-                    delete.run(runContext);
-                }));
-        } else if (this.action == Action.MOVE) {
-            run
-                .getFiles()
-                .forEach(throwConsumer(file -> {
-                    Move copy = Move.builder()
-                        .id(this.id)
-                        .type(Move.class.getName())
-                        .from(file.getPath().toString())
-                        .to(StringUtils.stripEnd(runContext.render(this.moveDirectory) + "/", "/")
-                            + "/" + FilenameUtils.getName(file.getName())
-                        )
-                        .host(this.host)
-                        .port(this.port)
-                        .username(this.username)
-                        .password(this.password)
-                        .keyfile(this.keyfile)
-                        .passphrase(this.passphrase)
-                        .build();
-                    copy.run(runContext);
-                }));
-        }
+        Downloads.archive(
+            run.getFiles(),
+            this.action,
+            this.moveDirectory,
+            this,
+            runContext
+        );
 
         Execution execution = Execution.builder()
             .id(executionId)
@@ -241,16 +217,11 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface 
             .state(new State())
             .variables(ImmutableMap.of(
                 "trigger", ImmutableMap.of(
-                     "uri", list
+                     "files", list
                 )
             ))
             .build();
 
         return Optional.of(execution);
-    }
-
-    public enum Action {
-        MOVE,
-        DELETE
     }
 }

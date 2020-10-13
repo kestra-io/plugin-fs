@@ -3,6 +3,7 @@ package org.kestra.task.fs.sftp.models;
 import com.jcraft.jsch.SftpATTRS;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.With;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.vfs2.FileSystemException;
 import org.apache.commons.vfs2.FileType;
@@ -15,6 +16,7 @@ import java.time.Instant;
 @Getter
 @Builder
 public class File {
+    @With
     private final URI path;
     private final String name;
     private final FileType fileType;
