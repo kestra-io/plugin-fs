@@ -23,7 +23,7 @@ import java.net.URISyntaxException;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-public abstract class AbstractSftpTask extends AbstractVfsTask {
+public abstract class AbstractSftpTask extends AbstractVfsTask implements AbstractSftpInterface {
     @InputProperty(
         description = "Username on the remote server",
         dynamic = true

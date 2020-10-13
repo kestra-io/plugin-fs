@@ -26,7 +26,10 @@ import java.util.NoSuchElementException;
 )
 @Example(
     code = {
-        "type: org.kestra.task.fs.sftp.Delete",
+        "host: localhost",
+        "port: 6622",
+        "username: foo",
+        "password: pass",
         "uri: \"/upload/dir1/file.txt\"",
     }
 )

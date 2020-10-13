@@ -7,6 +7,7 @@ import io.micronaut.context.annotation.Value;
 import io.micronaut.test.annotation.MicronautTest;
 import org.apache.commons.vfs2.FileSystemException;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.kestra.core.models.executions.Execution;
 import org.kestra.core.models.triggers.TriggerContext;
@@ -21,6 +22,7 @@ import org.kestra.core.schedulers.Scheduler;
 import org.kestra.core.services.FlowListenersService;
 import org.kestra.core.utils.ExecutorsUtils;
 import org.kestra.core.utils.TestsUtils;
+import org.kestra.task.fs.sftp.models.File;
 
 import java.io.IOException;
 import java.net.URI;
@@ -111,9 +113,50 @@ class TriggerTest {
             queueCount.await();
 
             @SuppressWarnings("unchecked")
-            java.util.List<URI> trigger = ((Map<String, java.util.List<URI>>) last.get().getVariables().get("trigger")).get("uri");
-
+            java.util.List<File> trigger = ((Map<String, java.util.List<File>>) last.get().getVariables().get("trigger")).get("files");
             assertThat(trigger.size(), is(2));
+        }
+    }
+
+    @Test
+    @Disabled("don't work on github action")
+    void missing() throws Exception {
+        // mock flow listeners
+        CountDownLatch queueCount = new CountDownLatch(1);
+
+        // scheduler
+        try (Scheduler scheduler = new Scheduler(
+            this.applicationContext,
+            this.executorsUtils,
+            this.executionQueue,
+            this.flowListenersService,
+            this.executionRepository,
+            this.triggerContextRepository
+        )) {
+            AtomicReference<Execution> last = new AtomicReference<>();
+
+            // wait for execution
+            executionQueue.receive(TriggerTest.class, execution -> {
+                last.set(execution);
+
+                queueCount.countDown();
+                assertThat(execution.getFlowId(), is("sftp-listen"));
+            });
+
+
+            scheduler.run();
+
+            Thread.sleep(1000);
+
+            String out1 = FriendlyId.createFriendlyId();
+            sftpUtils.upload("/upload/" + random + "/" + out1);
+
+            queueCount.await();
+
+            @SuppressWarnings("unchecked")
+            java.util.List<URI> trigger = ((Map<String, java.util.List<URI>>) last.get().getVariables().get("trigger")).get("files");
+
+            assertThat(trigger.size(), is(1));
         }
     }
 
@@ -127,7 +170,7 @@ class TriggerTest {
             .username("foo")
             .password("pass")
             .from("/upload/" + random + "/")
-            .action(Trigger.Action.MOVE)
+            .action(Downloads.Action.MOVE)
             .moveDirectory("/upload/" + random + "-move")
             .build();
 
@@ -140,7 +183,7 @@ class TriggerTest {
         assertThat(execution.isPresent(), is(true));
 
         @SuppressWarnings("unchecked")
-        java.util.List<URI> urls = ((Map<String, java.util.List<URI>>) execution.get().getVariables().get("trigger")).get("uri");
+        java.util.List<File> urls = ((Map<String, java.util.List<File>>) execution.get().getVariables().get("trigger")).get("files");
         assertThat(urls.size(), is(1));
 
         assertThrows(FileSystemException.class, () -> {

@@ -31,7 +31,10 @@ import java.util.NoSuchElementException;
 )
 @Example(
     code = {
-        "type: org.kestra.task.fs.sftp.Move",
+        "host: localhost",
+        "port: 6622",
+        "username: foo",
+        "password: pass",
         "from: \"/upload/dir1/file.txt\"",
         "to: \"/upload/dir2/file.txt\"",
     }

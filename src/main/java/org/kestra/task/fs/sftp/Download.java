@@ -8,6 +8,7 @@ import lombok.experimental.SuperBuilder;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.vfs2.*;
 import org.kestra.core.models.annotations.Documentation;
+import org.kestra.core.models.annotations.Example;
 import org.kestra.core.models.annotations.InputProperty;
 import org.kestra.core.models.tasks.RunnableTask;
 import org.kestra.core.runners.RunContext;
@@ -23,8 +24,16 @@ import java.net.URI;
 @Getter
 @NoArgsConstructor
 @Documentation(
-    description = "Download file from sftp server",
-    body = "This task connects to remote sftp server and copy file to kestra file storage"
+    description = "Download file from sftp server"
+)
+@Example(
+    code = {
+        "host: localhost",
+        "port: 6622",
+        "username: foo",
+        "password: pass",
+        "from: \"/in/file.txt\"",
+    }
 )
 public class Download extends AbstractSftpTask implements RunnableTask<SftpOutput> {
     @InputProperty(
