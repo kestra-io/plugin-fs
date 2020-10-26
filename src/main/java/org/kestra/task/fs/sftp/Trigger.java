@@ -215,11 +215,14 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .flowId(context.getFlowId())
             .flowRevision(context.getFlowRevision())
             .state(new State())
-            .variables(ImmutableMap.of(
-                "trigger", ImmutableMap.of(
-                     "files", list
-                )
-            ))
+            .trigger(ExecutionTrigger.builder()
+                .id(this.id)
+                .type(this.type)
+                .variables(ImmutableMap.of(
+                    "files", list
+                ))
+                .build()
+            )
             .build();
 
         return Optional.of(execution);
