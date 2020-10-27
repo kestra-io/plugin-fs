@@ -5,12 +5,11 @@ import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.client.DefaultHttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.kestra.core.models.annotations.Documentation;
 import org.kestra.core.models.annotations.Example;
-import org.kestra.core.models.annotations.InputProperty;
-import org.kestra.core.models.annotations.OutputProperty;
+import org.kestra.core.models.annotations.Plugin;
 import org.kestra.core.models.executions.metrics.Counter;
 import org.kestra.core.models.tasks.RunnableTask;
 import org.kestra.core.runners.RunContext;
@@ -25,26 +24,30 @@ import java.util.Map;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-@Documentation(
-    description = "Request an http server",
-    body = "This task connects to http server, request the provided url and store the response as output"
+@Schema(
+    title = "Request an http server",
+    description = "This task connects to http server, request the provided url and store the response as output"
 )
-@Example(
-    title = "Post request to a webserver",
-    code = {
-        "uri: \"https://server.com/login\"",
-        "headers: ",
-        "  user-agent: \"kestra-io\"",
-        "method: \"POST\"",
-        "formData:",
-        "  user: \"user\"",
-        "  password: \"pass\""
+@Plugin(
+    examples = {
+        @Example(
+            title = "Post request to a webserver",
+            code = {
+                "uri: \"https://server.com/login\"",
+                "headers: ",
+                "  user-agent: \"kestra-io\"",
+                "method: \"POST\"",
+                "formData:",
+                "  user: \"user\"",
+                "  password: \"pass\""
+            }
+        )
     }
 )
 public class Request extends AbstractHttp implements RunnableTask<Request.Output> {
     @Builder.Default
-    @InputProperty(
-        description = "If true, allow failed response code (response code >=400)"
+    @Schema(
+        title = "If true, allow failed response code (response code >=400)"
     )
     protected boolean allowFailed = false;
 
@@ -99,23 +102,23 @@ public class Request extends AbstractHttp implements RunnableTask<Request.Output
     @Builder
     @Getter
     public static class Output implements org.kestra.core.models.tasks.Output {
-        @OutputProperty(
-            description = "The url of the current request"
+        @Schema(
+            title = "The url of the current request"
         )
         private final URI uri;
 
-        @OutputProperty(
-            description = "The status code of the response"
+        @Schema(
+            title = "The status code of the response"
         )
         private final Integer code;
 
-        @OutputProperty(
-            description = "The headers of the response"
+        @Schema(
+            title = "The headers of the response"
         )
         private final Map<String, List<String>> headers;
 
-        @OutputProperty(
-            description = "The body of the response"
+        @Schema(
+            title = "The body of the response"
         )
         private final String body;
     }

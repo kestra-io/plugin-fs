@@ -1,14 +1,13 @@
 package org.kestra.task.fs.sftp;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.vfs2.FileObject;
 import org.apache.commons.vfs2.FileSystemManager;
 import org.apache.commons.vfs2.VFS;
-import org.kestra.core.models.annotations.Documentation;
 import org.kestra.core.models.annotations.Example;
-import org.kestra.core.models.annotations.InputProperty;
-import org.kestra.core.models.annotations.OutputProperty;
+import org.kestra.core.models.annotations.Plugin;
 import org.kestra.core.models.tasks.RunnableTask;
 import org.kestra.core.runners.RunContext;
 import org.slf4j.Logger;
@@ -21,27 +20,29 @@ import java.util.NoSuchElementException;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-@Documentation(
-    description = "Delete a file to a SFTP server."
+@Schema(
+    title = "Delete a file to a SFTP server."
 )
-@Example(
-    code = {
-        "host: localhost",
-        "port: 6622",
-        "username: foo",
-        "password: pass",
-        "uri: \"/upload/dir1/file.txt\"",
+@Plugin(
+    examples = {
+        @Example(
+            code = {
+                "host: localhost",
+                "port: 6622",
+                "username: foo",
+                "password: pass",
+                "uri: \"/upload/dir1/file.txt\"",
+            }
+        )
     }
 )
 public class Delete extends AbstractSftpTask implements RunnableTask<Delete.Output> {
-    @InputProperty(
-        description = "The file to delete",
-        dynamic = true
-    )
+    @Schema(
+        title = "The file to delete")
     private String uri;
 
-    @InputProperty(
-        description = "raise an error if the file is not found"
+    @Schema(
+        title = "raise an error if the file is not found"
     )
     @Builder.Default
     private final Boolean errorOnMissing = false;
@@ -86,13 +87,13 @@ public class Delete extends AbstractSftpTask implements RunnableTask<Delete.Outp
     @Builder
     @Getter
     public static class Output implements org.kestra.core.models.tasks.Output {
-        @OutputProperty(
-            description = "The deleted uri"
+        @Schema(
+            title = "The deleted uri"
         )
         private final URI uri;
 
-        @OutputProperty(
-            description = "If the files was really deleted"
+        @Schema(
+            title = "If the files was really deleted"
         )
         private final boolean deleted;
     }

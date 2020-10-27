@@ -1,15 +1,15 @@
 package org.kestra.task.fs.sftp;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.vfs2.FileSystemManager;
 import org.apache.commons.vfs2.VFS;
-import org.kestra.core.models.annotations.Documentation;
 import org.kestra.core.models.annotations.Example;
-import org.kestra.core.models.annotations.InputProperty;
-import org.kestra.core.models.annotations.OutputProperty;
+import org.kestra.core.models.annotations.Plugin;
+import org.kestra.core.models.annotations.PluginProperty;
 import org.kestra.core.models.tasks.RunnableTask;
 import org.kestra.core.runners.RunContext;
 import org.slf4j.Logger;
@@ -28,44 +28,48 @@ import static org.kestra.core.utils.Rethrow.throwFunction;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-@Documentation(
-    description = "Download multiple files from sftp server"
+@Schema(
+    title = "Download multiple files from sftp server"
 )
-@Example(
-    title = "Download a list of files and move it to an archive folders",
-    code = {
-        "host: localhost",
-        "port: 6622",
-        "username: foo",
-        "password: pass",
-        "from: \"/in/\"",
-        "interval: PT10S",
-        "action: MOVE",
-        "moveDirectory: \"/archive/\"",
+@Plugin(
+    examples = {
+        @Example(
+            title = "Download a list of files and move it to an archive folders",
+            code = {
+                "host: localhost",
+                "port: 6622",
+                "username: foo",
+                "password: pass",
+                "from: \"/in/\"",
+                "interval: PT10S",
+                "action: MOVE",
+                "moveDirectory: \"/archive/\"",
+            }
+        )
     }
 )
 public class Downloads extends AbstractSftpTask implements RunnableTask<Downloads.Output> {
-    @InputProperty(
-        description = "The directory to list",
-        dynamic = true
+    @Schema(
+        title = "The directory to list"
     )
+    @PluginProperty(dynamic = true)
     @NotNull
     private String from;
 
-    @InputProperty(
-        description = "The action to do on find files",
-        dynamic = true
+    @Schema(
+        title = "The action to do on find files"
     )
+    @PluginProperty(dynamic = true)
     private Downloads.Action action;
 
-    @InputProperty(
-        description = "The destination directory in case off `MOVE` ",
-        dynamic = true
+    @Schema(
+        title = "The destination directory in case off `MOVE` "
     )
+    @PluginProperty(dynamic = true)
     private String moveDirectory;
 
-    @InputProperty(
-        description = "A regexp to filter on full path"
+    @Schema(
+        title = "A regexp to filter on full path"
     )
     @RegEx
     private String regExp;
@@ -189,8 +193,8 @@ public class Downloads extends AbstractSftpTask implements RunnableTask<Download
     @Builder
     @Getter
     public static class Output implements org.kestra.core.models.tasks.Output {
-        @OutputProperty(
-            description = "The bucket of the downloaded file"
+        @Schema(
+            title = "The bucket of the downloaded file"
         )
         private final java.util.List<org.kestra.task.fs.sftp.models.File> files;
     }

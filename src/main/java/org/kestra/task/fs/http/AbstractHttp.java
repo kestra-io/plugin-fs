@@ -3,10 +3,11 @@ package org.kestra.task.fs.http;
 import io.micronaut.http.*;
 import io.micronaut.http.client.DefaultHttpClient;
 import io.micronaut.http.client.DefaultHttpClientConfiguration;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.kestra.core.exceptions.IllegalVariableEvaluationException;
-import org.kestra.core.models.annotations.InputProperty;
+import org.kestra.core.models.annotations.PluginProperty;
 import org.kestra.core.models.tasks.Task;
 import org.kestra.core.runners.RunContext;
 
@@ -23,38 +24,38 @@ import java.util.Map;
 @Getter
 @NoArgsConstructor
 abstract public class AbstractHttp extends Task {
-    @InputProperty(
-        description = "The fully-qualified URIs that point to destination http server",
-        dynamic = true
+    @Schema(
+        title = "The fully-qualified URIs that point to destination http server"
     )
+    @PluginProperty(dynamic = true)
     protected String uri;
 
-    @InputProperty(
-        description = "The http method to use"
+    @Schema(
+        title = "The http method to use"
     )
     @Builder.Default
     protected HttpMethod method = HttpMethod.GET;
 
-    @InputProperty(
-        description = "The full body as string",
-        dynamic = true
+    @Schema(
+        title = "The full body as string"
     )
+    @PluginProperty(dynamic = true)
     protected String body;
 
-    @InputProperty(
-        description = "The form data to be send"
+    @Schema(
+        title = "The form data to be send"
     )
     protected Map<String, Object> formData;
 
 
-    @InputProperty(
-        description = "The request content type",
-        dynamic = true
+    @Schema(
+        title = "The request content type"
     )
+    @PluginProperty(dynamic = true)
     protected String contentType;
 
-    @InputProperty(
-        description = "The header to pass to current request"
+    @Schema(
+        title = "The header to pass to current request"
     )
     protected Map<CharSequence, CharSequence> headers;
 

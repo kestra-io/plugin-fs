@@ -1,16 +1,18 @@
 package org.kestra.task.fs.sftp;
 
 import com.google.common.collect.ImmutableMap;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.vfs2.FileNotFolderException;
 import org.apache.commons.vfs2.FileSystemManager;
 import org.apache.commons.vfs2.FileType;
 import org.apache.commons.vfs2.VFS;
-import org.kestra.core.models.annotations.Documentation;
 import org.kestra.core.models.annotations.Example;
-import org.kestra.core.models.annotations.InputProperty;
+import org.kestra.core.models.annotations.Plugin;
+import org.kestra.core.models.annotations.PluginProperty;
 import org.kestra.core.models.executions.Execution;
+import org.kestra.core.models.executions.ExecutionTrigger;
 import org.kestra.core.models.flows.State;
 import org.kestra.core.models.triggers.AbstractTrigger;
 import org.kestra.core.models.triggers.PollingTriggerInterface;
@@ -34,104 +36,108 @@ import static org.kestra.core.utils.Rethrow.throwFunction;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-@Documentation(
-    description = "Wait for files on Google cloud storage"
+@Schema(
+    title = "Wait for files on Google cloud storage"
 )
-@Example(
-    title = "Wait for a list of file on a GCS bucket and iterate through the files",
-    full = true,
-    code = {
-        "id: gcs-listen",
-        "namespace: org.kestra.tests",
-        "",
-        "tasks:",
-        "  - id: each",
-        "    type: org.kestra.core.tasks.flows.EachSequential",
-        "    tasks:",
-        "      - id: return",
-        "        type: org.kestra.core.tasks.debugs.Return",
-        "        format: \"{{taskrun.value}}\"",
-        "    value: \"{{ jq trigger '.files[].uri' true }}\"",
-        "",
-        "triggers:",
-        "  - id: watch",
-        "    type: org.kestra.task.fs.sftp.Trigger",
-        "    host: localhost",
-        "    port: 6622",
-        "    username: foo",
-        "    password: pass",
-        "    from: \"/in/\"",
-        "    interval: PT10S",
-        "    action: MOVE",
-        "    moveDirectory: \"/archive/\"",
+@Plugin(
+    examples = {
+        @Example(
+            title = "Wait for a list of file on a GCS bucket and iterate through the files",
+            full = true,
+            code = {
+                "id: gcs-listen",
+                "namespace: org.kestra.tests",
+                "",
+                "tasks:",
+                "  - id: each",
+                "    type: org.kestra.core.tasks.flows.EachSequential",
+                "    tasks:",
+                "      - id: return",
+                "        type: org.kestra.core.tasks.debugs.Return",
+                "        format: \"{{taskrun.value}}\"",
+                "    value: \"{{ jq trigger '.files[].uri' true }}\"",
+                "",
+                "triggers:",
+                "  - id: watch",
+                "    type: org.kestra.task.fs.sftp.Trigger",
+                "    host: localhost",
+                "    port: 6622",
+                "    username: foo",
+                "    password: pass",
+                "    from: \"/in/\"",
+                "    interval: PT10S",
+                "    action: MOVE",
+                "    moveDirectory: \"/archive/\"",
+            }
+        )
     }
 )
 public class Trigger extends AbstractTrigger implements PollingTriggerInterface, AbstractSftpInterface {
-    @InputProperty(
-        description = "The interval between test of triggers"
+    @Schema(
+        title = "The interval between test of triggers"
     )
     @Builder.Default
     private final Duration interval = Duration.ofSeconds(60);
 
-    @InputProperty(
-        description = "Hostname of the remote server",
-        dynamic = true
+    @Schema(
+        title = "Hostname of the remote server"
     )
+    @PluginProperty(dynamic = true)
     protected String host;
 
-    @InputProperty(
-        description = "Port of the remote server",
-        dynamic = true
+    @Schema(
+        title = "Port of the remote server"
     )
+    @PluginProperty(dynamic = true)
     protected String port;
 
-    @InputProperty(
-        description = "Username on the remote server",
-        dynamic = true
+    @Schema(
+        title = "Username on the remote server"
     )
+    @PluginProperty(dynamic = true)
     protected String username;
 
-    @InputProperty(
-        description = "Password on the remote server",
-        dynamic = true
+    @Schema(
+        title = "Password on the remote server"
     )
+    @PluginProperty(dynamic = true)
     protected String password;
 
-    @InputProperty(
-        description = "Private keyfile to login on the source server with ssh",
-        body = "Must be the ssh key content, not a path",
-        dynamic = true
+    @Schema(
+        title = "Private keyfile to login on the source server with ssh",
+        description = "Must be the ssh key content, not a path"
     )
+    @PluginProperty(dynamic = true)
     protected String keyfile;
 
-    @InputProperty(
-        description = "Passphrase of the ssh key",
-        dynamic = true
+    @Schema(
+        title = "Passphrase of the ssh key"
     )
+    @PluginProperty(dynamic = true)
     protected String passphrase;
 
-    @InputProperty(
-        description = "The directory to list",
-        dynamic = true
+    @Schema(
+        title = "The directory to list"
     )
+    @PluginProperty(dynamic = true)
     @NotNull
     private String from;
 
-    @InputProperty(
-        description = "The action to do on find files",
-        dynamic = true
+    @Schema(
+        title = "The action to do on find files"
     )
+    @PluginProperty(dynamic = true)
     @NotNull
     private Downloads.Action action;
 
-    @InputProperty(
-        description = "The destination directory in case off `MOVE` ",
-        dynamic = true
+    @Schema(
+        title = "The destination directory in case off `MOVE` "
     )
+    @PluginProperty(dynamic = true)
     private String moveDirectory;
 
-    @InputProperty(
-        description = "A regexp to filter on full path"
+    @Schema(
+        title = "A regexp to filter on full path"
     )
     @RegEx
     private String regExp;
