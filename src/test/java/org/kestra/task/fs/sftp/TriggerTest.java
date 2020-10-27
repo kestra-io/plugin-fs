@@ -113,7 +113,7 @@ class TriggerTest {
             queueCount.await();
 
             @SuppressWarnings("unchecked")
-            java.util.List<File> trigger = ((Map<String, java.util.List<File>>) last.get().getVariables().get("trigger")).get("files");
+            java.util.List<File> trigger = (java.util.List<File>) last.get().getTrigger().getVariables().get("files");
             assertThat(trigger.size(), is(2));
         }
     }
@@ -154,7 +154,7 @@ class TriggerTest {
             queueCount.await();
 
             @SuppressWarnings("unchecked")
-            java.util.List<URI> trigger = ((Map<String, java.util.List<URI>>) last.get().getVariables().get("trigger")).get("files");
+            java.util.List<URI> trigger = (java.util.List<URI>) last.get().getTrigger().getVariables().get("files");
 
             assertThat(trigger.size(), is(1));
         }
@@ -183,7 +183,7 @@ class TriggerTest {
         assertThat(execution.isPresent(), is(true));
 
         @SuppressWarnings("unchecked")
-        java.util.List<File> urls = ((Map<String, java.util.List<File>>) execution.get().getVariables().get("trigger")).get("files");
+        java.util.List<File> urls = (java.util.List<File>) execution.get().getTrigger().getVariables().get("files");
         assertThat(urls.size(), is(1));
 
         assertThrows(FileSystemException.class, () -> {
