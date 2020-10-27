@@ -2,12 +2,12 @@ package org.kestra.task.fs.http;
 
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.client.DefaultHttpClient;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.io.FilenameUtils;
-import org.kestra.core.models.annotations.Documentation;
 import org.kestra.core.models.annotations.Example;
-import org.kestra.core.models.annotations.OutputProperty;
+import org.kestra.core.models.annotations.Plugin;
 import org.kestra.core.models.executions.metrics.Counter;
 import org.kestra.core.models.tasks.RunnableTask;
 import org.kestra.core.runners.RunContext;
@@ -25,15 +25,19 @@ import java.util.Map;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-@Documentation(
-    description = "Download file from http server",
-    body = "This task connects to http server and copy file to kestra file storage"
+@Schema(
+    title = "Download file from http server",
+    description = "This task connects to http server and copy file to kestra file storage"
 )
-@Example(
-    code = {
-        "headers: ",
-        "  user-agent: \"kestra-io\"",
-        "uri: \"https://server.com/file\""
+@Plugin(
+    examples = {
+        @Example(
+            code = {
+                "headers: ",
+                "  user-agent: \"kestra-io\"",
+                "uri: \"https://server.com/file\""
+            }
+        )
     }
 )
 public class Download extends AbstractHttp implements RunnableTask<Download.Output> {
@@ -101,18 +105,18 @@ public class Download extends AbstractHttp implements RunnableTask<Download.Outp
     @Builder
     @Getter
     public static class Output implements org.kestra.core.models.tasks.Output {
-        @OutputProperty(
-            description = "The url of the downloaded file on kestra storage"
+        @Schema(
+            title = "The url of the downloaded file on kestra storage"
         )
         private final URI uri;
 
-        @OutputProperty(
-            description = "The status code of the response"
+        @Schema(
+            title = "The status code of the response"
         )
         private final Integer code;
 
-        @OutputProperty(
-            description = "The headers of the response"
+        @Schema(
+            title = "The headers of the response"
         )
         private final Map<String, List<String>> headers;
     }

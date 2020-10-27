@@ -1,15 +1,15 @@
 package org.kestra.task.fs.sftp;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.vfs2.FileObject;
 import org.apache.commons.vfs2.FileSystemManager;
 import org.apache.commons.vfs2.VFS;
 import org.apache.commons.vfs2.provider.sftp.SftpFileObject;
-import org.kestra.core.models.annotations.Documentation;
 import org.kestra.core.models.annotations.Example;
-import org.kestra.core.models.annotations.InputProperty;
-import org.kestra.core.models.annotations.OutputProperty;
+import org.kestra.core.models.annotations.Plugin;
+import org.kestra.core.models.annotations.PluginProperty;
 import org.kestra.core.models.tasks.RunnableTask;
 import org.kestra.core.runners.RunContext;
 import org.kestra.task.fs.sftp.models.File;
@@ -18,7 +18,6 @@ import org.slf4j.Logger;
 import java.net.URI;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
 import javax.annotation.RegEx;
 
 import static org.kestra.core.utils.Rethrow.throwFunction;
@@ -28,25 +27,29 @@ import static org.kestra.core.utils.Rethrow.throwFunction;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-@Documentation(
-    description = "List files in a sftp server directory"
+@Schema(
+    title = "List files in a sftp server directory"
 )
-@Example(
-    code = {
-        "type: org.kestra.task.fs.sftp.List",
-        "from: \"/upload/dir1/\"",
-        "regExp: \".*\\/dir1\\/.*\\.(yaml|yml)\"",
+@Plugin(
+    examples = {
+        @Example(
+            code = {
+                "type: org.kestra.task.fs.sftp.List",
+                "from: \"/upload/dir1/\"",
+                "regExp: \".*\\/dir1\\/.*\\.(yaml|yml)\"",
+            }
+        )
     }
 )
 public class List extends AbstractSftpTask implements RunnableTask<List.Output> {
-    @InputProperty(
-        description = "The fully-qualified URIs that point to path",
-        dynamic = true
+    @Schema(
+        title = "The fully-qualified URIs that point to path"
     )
+    @PluginProperty(dynamic = true)
     protected String from;
 
-    @InputProperty(
-        description = "A regexp to filter on full path"
+    @Schema(
+        title = "A regexp to filter on full path"
     )
     @RegEx
     private String regExp;
@@ -89,8 +92,8 @@ public class List extends AbstractSftpTask implements RunnableTask<List.Output> 
     @Builder
     @Getter
     public static class Output implements org.kestra.core.models.tasks.Output {
-        @OutputProperty(
-            description = "The list of files"
+        @Schema(
+            title = "The list of files"
         )
         private final java.util.List<File> files;
     }

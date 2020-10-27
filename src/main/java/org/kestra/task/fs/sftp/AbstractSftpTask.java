@@ -1,5 +1,6 @@
 package org.kestra.task.fs.sftp;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.io.FilenameUtils;
@@ -8,7 +9,7 @@ import org.apache.commons.vfs2.FileSystemOptions;
 import org.apache.commons.vfs2.provider.sftp.IdentityInfo;
 import org.apache.commons.vfs2.provider.sftp.SftpFileSystemConfigBuilder;
 import org.kestra.core.exceptions.IllegalVariableEvaluationException;
-import org.kestra.core.models.annotations.InputProperty;
+import org.kestra.core.models.annotations.PluginProperty;
 import org.kestra.core.runners.RunContext;
 import org.kestra.task.fs.AbstractVfsTask;
 
@@ -24,29 +25,29 @@ import java.net.URISyntaxException;
 @Getter
 @NoArgsConstructor
 public abstract class AbstractSftpTask extends AbstractVfsTask implements AbstractSftpInterface {
-    @InputProperty(
-        description = "Username on the remote server",
-        dynamic = true
+    @Schema(
+        title = "Username on the remote server"
     )
+    @PluginProperty(dynamic = true)
     protected String username;
 
-    @InputProperty(
-        description = "Password on the remote server",
-        dynamic = true
+    @Schema(
+        title = "Password on the remote server"
     )
+    @PluginProperty(dynamic = true)
     protected String password;
 
-    @InputProperty(
-        description = "Private keyfile to login on the source server with ssh",
-        body = "Must be the ssh key content, not a path",
-        dynamic = true
+    @Schema(
+        title = "Private keyfile to login on the source server with ssh",
+        description = "Must be the ssh key content, not a path"
     )
+    @PluginProperty(dynamic = true)
     protected String keyfile;
 
-    @InputProperty(
-        description = "Passphrase of the ssh key",
-        dynamic = true
+    @Schema(
+        title = "Passphrase of the ssh key"
     )
+    @PluginProperty(dynamic = true)
     protected String passphrase;
 
     protected String basicAuth(RunContext runContext) throws IllegalVariableEvaluationException {

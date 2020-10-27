@@ -1,5 +1,6 @@
 package org.kestra.task.fs.sftp;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -7,10 +8,13 @@ import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.vfs2.*;
-import org.kestra.core.models.annotations.Documentation;
+import org.apache.commons.vfs2.FileObject;
+import org.apache.commons.vfs2.FileSystemManager;
+import org.apache.commons.vfs2.Selectors;
+import org.apache.commons.vfs2.VFS;
 import org.kestra.core.models.annotations.Example;
-import org.kestra.core.models.annotations.InputProperty;
+import org.kestra.core.models.annotations.Plugin;
+import org.kestra.core.models.annotations.PluginProperty;
 import org.kestra.core.models.tasks.RunnableTask;
 import org.kestra.core.runners.RunContext;
 import org.slf4j.Logger;
@@ -26,30 +30,34 @@ import java.net.URI;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-@Documentation(
-    description = "Upload a file to a sftp server"
+@Schema(
+    title = "Upload a file to a sftp server"
 )
-@Example(
-    code = {
-        "host: localhost",
-        "port: 6622",
-        "username: foo",
-        "password: pass",
-        "from: \"{{ outputs.taskid.uri }}\"",
-        "to: \"/upload/dir2/file.txt\"",
+@Plugin(
+    examples = {
+        @Example(
+            code = {
+                "host: localhost",
+                "port: 6622",
+                "username: foo",
+                "password: pass",
+                "from: \"{{ outputs.taskid.uri }}\"",
+                "to: \"/upload/dir2/file.txt\"",
+            }
+        )
     }
 )
 public class Upload extends AbstractSftpTask implements RunnableTask<SftpOutput> {
-    @InputProperty(
-        description = "The file path to copy",
-        dynamic = true
+    @Schema(
+        title = "The file path to copy"
     )
+    @PluginProperty(dynamic = true)
     private String from;
 
-    @InputProperty(
-        description = "The destination path",
-        dynamic = true
+    @Schema(
+        title = "The destination path"
     )
+    @PluginProperty(dynamic = true)
     private String to;
 
     @SuppressWarnings({"CaughtExceptionImmediatelyRethrown"})
