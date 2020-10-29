@@ -71,7 +71,7 @@ public class Downloads extends AbstractSftpTask implements RunnableTask<Download
     @Schema(
         title = "A regexp to filter on full path"
     )
-    @RegEx
+    @PluginProperty(dynamic = true)
     private String regExp;
 
     static void archive(
