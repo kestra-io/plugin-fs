@@ -51,7 +51,7 @@ public class List extends AbstractSftpTask implements RunnableTask<List.Output> 
     @Schema(
         title = "A regexp to filter on full path"
     )
-    @RegEx
+    @PluginProperty(dynamic = true)
     private String regExp;
 
     public Output run(RunContext runContext) throws Exception {
@@ -62,6 +62,7 @@ public class List extends AbstractSftpTask implements RunnableTask<List.Output> 
 
         // path
         URI from = new URI(this.sftpUri(runContext, this.from));
+        String regExp = runContext.render(this.regExp);
 
         // connection options
         FsOptionWithCleanUp fsOptionWithCleanUp = this.fsOptions(runContext);
@@ -75,7 +76,7 @@ public class List extends AbstractSftpTask implements RunnableTask<List.Output> 
 
                 java.util.List<File> list = Stream.of(children)
                     .map(throwFunction(r -> File.of((SftpFileObject) r)))
-                    .filter(r -> regExp == null || r.getPath().toString().matches(this.regExp))
+                    .filter(r -> regExp == null || r.getPath().toString().matches(regExp))
                     .collect(Collectors.toList());
 
                 logger.debug("Found '{}' files from '{}'", list.size(), from);
