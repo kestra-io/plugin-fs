@@ -16,7 +16,6 @@ repositories {
     mavenCentral()
     jcenter()
     maven { url "https://dl.bintray.com/kestra/maven" + (isBuildSnapshot ? "-snapshot" : "") }
-    maven { url "https://repository.apache.org/snapshots" }
 }
 
 sourceCompatibility = 11
@@ -42,14 +41,11 @@ dependencies {
     compileOnly group: "org.kestra", name: "core", version: kestraVersion
 
     // libs
-    api group: 'org.apache.commons', name: 'commons-vfs2', version: '2.7.0-SNAPSHOT'
+    api group: 'org.apache.commons', name: 'commons-vfs2', version: '2.7.0'
     api group: 'com.jcraft', name: 'jsch', version: '0.1.55'
     api group: 'commons-net', name: 'commons-net', version: '3.6'
     api group: 'org.slf4j', name: 'jcl-over-slf4j', version: '1.7.30'
 }
-
-// @TODO: need to '2.7.0-SNAPSHOT'
-checkSnapshotDependencies.enabled = false
 
 
 /**********************************************************************************************************************\
