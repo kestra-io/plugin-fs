@@ -50,11 +50,10 @@ public class Delete extends AbstractSftpTask implements RunnableTask<Delete.Outp
     public Output run(RunContext runContext) throws Exception {
         Logger logger = runContext.logger();
 
-        //noinspection resource never close the global instance
         FileSystemManager fsm = VFS.getManager();
 
         // path
-        URI from = new URI(this.sftpUri(runContext, this.uri));
+        URI from = this.sftpUri(runContext, this.uri);
 
         // connection options
         FsOptionWithCleanUp fsOptionWithCleanUp = this.fsOptions(runContext);

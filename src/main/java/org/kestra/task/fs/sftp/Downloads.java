@@ -125,7 +125,7 @@ public class Downloads extends AbstractSftpTask implements RunnableTask<Download
         FileSystemManager fsm = VFS.getManager();
 
         // path
-        URI from = new URI(this.sftpUri(runContext, this.from));
+        URI from = this.sftpUri(runContext, this.from);
 
         // connection options
         FsOptionWithCleanUp fsOptionWithCleanUp = this.fsOptions(runContext);
@@ -152,7 +152,7 @@ public class Downloads extends AbstractSftpTask implements RunnableTask<Download
                 File download = Download.download(
                     fsm,
                     fsOptionWithCleanUp.getOptions(),
-                    new URI(AbstractSftpTask.sftpUri(runContext, this.host, this.port, this.username, this.password, file.getPath().toString()))
+                    AbstractSftpTask.sftpUri(runContext, this.host, this.port, this.username, this.password, file.getPath().toString())
                 );
 
                 URI storageUri = runContext.putTempFile(download);

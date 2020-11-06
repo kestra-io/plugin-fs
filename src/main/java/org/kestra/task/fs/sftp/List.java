@@ -57,11 +57,10 @@ public class List extends AbstractSftpTask implements RunnableTask<List.Output> 
     public Output run(RunContext runContext) throws Exception {
         Logger logger = runContext.logger();
 
-        //noinspection resource never close the global instance
         FileSystemManager fsm = VFS.getManager();
 
         // path
-        URI from = new URI(this.sftpUri(runContext, this.from));
+        URI from = this.sftpUri(runContext, this.from);
         String regExp = runContext.render(this.regExp);
 
         // connection options

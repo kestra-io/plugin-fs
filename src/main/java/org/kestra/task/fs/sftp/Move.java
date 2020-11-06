@@ -59,12 +59,11 @@ public class Move extends AbstractSftpTask implements RunnableTask<Move.Output> 
     public Output run(RunContext runContext) throws Exception {
         Logger logger = runContext.logger();
 
-        //noinspection resource never close the global instance
         FileSystemManager fsm = VFS.getManager();
 
         // path
-        URI from = new URI(this.sftpUri(runContext, this.from));
-        URI to = new URI(this.sftpUri(runContext, this.to));
+        URI from = this.sftpUri(runContext, this.from);
+        URI to = this.sftpUri(runContext, this.to);
 
         // user pass a destination without filename, we add it
         if (!isDirectory(from) && isDirectory(to)) {
