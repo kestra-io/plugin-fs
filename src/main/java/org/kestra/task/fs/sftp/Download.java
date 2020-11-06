@@ -53,7 +53,7 @@ public class Download extends AbstractSftpTask implements RunnableTask<SftpOutpu
         FileSystemManager fsm = VFS.getManager();
 
         // path
-        URI from = new URI(this.sftpUri(runContext, this.from));
+        URI from = this.sftpUri(runContext, this.from);
 
         // connection options
         FsOptionWithCleanUp fsOptionWithCleanUp = this.fsOptions(runContext);

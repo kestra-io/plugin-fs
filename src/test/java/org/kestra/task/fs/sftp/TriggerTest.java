@@ -190,6 +190,10 @@ class TriggerTest {
             Download task = Download.builder()
                 .id(TriggerTest.class.getSimpleName())
                 .type(Download.class.getName())
+                .host("localhost")
+                .port("6622")
+                .username("foo")
+                .password("pass")
                 .from(upload.getTo().toString())
                 .build();
 

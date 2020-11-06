@@ -50,40 +50,36 @@ public abstract class AbstractSftpTask extends AbstractVfsTask implements Abstra
     @PluginProperty(dynamic = true)
     protected String passphrase;
 
-    protected String basicAuth(RunContext runContext) throws IllegalVariableEvaluationException {
-        return basicAuth(
-            runContext,
-            this.username,
-            this.password
-        );
-    }
-
     static String basicAuth(RunContext runContext, String username, String password) throws IllegalVariableEvaluationException {
         username = runContext.render(username);
         password = runContext.render(password);
 
         if (username != null && password != null) {
-            return username + ":" + password + "@";
+            return username + ":" + password;
         }
 
         if (username != null) {
-            return username + "@";
+            return username;
 
         }
 
         return "";
     }
 
-    protected String sftpUri(RunContext runContext, String filepath) throws IllegalVariableEvaluationException {
+    protected URI sftpUri(RunContext runContext, String filepath) throws IllegalVariableEvaluationException, URISyntaxException {
         return sftpUri(runContext, this.host, this.port, this.username , this.password, filepath);
     }
 
-    static String sftpUri(RunContext runContext, String host, String port, String username, String password, String filepath) throws IllegalVariableEvaluationException {
-        return "sftp://" +
-            basicAuth(runContext, username, password) +
-            runContext.render(host) +
-            ":" + runContext.render(port) +
-            "/" + StringUtils.stripStart(runContext.render(filepath), "/");
+    static URI sftpUri(RunContext runContext, String host, String port, String username, String password, String filepath) throws IllegalVariableEvaluationException, URISyntaxException {
+        return new URI(
+            "sftp",
+            basicAuth(runContext, username, password),
+            runContext.render(host),
+            port == null ? null : Integer.parseInt(runContext.render(port)),
+            "/" + StringUtils.stripStart(runContext.render(filepath), "/"),
+            null,
+            null
+        );
     }
 
     protected FsOptionWithCleanUp fsOptions(RunContext runContext) throws IOException, IllegalVariableEvaluationException {

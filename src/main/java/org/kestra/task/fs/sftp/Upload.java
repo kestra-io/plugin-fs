@@ -64,12 +64,11 @@ public class Upload extends AbstractSftpTask implements RunnableTask<SftpOutput>
     public SftpOutput run(RunContext runContext) throws Exception {
         Logger logger = runContext.logger();
 
-        //noinspection resource never close the global instance
         FileSystemManager fsm = VFS.getManager();
 
         // from & to
         String toPath = runContext.render(this.to);
-        URI to = new URI(this.sftpUri(runContext, toPath));
+        URI to = this.sftpUri(runContext, toPath);
         URI from = new URI(runContext.render(this.from));
 
         // copy from to a temp files

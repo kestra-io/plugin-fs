@@ -147,11 +147,10 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     public Optional<Execution> evaluate(RunContext runContext, TriggerContext context) throws Exception {
         Logger logger = runContext.logger();
 
-        @SuppressWarnings("resource")
         FileSystemManager fsm = VFS.getManager();
 
         // path
-        URI from = new URI(AbstractSftpTask.sftpUri(runContext, this.host, this.port, this.username, this.password, this.from));
+        URI from = AbstractSftpTask.sftpUri(runContext, this.host, this.port, this.username, this.password, this.from);
 
         // connection options
         AbstractSftpTask.FsOptionWithCleanUp fsOptionWithCleanUp = AbstractSftpTask.fsOptions(runContext, this.keyfile, this.passphrase);
@@ -192,7 +191,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
                 File download = Download.download(
                     fsm,
                     fsOptionWithCleanUp.getOptions(),
-                    new URI(AbstractSftpTask.sftpUri(runContext, this.host, this.port, this.username, this.password, file.getPath().toString()))
+                    AbstractSftpTask.sftpUri(runContext, this.host, this.port, this.username, this.password, file.getPath().toString())
                 );
 
                 URI storageUri = runContext.putTempFile(
