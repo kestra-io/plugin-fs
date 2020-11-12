@@ -17,6 +17,7 @@ import org.kestra.core.models.flows.State;
 import org.kestra.core.models.triggers.AbstractTrigger;
 import org.kestra.core.models.triggers.PollingTriggerInterface;
 import org.kestra.core.models.triggers.TriggerContext;
+import org.kestra.core.models.triggers.TriggerOutput;
 import org.kestra.core.runners.RunContext;
 import org.kestra.core.utils.IdUtils;
 import org.slf4j.Logger;
@@ -26,7 +27,6 @@ import java.net.URI;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import javax.annotation.RegEx;
 import javax.validation.constraints.NotNull;
 
 import static org.kestra.core.utils.Rethrow.throwFunction;
@@ -72,7 +72,7 @@ import static org.kestra.core.utils.Rethrow.throwFunction;
         )
     }
 )
-public class Trigger extends AbstractTrigger implements PollingTriggerInterface, AbstractSftpInterface {
+public class Trigger extends AbstractTrigger implements PollingTriggerInterface, AbstractSftpInterface, TriggerOutput<Downloads.Output> {
     @Schema(
         title = "The interval between test of triggers"
     )
@@ -214,20 +214,18 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             runContext
         );
 
+        ExecutionTrigger executionTrigger = ExecutionTrigger.of(
+            this,
+            Downloads.Output.builder().files(list).build()
+        );
+
         Execution execution = Execution.builder()
             .id(executionId)
             .namespace(context.getNamespace())
             .flowId(context.getFlowId())
             .flowRevision(context.getFlowRevision())
             .state(new State())
-            .trigger(ExecutionTrigger.builder()
-                .id(this.id)
-                .type(this.type)
-                .variables(ImmutableMap.of(
-                    "files", list
-                ))
-                .build()
-            )
+            .trigger(executionTrigger)
             .build();
 
         return Optional.of(execution);
