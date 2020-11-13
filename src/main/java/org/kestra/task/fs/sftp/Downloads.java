@@ -196,6 +196,7 @@ public class Downloads extends AbstractSftpTask implements RunnableTask<Download
         @Schema(
             title = "The bucket of the downloaded file"
         )
+        @PluginProperty(additionalProperties = org.kestra.task.fs.sftp.models.File.class)
         private final java.util.List<org.kestra.task.fs.sftp.models.File> files;
     }
 }
