@@ -142,6 +142,36 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @PluginProperty(dynamic = true)
     private String regExp;
 
+    @Schema(
+        title = "Sftp proxy host"
+    )
+    @PluginProperty(dynamic = true)
+    protected String proxyHost;
+
+    @Schema(
+        title = "Sftp proxy port"
+    )
+    @PluginProperty(dynamic = true)
+    protected Integer proxyPort;
+
+    @Schema(
+        title = "Sftp proxy user"
+    )
+    @PluginProperty(dynamic = true)
+    protected String proxyUser;
+
+    @Schema(
+        title = "Sftp proxy password"
+    )
+    @PluginProperty(dynamic = true)
+    protected String proxyPassword;
+
+    @Schema(
+        title = "Sftp proxy type"
+    )
+    @PluginProperty(dynamic = true)
+    protected String proxyType;
+
     @Override
     @SuppressWarnings("resource")
     public Optional<Execution> evaluate(RunContext runContext, TriggerContext context) throws Exception {
@@ -153,7 +183,16 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         URI from = AbstractSftpTask.sftpUri(runContext, this.host, this.port, this.username, this.password, this.from);
 
         // connection options
-        AbstractSftpTask.FsOptionWithCleanUp fsOptionWithCleanUp = AbstractSftpTask.fsOptions(runContext, this.keyfile, this.passphrase);
+        AbstractSftpTask.FsOptionWithCleanUp fsOptionWithCleanUp = AbstractSftpTask.fsOptions(
+            runContext,
+            this.keyfile,
+            this.passphrase,
+            this.proxyHost,
+            this.proxyPassword,
+            this.proxyPort,
+            this.proxyUser,
+            this.proxyType
+        );
 
         // list files
         List task = List.builder()

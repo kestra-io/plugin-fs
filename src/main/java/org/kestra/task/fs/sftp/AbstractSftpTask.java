@@ -50,6 +50,36 @@ public abstract class AbstractSftpTask extends AbstractVfsTask implements Abstra
     @PluginProperty(dynamic = true)
     protected String passphrase;
 
+    @Schema(
+        title = "Sftp proxy host"
+    )
+    @PluginProperty(dynamic = true)
+    protected String proxyHost;
+
+    @Schema(
+        title = "Sftp proxy port"
+    )
+    @PluginProperty(dynamic = true)
+    protected Integer proxyPort;
+
+    @Schema(
+        title = "Sftp proxy user"
+    )
+    @PluginProperty(dynamic = true)
+    protected String proxyUser;
+
+    @Schema(
+        title = "Sftp proxy password"
+    )
+    @PluginProperty(dynamic = true)
+    protected String proxyPassword;
+
+    @Schema(
+        title = "Sftp proxy type"
+    )
+    @PluginProperty(dynamic = true)
+    protected String proxyType;
+
     static String basicAuth(RunContext runContext, String username, String password) throws IllegalVariableEvaluationException {
         username = runContext.render(username);
         password = runContext.render(password);
@@ -86,11 +116,16 @@ public abstract class AbstractSftpTask extends AbstractVfsTask implements Abstra
         return fsOptions(
             runContext,
             this.keyfile,
-            this.passphrase
+            this.passphrase,
+            this.proxyHost,
+            this.proxyPassword,
+            this.proxyPort,
+            this.proxyUser,
+            this.proxyType
         );
     }
 
-    static FsOptionWithCleanUp fsOptions(RunContext runContext, String keyfile, String passphrase) throws IOException, IllegalVariableEvaluationException {
+    static FsOptionWithCleanUp fsOptions(RunContext runContext, String keyfile, String passphrase, String proxyHost, String proxyPassword, Integer proxyPort, String proxyUser, String proxyType) throws IOException, IllegalVariableEvaluationException {
         SftpFileSystemConfigBuilder instance = SftpFileSystemConfigBuilder.getInstance();
 
         FileSystemOptions options = new FileSystemOptions();
@@ -100,6 +135,37 @@ public abstract class AbstractSftpTask extends AbstractVfsTask implements Abstra
         instance.setSessionTimeoutMillis(options, 10000);
         // see https://issues.apache.org/jira/browse/VFS-766
         instance.setDisableDetectExecChannel(options, true);
+
+        if (proxyHost != null) {
+            instance.setProxyHost(options, proxyHost);
+        }
+        if (proxyPassword != null) {
+            instance.setProxyPassword(options, proxyPassword);
+        }
+        if (proxyPort != null) {
+            instance.setProxyPort(options, proxyPort);
+        }
+        if (proxyUser != null) {
+            instance.setProxyUser(options, proxyUser);
+        }
+        if (proxyHost != null && proxyType == null) {
+            throw new IllegalArgumentException("Invalid proxy type");
+        } else {
+            if (proxyType != null) {
+                switch (proxyType) {
+                    case "SOCKS5":
+                        instance.setProxyType(options, SftpFileSystemConfigBuilder.PROXY_SOCKS5);
+                        break;
+                    case "STREAM":
+                        instance.setProxyType(options, SftpFileSystemConfigBuilder.PROXY_STREAM);
+                        break;
+                    case "HTTP":
+                        instance.setProxyType(options, SftpFileSystemConfigBuilder.PROXY_HTTP);
+                        break;
+                }
+            }
+        }
+
 
         String keyContent = runContext.render(keyfile);
         if (keyContent != null) {
