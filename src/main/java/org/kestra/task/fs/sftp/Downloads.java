@@ -142,6 +142,11 @@ public class Downloads extends AbstractSftpTask implements RunnableTask<Download
             .password(this.password)
             .keyfile(this.keyfile)
             .passphrase(this.passphrase)
+            .proxyHost(this.proxyHost)
+            .proxyPassword(this.proxyPassword)
+            .proxyUser(this.proxyUser)
+            .proxyPort(this.proxyPort)
+            .proxyType(this.proxyType)
             .build();
         List.Output run = task.run(runContext);
 
