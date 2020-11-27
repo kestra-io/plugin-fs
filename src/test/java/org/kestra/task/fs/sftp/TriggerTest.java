@@ -13,15 +13,15 @@ import org.kestra.core.models.executions.Execution;
 import org.kestra.core.models.triggers.TriggerContext;
 import org.kestra.core.queues.QueueFactoryInterface;
 import org.kestra.core.queues.QueueInterface;
-import org.kestra.core.repositories.ExecutionRepositoryInterface;
 import org.kestra.core.repositories.LocalFlowRepositoryLoader;
-import org.kestra.core.repositories.TriggerRepositoryInterface;
 import org.kestra.core.runners.RunContext;
 import org.kestra.core.runners.RunContextFactory;
-import org.kestra.core.schedulers.Scheduler;
-import org.kestra.core.services.FlowListenersService;
-import org.kestra.core.utils.ExecutorsUtils;
+import org.kestra.core.schedulers.AbstractScheduler;
+import org.kestra.core.schedulers.SchedulerExecutionStateInterface;
+import org.kestra.core.schedulers.SchedulerTriggerStateInterface;
+import org.kestra.core.services.FlowListenersInterface;
 import org.kestra.core.utils.TestsUtils;
+import org.kestra.core.schedulers.DefaultScheduler;
 import org.kestra.task.fs.sftp.models.File;
 
 import java.io.IOException;
@@ -46,16 +46,13 @@ class TriggerTest {
     private ApplicationContext applicationContext;
 
     @Inject
-    private ExecutorsUtils executorsUtils;
+    private SchedulerTriggerStateInterface triggerState;
 
     @Inject
-    private TriggerRepositoryInterface triggerContextRepository;
+    private SchedulerExecutionStateInterface executionState;
 
     @Inject
-    private ExecutionRepositoryInterface executionRepository;
-
-    @Inject
-    private FlowListenersService flowListenersService;
+    private FlowListenersInterface flowListenersService;
 
     @Inject
     @Named(QueueFactoryInterface.EXECUTION_NAMED)
@@ -84,13 +81,11 @@ class TriggerTest {
         CountDownLatch queueCount = new CountDownLatch(1);
 
         // scheduler
-        try (Scheduler scheduler = new Scheduler(
+        try (AbstractScheduler scheduler = new DefaultScheduler(
             this.applicationContext,
-            this.executorsUtils,
-            this.executionQueue,
             this.flowListenersService,
-            this.executionRepository,
-            this.triggerContextRepository
+            this.executionState,
+            this.triggerState
         )) {
             AtomicReference<Execution> last = new AtomicReference<>();
 
@@ -125,13 +120,11 @@ class TriggerTest {
         CountDownLatch queueCount = new CountDownLatch(1);
 
         // scheduler
-        try (Scheduler scheduler = new Scheduler(
+        try (AbstractScheduler scheduler = new DefaultScheduler(
             this.applicationContext,
-            this.executorsUtils,
-            this.executionQueue,
             this.flowListenersService,
-            this.executionRepository,
-            this.triggerContextRepository
+            this.executionState,
+            this.triggerState
         )) {
             AtomicReference<Execution> last = new AtomicReference<>();
 
