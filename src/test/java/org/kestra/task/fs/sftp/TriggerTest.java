@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -105,7 +106,7 @@ class TriggerTest {
 
             scheduler.run();
 
-            queueCount.await();
+            queueCount.await(1, TimeUnit.MINUTES);
 
             @SuppressWarnings("unchecked")
             java.util.List<File> trigger = (java.util.List<File>) last.get().getTrigger().getVariables().get("files");
@@ -144,7 +145,7 @@ class TriggerTest {
             String out1 = FriendlyId.createFriendlyId();
             sftpUtils.upload("/upload/" + random + "/" + out1);
 
-            queueCount.await();
+            queueCount.await(1, TimeUnit.MINUTES);
 
             @SuppressWarnings("unchecked")
             java.util.List<URI> trigger = (java.util.List<URI>) last.get().getTrigger().getVariables().get("files");
