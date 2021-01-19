@@ -1,7 +1,7 @@
 package org.kestra.task.fs.sftp;
 
 import com.devskiller.friendly_id.FriendlyId;
-import io.micronaut.test.annotation.MicronautTest;
+import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.Test;

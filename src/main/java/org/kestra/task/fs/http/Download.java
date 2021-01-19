@@ -1,7 +1,7 @@
 package org.kestra.task.fs.http;
 
 import io.micronaut.http.HttpRequest;
-import io.micronaut.http.client.DefaultHttpClient;
+import io.micronaut.http.client.netty.DefaultHttpClient;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
