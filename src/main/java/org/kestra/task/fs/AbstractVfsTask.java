@@ -1,13 +1,12 @@
 package org.kestra.task.fs;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
+import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.kestra.core.models.annotations.PluginProperty;
 import org.kestra.core.models.tasks.Task;
+
+import javax.validation.constraints.NotNull;
 
 @SuperBuilder
 @ToString
@@ -19,11 +18,13 @@ public abstract class AbstractVfsTask extends Task {
         title = "Hostname of the remote server"
     )
     @PluginProperty(dynamic = true)
+    @NotNull
     protected String host;
 
     @Schema(
         title = "Port of the remote server"
     )
     @PluginProperty(dynamic = true)
-    protected String port;
+    @Builder.Default
+    protected String port = "22";
 }
