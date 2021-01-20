@@ -34,11 +34,12 @@ class ListTest {
         List.ListBuilder<?, ?> builder = List.builder()
             .id(ListTest.class.getSimpleName())
             .type(List.class.getName())
-            .from("upload/" + dir)
+            .from("/upload/" + dir)
             .host("localhost")
             .port("6622")
             .username("foo")
-            .password("pass");
+            .password("pass")
+            .rootDir(false);
 
         List task = builder.build();
 

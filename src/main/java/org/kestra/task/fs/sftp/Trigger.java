@@ -172,6 +172,13 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @PluginProperty(dynamic = true)
     protected String proxyType;
 
+    @Schema(
+        title = "Is path is relative to root dir"
+    )
+    @PluginProperty(dynamic = true)
+    @Builder.Default
+    protected Boolean rootDir = true;
+
     @Override
     @SuppressWarnings("resource")
     public Optional<Execution> evaluate(RunContext runContext, TriggerContext context) throws Exception {
@@ -191,7 +198,8 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             this.proxyPassword,
             this.proxyPort,
             this.proxyUser,
-            this.proxyType
+            this.proxyType,
+            this.rootDir
         );
 
         // list files

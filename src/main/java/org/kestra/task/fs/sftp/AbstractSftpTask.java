@@ -80,6 +80,13 @@ public abstract class AbstractSftpTask extends AbstractVfsTask implements Abstra
     @PluginProperty(dynamic = true)
     protected String proxyType;
 
+    @Schema(
+        title = "Is path is relative to root dir"
+    )
+    @PluginProperty(dynamic = true)
+    @Builder.Default
+    protected Boolean rootDir = true;
+
     static String basicAuth(RunContext runContext, String username, String password) throws IllegalVariableEvaluationException {
         username = runContext.render(username);
         password = runContext.render(password);
@@ -105,7 +112,7 @@ public abstract class AbstractSftpTask extends AbstractVfsTask implements Abstra
             "sftp",
             basicAuth(runContext, username, password),
             runContext.render(host),
-            port == null ? null : Integer.parseInt(runContext.render(port)),
+            port == null ? 22 : Integer.parseInt(runContext.render(port)),
             "/" + StringUtils.stripStart(runContext.render(filepath), "/"),
             null,
             null
@@ -121,17 +128,28 @@ public abstract class AbstractSftpTask extends AbstractVfsTask implements Abstra
             this.proxyPassword,
             this.proxyPort,
             this.proxyUser,
-            this.proxyType
+            this.proxyType,
+            this.rootDir
         );
     }
 
-    static FsOptionWithCleanUp fsOptions(RunContext runContext, String keyfile, String passphrase, String proxyHost, String proxyPassword, Integer proxyPort, String proxyUser, String proxyType) throws IOException, IllegalVariableEvaluationException {
+    static FsOptionWithCleanUp fsOptions(
+        RunContext runContext,
+        String keyfile,
+        String passphrase,
+        String proxyHost,
+        String proxyPassword,
+        Integer proxyPort,
+        String proxyUser,
+        String proxyType,
+        Boolean rootDir
+    ) throws IOException, IllegalVariableEvaluationException {
         SftpFileSystemConfigBuilder instance = SftpFileSystemConfigBuilder.getInstance();
 
         FileSystemOptions options = new FileSystemOptions();
 
         instance.setStrictHostKeyChecking(options, "no");
-        instance.setUserDirIsRoot(options, true);
+        instance.setUserDirIsRoot(options, rootDir);
         instance.setSessionTimeoutMillis(options, 10000);
         // see https://issues.apache.org/jira/browse/VFS-766
         instance.setDisableDetectExecChannel(options, true);

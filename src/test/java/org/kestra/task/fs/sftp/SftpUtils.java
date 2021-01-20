@@ -49,6 +49,7 @@ class SftpUtils {
             .port("6622")
             .username("foo")
             .password("pass")
+            .rootDir(true)
             .build();
 
         return task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
