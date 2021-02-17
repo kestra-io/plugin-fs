@@ -3,6 +3,7 @@ package org.kestra.task.fs.http;
 import com.google.common.collect.ImmutableMap;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.http.HttpMethod;
+import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.MediaType;
 import io.micronaut.http.annotation.Controller;
@@ -78,15 +79,20 @@ class RequestTest {
                 .method(HttpMethod.POST)
                 .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                 .uri(server.getURL().toString() + "/post/simple")
+                .headers(ImmutableMap.of(
+                    "test", "{{ inputs.test }}"
+                ))
                 .formData(ImmutableMap.of("hello", "world"))
                 .build();
 
 
-            RunContext runContext = TestsUtils.mockRunContext(this.runContextFactory, task, ImmutableMap.of());
+            RunContext runContext = TestsUtils.mockRunContext(this.runContextFactory, task, ImmutableMap.of(
+                "test", "value"
+            ));
 
             Request.Output output = task.run(runContext);
 
-            assertThat(output.getBody(), is("world"));
+            assertThat(output.getBody(), is("world > value"));
             assertThat(output.getCode(), is(200));
         }
     }
@@ -94,8 +100,8 @@ class RequestTest {
     @Controller(value = "/post", consumes = MediaType.APPLICATION_FORM_URLENCODED)
     static class MockController {
         @Post("/simple")
-        HttpResponse<String> simple(String hello) {
-            return HttpResponse.ok(hello);
+        HttpResponse<String> simple(HttpRequest<?> request, String hello) {
+            return HttpResponse.ok(hello + " > " + request.getHeaders().get("test"));
         }
     }
 }

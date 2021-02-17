@@ -14,9 +14,13 @@ import org.kestra.core.runners.RunContext;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.stream.Collectors;
+
+import static org.kestra.core.utils.Rethrow.throwFunction;
 
 @SuperBuilder
 @ToString
@@ -57,6 +61,7 @@ abstract public class AbstractHttp extends Task {
     @Schema(
         title = "The header to pass to current request"
     )
+    @PluginProperty(dynamic = true)
     protected Map<CharSequence, CharSequence> headers;
 
     protected DefaultHttpClientConfiguration configuration() {
@@ -93,7 +98,15 @@ abstract public class AbstractHttp extends Task {
         }
 
         if (this.headers != null) {
-            request.headers(this.headers);
+            request.headers(this.headers
+                .entrySet()
+                .stream()
+                .map(throwFunction(e -> new AbstractMap.SimpleEntry<>(
+                    e.getKey(),
+                    runContext.render(e.getValue().toString())
+                )))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue))
+            );
         }
 
         return request;
