@@ -10,7 +10,7 @@
 
 ## Documentation
 * The official Kestra documentation can be found under: [kestra.io](https://kestra.io)
-* This plugin documentation can be found [here](https://kestra.io/plugins/task-fs/)
+* This plugin documentation can be found [here](https://kestra.io/plugins/plugin-fs/)
 
 ## License
 Apache 2.0 © [Nigh Tech](https://nigh.tech)
