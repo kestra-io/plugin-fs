@@ -1,9 +1,9 @@
 id: sftp-listen
-namespace: org.kestra.tests
+namespace: io.kestra.tests
 
 triggers:
   - id: watch
-    type: org.kestra.task.fs.sftp.Trigger
+    type: io.kestra.plugin.fs.sftp.Trigger
     host: localhost
     port: 6622
     username: foo
@@ -15,5 +15,5 @@ triggers:
 
 tasks:
   - id: end
-    type: org.kestra.core.tasks.debugs.Return
+    type: io.kestra.core.tasks.debugs.Return
     format: "{{task.id}} > {{taskrun.startDate}}"
