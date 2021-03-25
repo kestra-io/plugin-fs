@@ -55,7 +55,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                 "      - id: return",
                 "        type: io.kestra.core.tasks.debugs.Return",
                 "        format: \"{{taskrun.value}}\"",
-                "    value: \"{{ jq trigger '.files[].uri' true }}\"",
+                "    value: \"{{ jq trigger '.files[].uri' }}\"",
                 "",
                 "triggers:",
                 "  - id: watch",
