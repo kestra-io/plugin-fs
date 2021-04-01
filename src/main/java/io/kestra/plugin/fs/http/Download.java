@@ -1,6 +1,10 @@
 package io.kestra.plugin.fs.http;
 
+import io.micronaut.core.io.buffer.ByteBuffer;
 import io.micronaut.http.HttpRequest;
+import io.micronaut.http.HttpResponse;
+import io.micronaut.http.HttpStatus;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.http.client.netty.DefaultHttpClient;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
@@ -11,6 +15,8 @@ import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
+import org.reactivestreams.Subscriber;
+import org.reactivestreams.Subscription;
 import org.slf4j.Logger;
 
 import java.io.BufferedOutputStream;
@@ -19,6 +25,7 @@ import java.io.FileOutputStream;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 @SuperBuilder
 @ToString
@@ -65,7 +72,9 @@ public class Download extends AbstractHttp implements RunnableTask<Download.Outp
 
             Long size = client
                 .exchangeStream(request)
+
                 .map(response -> {
+                    System.out.println(response);
                     if (builder.code == null) {
                         builder
                             .code(response.code())
@@ -84,7 +93,7 @@ public class Download extends AbstractHttp implements RunnableTask<Download.Outp
                 .reduce(Long::sum)
                 .blockingGet();
 
-            if (builder.headers.containsKey("Content-Length")) {
+            if (builder.headers != null && builder.headers.containsKey("Content-Length")) {
                 long length = Long.parseLong(builder.headers.get("Content-Length").get(0));
                 if (length != size) {
                     throw new IllegalStateException("Invalid size, got " + size + ", expexted " + length);
@@ -93,7 +102,12 @@ public class Download extends AbstractHttp implements RunnableTask<Download.Outp
 
             output.flush();
 
-            runContext.metric(Counter.of("response.length", size, this.tags(request, null)));
+            runContext.metric(Counter.of("response.length", size == null ? 0 : size, this.tags(request, null)));
+
+            if (size == null) {
+                throw new HttpClientResponseException("No response from server", HttpResponse.status(HttpStatus.SERVICE_UNAVAILABLE));
+            }
+
             builder.uri(runContext.putTempFile(tempFile));
 
             logger.debug("File '{}' download to '{}'", from, builder.uri);
