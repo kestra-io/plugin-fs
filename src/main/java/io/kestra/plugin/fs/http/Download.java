@@ -74,7 +74,6 @@ public class Download extends AbstractHttp implements RunnableTask<Download.Outp
                 .exchangeStream(request)
 
                 .map(response -> {
-                    System.out.println(response);
                     if (builder.code == null) {
                         builder
                             .code(response.code())
