@@ -93,7 +93,7 @@ public class Upload extends AbstractSftpTask implements RunnableTask<SftpOutput>
                 remote.copyFrom(local, Selectors.SELECT_SELF);
             }
 
-            logger.debug("File '{}' uploaded to '{}'", from, to);
+            logger.debug("File '{}' uploaded to '{}'", from, to.getPath());
 
             return SftpOutput.builder()
                 .from(from)

@@ -64,7 +64,7 @@ public class Download extends AbstractSftpTask implements RunnableTask<SftpOutpu
 
             URI storageUri = runContext.putTempFile(tempFile);
 
-            logger.debug("File '{}' download to '{}'", from, storageUri);
+            logger.debug("File '{}' download to '{}'", from.getPath(), storageUri);
 
             return SftpOutput.builder()
                 .from(from)
