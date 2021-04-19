@@ -82,40 +82,38 @@ public class Downloads extends AbstractSftpTask implements RunnableTask<Download
         RunContext runContext
     ) throws Exception {
         if (action == Action.DELETE) {
-            blobList
-                .forEach(throwConsumer(file -> {
-                    Delete delete = Delete.builder()
-                        .id("delete")
-                        .type(Delete.class.getName())
-                        .uri(file.getPath().toString())
-                        .host(abstractSftpTask.getHost())
-                        .port(abstractSftpTask.getPort())
-                        .username(abstractSftpTask.getUsername())
-                        .password(abstractSftpTask.getPassword())
-                        .keyfile(abstractSftpTask.getKeyfile())
-                        .passphrase(abstractSftpTask.getPassphrase())
-                        .build();
-                    delete.run(runContext);
-                }));
+            for (io.kestra.plugin.fs.sftp.models.File file : blobList) {
+                Delete delete = Delete.builder()
+                    .id("delete")
+                    .type(Delete.class.getName())
+                    .uri(file.getPath().toString())
+                    .host(abstractSftpTask.getHost())
+                    .port(abstractSftpTask.getPort())
+                    .username(abstractSftpTask.getUsername())
+                    .password(abstractSftpTask.getPassword())
+                    .keyfile(abstractSftpTask.getKeyfile())
+                    .passphrase(abstractSftpTask.getPassphrase())
+                    .build();
+                delete.run(runContext);
+            }
         } else if (action == Action.MOVE) {
-            blobList
-                .forEach(throwConsumer(file -> {
-                    Move copy = Move.builder()
-                        .id("archive")
-                        .type(Move.class.getName())
-                        .from(file.getPath().toString())
-                        .to(StringUtils.stripEnd(runContext.render(moveDirectory) + "/", "/")
-                            + "/" + FilenameUtils.getName(file.getName())
-                        )
-                        .host(abstractSftpTask.getHost())
-                        .port(abstractSftpTask.getPort())
-                        .username(abstractSftpTask.getUsername())
-                        .password(abstractSftpTask.getPassword())
-                        .keyfile(abstractSftpTask.getKeyfile())
-                        .passphrase(abstractSftpTask.getPassphrase())
-                        .build();
-                    copy.run(runContext);
-                }));
+            for (io.kestra.plugin.fs.sftp.models.File file : blobList) {
+                Move copy = Move.builder()
+                    .id("archive")
+                    .type(Move.class.getName())
+                    .from(file.getPath().toString())
+                    .to(StringUtils.stripEnd(runContext.render(moveDirectory) + "/", "/")
+                        + "/" + FilenameUtils.getName(file.getName())
+                    )
+                    .host(abstractSftpTask.getHost())
+                    .port(abstractSftpTask.getPort())
+                    .username(abstractSftpTask.getUsername())
+                    .password(abstractSftpTask.getPassword())
+                    .keyfile(abstractSftpTask.getKeyfile())
+                    .passphrase(abstractSftpTask.getPassphrase())
+                    .build();
+                copy.run(runContext);
+            }
         }
     }
 
