@@ -37,12 +37,12 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Wait for files on Google cloud storage"
+    title = "Wait for files on a SFTP server"
 )
 @Plugin(
     examples = {
         @Example(
-            title = "Wait for a list of file on a GCS bucket and iterate through the files",
+            title = "Wait for a list of file on a SFTP server and iterate through the files",
             full = true,
             code = {
                 "id: gcs-listen",
