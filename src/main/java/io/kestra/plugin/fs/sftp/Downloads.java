@@ -6,6 +6,7 @@ import lombok.experimental.SuperBuilder;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.vfs2.FileSystemManager;
+import org.apache.commons.vfs2.FileType;
 import org.apache.commons.vfs2.VFS;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
@@ -148,8 +149,13 @@ public class Downloads extends AbstractSftpTask implements RunnableTask<Download
             .build();
         List.Output run = task.run(runContext);
 
-        java.util.List<io.kestra.plugin.fs.sftp.models.File> list = run
+        java.util.List<io.kestra.plugin.fs.sftp.models.File> files = run
             .getFiles()
+            .stream()
+            .filter(file -> file.getFileType() == FileType.FILE)
+            .collect(Collectors.toList());
+
+        java.util.List<io.kestra.plugin.fs.sftp.models.File> list = files
             .stream()
             .map(throwFunction(file -> {
                 File download = Download.download(
@@ -169,7 +175,7 @@ public class Downloads extends AbstractSftpTask implements RunnableTask<Download
 
         if (this.action != null) {
             Downloads.archive(
-                run.getFiles(),
+                files,
                 this.action,
                 this.moveDirectory,
                 this,
