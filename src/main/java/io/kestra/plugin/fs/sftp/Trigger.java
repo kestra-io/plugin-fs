@@ -230,10 +230,14 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
         String executionId = IdUtils.create();
 
-        java.util.List<io.kestra.plugin.fs.sftp.models.File> list = run
+        java.util.List<io.kestra.plugin.fs.sftp.models.File> files = run
             .getFiles()
             .stream()
             .filter(file -> file.getFileType() == FileType.FILE)
+            .collect(Collectors.toList());
+
+        java.util.List<io.kestra.plugin.fs.sftp.models.File> list = files
+            .stream()
             .map(throwFunction(file -> {
                 File download = Download.download(
                     fsm,
@@ -254,7 +258,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .collect(Collectors.toList());
 
         Downloads.archive(
-            run.getFiles(),
+            files,
             this.action,
             this.moveDirectory,
             this,
