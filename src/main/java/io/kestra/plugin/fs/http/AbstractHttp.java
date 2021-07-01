@@ -42,6 +42,7 @@ abstract public class AbstractHttp extends Task {
         title = "The http method to use"
     )
     @Builder.Default
+    @PluginProperty(dynamic = false)
     protected HttpMethod method = HttpMethod.GET;
 
     @Schema(
@@ -53,8 +54,8 @@ abstract public class AbstractHttp extends Task {
     @Schema(
         title = "The form data to be send"
     )
+    @PluginProperty(dynamic = true)
     protected Map<String, Object> formData;
-
 
     @Schema(
         title = "The request content type"
@@ -73,7 +74,7 @@ abstract public class AbstractHttp extends Task {
     )
     protected RequestOptions options;
 
-    protected DefaultHttpClientConfiguration configuration() {
+    protected DefaultHttpClientConfiguration configuration(RunContext runContext) throws IllegalVariableEvaluationException {
         DefaultHttpClientConfiguration configuration = new DefaultHttpClientConfiguration();
 
         if (this.options != null) {
@@ -101,16 +102,19 @@ abstract public class AbstractHttp extends Task {
                 configuration.setProxyType(this.options.getProxyType());
             }
 
-            if (this.options.getProxyAddress() != null) {
-                configuration.setProxyAddress(this.options.getProxyAddress());
+            if (this.options.getProxyAddress() != null && this.options.getProxyPort() != null) {
+                configuration.setProxyAddress(new InetSocketAddress(
+                    runContext.render(this.options.getProxyAddress()),
+                    this.options.getProxyPort()
+                ));
             }
 
             if (this.options.getProxyUsername() != null) {
-                configuration.setProxyUsername(this.options.getProxyUsername());
+                configuration.setProxyUsername(runContext.render(this.options.getProxyUsername()));
             }
 
             if (this.options.getProxyPassword() != null) {
-                configuration.setProxyPassword(this.options.getProxyPassword());
+                configuration.setProxyPassword(runContext.render(this.options.getProxyPassword()));
             }
 
             if (this.options.getDefaultCharset() != null) {
@@ -135,7 +139,7 @@ abstract public class AbstractHttp extends Task {
     protected DefaultHttpClient client(RunContext runContext) throws IllegalVariableEvaluationException, MalformedURLException, URISyntaxException {
         URI from = new URI(runContext.render(this.uri));
 
-        return new DefaultHttpClient(from.toURL(), this.configuration());
+        return new DefaultHttpClient(from.toURL(), this.configuration(runContext));
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -144,6 +148,14 @@ abstract public class AbstractHttp extends Task {
 
         MutableHttpRequest request = HttpRequest
             .create(method, from.toString());
+
+
+        if (this.options != null && this.options.basicAuthUser != null && this.options.basicAuthPassword != null) {
+            request.basicAuth(
+                runContext.render(this.options.basicAuthUser),
+                runContext.render(this.options.basicAuthPassword)
+            );
+        }
 
         if (this.formData != null) {
             request.contentType(MediaType.APPLICATION_FORM_URLENCODED);
@@ -189,46 +201,70 @@ abstract public class AbstractHttp extends Task {
     @Builder
     public static class RequestOptions {
         @Schema(title = "The connect timeout.")
+        @PluginProperty(dynamic = false)
         private final Duration connectTimeout;
 
         @Schema(title = "The default read timeout.")
         @Builder.Default
+        @PluginProperty(dynamic = false)
         private final Duration readTimeout = Duration.ofSeconds(HttpClientConfiguration.DEFAULT_READ_TIMEOUT_SECONDS);
 
         @Schema(title = "The default amount of time to allow read operation connections to remain idle.")
         @Builder.Default
+        @PluginProperty(dynamic = false)
         private final Duration readIdleTimeout = Duration.of(HttpClientConfiguration.DEFAULT_READ_IDLE_TIMEOUT_MINUTES, ChronoUnit.MINUTES);
 
         @Schema(title = "The idle timeout for connection in the client connection pool. ")
         @Builder.Default
+        @PluginProperty(dynamic = false)
         private final Duration connectionPoolIdleTimeout = Duration.ofSeconds(HttpClientConfiguration.DEFAULT_CONNECTION_POOL_IDLE_TIMEOUT_SECONDS);
 
         @Schema(title = "Sets the maximum content length the client can consume.")
         @Builder.Default
+        @PluginProperty(dynamic = false)
         private final Integer maxContentLength = HttpClientConfiguration.DEFAULT_MAX_CONTENT_LENGTH;
 
         @Schema(title = "The proxy type to use.")
         @Builder.Default
+        @PluginProperty(dynamic = false)
         private final Proxy.Type proxyType = Proxy.Type.DIRECT;
 
         @Schema(title = "The proxy to use.")
-        private final SocketAddress proxyAddress;
+        @PluginProperty(dynamic = true)
+        private final String proxyAddress;
+
+        @Schema(title = "The proxy port to use.")
+        @PluginProperty(dynamic = false)
+        private final Integer proxyPort;
 
         @Schema(title = "The proxy user to use.")
+        @PluginProperty(dynamic = true)
         private final String proxyUsername;
 
         @Schema(title = "The proxy password to use.")
+        @PluginProperty(dynamic = true)
         private final String proxyPassword;
 
         @Schema(title = "Sets the default charset to use.")
         @Builder.Default
+        @PluginProperty(dynamic = false)
         private final Charset defaultCharset = StandardCharsets.UTF_8;
 
         @Schema(title = "Whether redirects should be followed.")
         @Builder.Default
+        @PluginProperty(dynamic = false)
         private final Boolean followRedirects = HttpClientConfiguration.DEFAULT_FOLLOW_REDIRECTS;
 
         @Schema(title = "The level to enable trace logging at.")
+        @PluginProperty(dynamic = false)
         private final LogLevel logLevel;
+
+        @Schema(title = "The basicAuth username.")
+        @PluginProperty(dynamic = true)
+        private final String basicAuthUser;
+
+        @Schema(title = "The basicAuth password.")
+        @PluginProperty(dynamic = true)
+        private final String basicAuthPassword;
     }
 }
