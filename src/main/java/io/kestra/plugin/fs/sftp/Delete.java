@@ -5,6 +5,7 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.vfs2.FileObject;
 import org.apache.commons.vfs2.FileSystemManager;
+import org.apache.commons.vfs2.FileSystemOptions;
 import org.apache.commons.vfs2.VFS;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
@@ -56,30 +57,26 @@ public class Delete extends AbstractSftpTask implements RunnableTask<Delete.Outp
         URI from = this.sftpUri(runContext, this.uri);
 
         // connection options
-        FsOptionWithCleanUp fsOptionWithCleanUp = this.fsOptions(runContext);
+        FileSystemOptions fileSystemOptions = this.fsOptions(runContext);
 
         // list
-        try {
-            try (
-                FileObject local = fsm.resolveFile(from.toString(), fsOptionWithCleanUp.getOptions())
-            ) {
-                if (!local.exists() && errorOnMissing) {
-                    throw new NoSuchElementException("Unable to find file '" + from + "'");
-                }
-
-                if (local.exists()) {
-                    logger.debug("Deleted file '{}'", from);
-                } else {
-                    logger.debug("File doesn't exists '{}'", from);
-                }
-
-                return Output.builder()
-                    .uri(output(from))
-                    .deleted(local.delete())
-                    .build();
+        try (
+            FileObject local = fsm.resolveFile(from.toString(), fileSystemOptions)
+        ) {
+            if (!local.exists() && errorOnMissing) {
+                throw new NoSuchElementException("Unable to find file '" + from + "'");
             }
-        } finally {
-            fsOptionWithCleanUp.getCleanup().run();
+
+            if (local.exists()) {
+                logger.debug("Deleted file '{}'", from);
+            } else {
+                logger.debug("File doesn't exists '{}'", from);
+            }
+
+            return Output.builder()
+                .uri(output(from))
+                .deleted(local.delete())
+                .build();
         }
     }
 

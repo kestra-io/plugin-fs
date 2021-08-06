@@ -11,6 +11,7 @@ import lombok.experimental.SuperBuilder;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.vfs2.FileSystemManager;
+import org.apache.commons.vfs2.FileSystemOptions;
 import org.apache.commons.vfs2.FileType;
 import org.apache.commons.vfs2.VFS;
 import org.slf4j.Logger;
@@ -125,7 +126,7 @@ public class Downloads extends AbstractSftpTask implements RunnableTask<Download
         URI from = this.sftpUri(runContext, this.from);
 
         // connection options
-        FsOptionWithCleanUp fsOptionWithCleanUp = this.fsOptions(runContext);
+        FileSystemOptions fileSystemOptions = this.fsOptions(runContext);
 
         // list files
         List task = List.builder()
@@ -158,8 +159,9 @@ public class Downloads extends AbstractSftpTask implements RunnableTask<Download
             .map(throwFunction(file -> {
                 File download = Download.download(
                     fsm,
-                    fsOptionWithCleanUp.getOptions(),
-                    AbstractSftpTask.sftpUri(runContext, this.host, this.port, this.username, this.password, file.getPath().toString())
+                    fileSystemOptions,
+                    AbstractSftpTask.sftpUri(runContext, this.host, this.port, this.username, this.password, file.getPath().toString()),
+                    runContext
                 );
 
                 URI storageUri = runContext.putTempFile(download);
@@ -180,10 +182,6 @@ public class Downloads extends AbstractSftpTask implements RunnableTask<Download
                 runContext
             );
         }
-
-        // nom du fichier
-        // filtre sur les reps
-        //
 
         return Output
             .builder()

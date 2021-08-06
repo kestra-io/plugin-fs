@@ -14,10 +14,10 @@ import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.fs.AbstractVfsTask;
 
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 
 @SuperBuilder
 @ToString
@@ -119,7 +119,7 @@ public abstract class AbstractSftpTask extends AbstractVfsTask implements Abstra
         );
     }
 
-    protected FsOptionWithCleanUp fsOptions(RunContext runContext) throws IOException, IllegalVariableEvaluationException {
+    protected FileSystemOptions fsOptions(RunContext runContext) throws IOException, IllegalVariableEvaluationException {
         return fsOptions(
             runContext,
             this.keyfile,
@@ -133,7 +133,7 @@ public abstract class AbstractSftpTask extends AbstractVfsTask implements Abstra
         );
     }
 
-    static FsOptionWithCleanUp fsOptions(
+    static FileSystemOptions fsOptions(
         RunContext runContext,
         String keyfile,
         String passphrase,
@@ -184,13 +184,9 @@ public abstract class AbstractSftpTask extends AbstractVfsTask implements Abstra
             }
         }
 
-
         String keyContent = runContext.render(keyfile);
         if (keyContent != null) {
-            File sftpKey = File.createTempFile("sftp-key-", "");
-            try (FileWriter myWriter = new FileWriter(sftpKey)) {
-                myWriter.write(keyContent);
-            }
+            File sftpKey = runContext.tempFile(keyContent.getBytes(StandardCharsets.UTF_8)).toFile();
 
             IdentityInfo identityInfo;
             if (passphrase != null) {
@@ -200,11 +196,9 @@ public abstract class AbstractSftpTask extends AbstractVfsTask implements Abstra
             }
 
             instance.setIdentityProvider(options, identityInfo);
-
-            return new FsOptionWithCleanUp(options, sftpKey::delete);
-        } else {
-            return new FsOptionWithCleanUp(options, () -> {});
         }
+
+        return options;
     }
 
     protected static URI output(URI uri) throws URISyntaxException {
@@ -218,13 +212,5 @@ public abstract class AbstractSftpTask extends AbstractVfsTask implements Abstra
 
     protected static boolean isDirectory(URI uri) {
         return ("/" + FilenameUtils.getPath(uri.getPath())).equals(uri.getPath());
-    }
-
-
-    @AllArgsConstructor
-    @Getter
-    public static class FsOptionWithCleanUp {
-        private FileSystemOptions options;
-        private Runnable cleanup;
     }
 }

@@ -1,13 +1,5 @@
 package io.kestra.plugin.fs.sftp;
 
-import com.google.common.collect.ImmutableMap;
-import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.*;
-import lombok.experimental.SuperBuilder;
-import org.apache.commons.vfs2.FileNotFolderException;
-import org.apache.commons.vfs2.FileSystemManager;
-import org.apache.commons.vfs2.FileType;
-import org.apache.commons.vfs2.VFS;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -20,6 +12,10 @@ import io.kestra.core.models.triggers.TriggerContext;
 import io.kestra.core.models.triggers.TriggerOutput;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.utils.IdUtils;
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
+import org.apache.commons.vfs2.*;
 import org.slf4j.Logger;
 
 import java.io.File;
@@ -190,7 +186,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         URI from = AbstractSftpTask.sftpUri(runContext, this.host, this.port, this.username, this.password, this.from);
 
         // connection options
-        AbstractSftpTask.FsOptionWithCleanUp fsOptionWithCleanUp = AbstractSftpTask.fsOptions(
+        FileSystemOptions fileSystemOptions = AbstractSftpTask.fsOptions(
             runContext,
             this.keyfile,
             this.passphrase,
@@ -241,8 +237,9 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .map(throwFunction(file -> {
                 File download = Download.download(
                     fsm,
-                    fsOptionWithCleanUp.getOptions(),
-                    AbstractSftpTask.sftpUri(runContext, this.host, this.port, this.username, this.password, file.getPath().toString())
+                    fileSystemOptions,
+                    AbstractSftpTask.sftpUri(runContext, this.host, this.port, this.username, this.password, file.getPath().toString()),
+                    runContext
                 );
 
                 URI storageUri = runContext.putTempFile(

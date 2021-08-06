@@ -1,18 +1,17 @@
 package io.kestra.plugin.fs.sftp;
 
+import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.tasks.RunnableTask;
+import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
-import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.vfs2.*;
-import io.kestra.core.models.annotations.Example;
-import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.annotations.PluginProperty;
-import io.kestra.core.models.tasks.RunnableTask;
-import io.kestra.core.runners.RunContext;
 import org.slf4j.Logger;
 
 import java.io.File;
@@ -56,31 +55,24 @@ public class Download extends AbstractSftpTask implements RunnableTask<SftpOutpu
         URI from = this.sftpUri(runContext, this.from);
 
         // connection options
-        FsOptionWithCleanUp fsOptionWithCleanUp = this.fsOptions(runContext);
+        FileSystemOptions fileSystemOptions = this.fsOptions(runContext);
 
         // download
-        try {
-            File tempFile = download(fsm, fsOptionWithCleanUp.getOptions(), from);
+        File tempFile = download(fsm, fileSystemOptions, from, runContext);
 
-            URI storageUri = runContext.putTempFile(tempFile);
+        URI storageUri = runContext.putTempFile(tempFile);
 
-            logger.debug("File '{}' download to '{}'", from.getPath(), storageUri);
+        logger.debug("File '{}' download to '{}'", from.getPath(), storageUri);
 
-            return SftpOutput.builder()
-                .from(from)
-                .to(storageUri)
-                .build();
-        } finally {
-            fsOptionWithCleanUp.getCleanup().run();
-        }
+        return SftpOutput.builder()
+            .from(from)
+            .to(storageUri)
+            .build();
     }
 
-    static File download(FileSystemManager fsm, FileSystemOptions fileSystemOptions, URI from) throws IOException {
+    static File download(FileSystemManager fsm, FileSystemOptions fileSystemOptions, URI from, RunContext runContext) throws IOException {
         // temp file where download will be copied
-        File tempFile = File.createTempFile(
-            Download.class.getSimpleName().toLowerCase() + "_",
-            "." + FilenameUtils.getExtension(from.getPath())
-        );
+        File tempFile = runContext.tempFile().toFile();
 
         try (
             FileObject local = fsm.resolveFile(tempFile.toURI());

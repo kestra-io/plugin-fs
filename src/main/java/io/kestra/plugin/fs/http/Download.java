@@ -51,13 +51,7 @@ public class Download extends AbstractHttp implements RunnableTask<Download.Outp
     public Download.Output run(RunContext runContext) throws Exception {
         Logger logger = runContext.logger();
         URI from = new URI(runContext.render(this.uri));
-
-
-        // temp file where download will be copied
-        File tempFile = File.createTempFile(
-            this.getClass().getSimpleName().toLowerCase() + "_",
-            "." + FilenameUtils.getExtension(from.getPath())
-        );
+        File tempFile = runContext.tempFile().toFile();
 
         // output
         Output.OutputBuilder builder = Output.builder();

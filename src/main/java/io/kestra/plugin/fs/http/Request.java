@@ -51,13 +51,13 @@ public class Request extends AbstractHttp implements RunnableTask<Request.Output
     )
     protected boolean allowFailed = false;
 
+    @SuppressWarnings("unchecked")
     public Request.Output run(RunContext runContext) throws Exception {
         Logger logger = runContext.logger();
 
         try (
             DefaultHttpClient client = this.client(runContext);
         ) {
-            @SuppressWarnings("unchecked")
             HttpRequest<String> request = this.request(runContext);
             HttpResponse<String> response;
 
