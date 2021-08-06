@@ -1,5 +1,10 @@
 package io.kestra.plugin.fs.sftp;
 
+import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.tasks.RunnableTask;
+import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -7,12 +12,8 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.vfs2.FileObject;
 import org.apache.commons.vfs2.FileSystemManager;
+import org.apache.commons.vfs2.FileSystemOptions;
 import org.apache.commons.vfs2.VFS;
-import io.kestra.core.models.annotations.Example;
-import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.annotations.PluginProperty;
-import io.kestra.core.models.tasks.RunnableTask;
-import io.kestra.core.runners.RunContext;
 import org.slf4j.Logger;
 
 import java.net.URI;
@@ -71,42 +72,38 @@ public class Move extends AbstractSftpTask implements RunnableTask<Move.Output> 
         }
 
         // connection options
-        FsOptionWithCleanUp fsOptionWithCleanUp = this.fsOptions(runContext);
+        FileSystemOptions fileSystemOptions = this.fsOptions(runContext);
 
         // list
-        try {
-            try (
-                FileObject local = fsm.resolveFile(from.toString(), fsOptionWithCleanUp.getOptions());
-                FileObject remote = fsm.resolveFile(to.toString(), fsOptionWithCleanUp.getOptions());
-            ) {
-                if (!local.exists()) {
-                    throw new NoSuchElementException("Unable to find file '" + from + "'");
-                }
-
-                if (!remote.exists()) {
-                    URI pathToCreate = to.resolve("/" + FilenameUtils.getPath(to.getPath()));
-
-                    try (FileObject directory = fsm.resolveFile(pathToCreate)) {
-                        directory.createFolder();
-                        logger.debug("Create directory '{}", pathToCreate);
-                    }
-                }
-
-                local.moveTo(remote);
-
-                if (local.exists()) {
-                    logger.debug("Move file '{}'", from);
-                } else {
-                    logger.debug("File doesn't exists '{}'", from);
-                }
-
-                return Output.builder()
-                    .from(output(from))
-                    .to(output(to))
-                    .build();
+        try (
+            FileObject local = fsm.resolveFile(from.toString(), fileSystemOptions);
+            FileObject remote = fsm.resolveFile(to.toString(), fileSystemOptions);
+        ) {
+            if (!local.exists()) {
+                throw new NoSuchElementException("Unable to find file '" + from + "'");
             }
-        } finally {
-            fsOptionWithCleanUp.getCleanup().run();
+
+            if (!remote.exists()) {
+                URI pathToCreate = to.resolve("/" + FilenameUtils.getPath(to.getPath()));
+
+                try (FileObject directory = fsm.resolveFile(pathToCreate)) {
+                    directory.createFolder();
+                    logger.debug("Create directory '{}", pathToCreate);
+                }
+            }
+
+            local.moveTo(remote);
+
+            if (local.exists()) {
+                logger.debug("Move file '{}'", from);
+            } else {
+                logger.debug("File doesn't exists '{}'", from);
+            }
+
+            return Output.builder()
+                .from(output(from))
+                .to(output(to))
+                .build();
         }
     }
 
