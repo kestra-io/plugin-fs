@@ -3,6 +3,7 @@ package io.kestra.plugin.fs.sftp;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.executions.ExecutionTrigger;
 import io.kestra.core.models.flows.State;
@@ -176,8 +177,8 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     protected Boolean rootDir = true;
 
     @Override
-    @SuppressWarnings("resource")
-    public Optional<Execution> evaluate(RunContext runContext, TriggerContext context) throws Exception {
+    public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
+        RunContext runContext = conditionContext.getRunContext();
         Logger logger = runContext.logger();
 
         FileSystemManager fsm = VFS.getManager();
