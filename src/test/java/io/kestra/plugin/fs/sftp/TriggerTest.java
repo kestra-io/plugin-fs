@@ -2,6 +2,7 @@ package io.kestra.plugin.fs.sftp;
 
 import com.devskiller.friendly_id.FriendlyId;
 import com.google.common.collect.ImmutableMap;
+import io.kestra.core.models.conditions.ConditionContext;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.annotation.Value;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
@@ -171,7 +172,7 @@ class TriggerTest {
         String out = FriendlyId.createFriendlyId();
         SftpOutput upload = sftpUtils.upload("/upload/" + random + "/" + out + ".yml");
 
-        Map.Entry<RunContext, TriggerContext> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+        Map.Entry<ConditionContext, TriggerContext> context = TestsUtils.mockTrigger(runContextFactory, trigger);
         Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
 
         assertThat(execution.isPresent(), is(true));
