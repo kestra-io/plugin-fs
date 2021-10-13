@@ -13,7 +13,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.vfs2.FileObject;
 import org.apache.commons.vfs2.FileSystemManager;
 import org.apache.commons.vfs2.FileSystemOptions;
-import org.apache.commons.vfs2.VFS;
+import org.apache.commons.vfs2.impl.DefaultFileSystemManager;
+import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 import org.slf4j.Logger;
 
 import java.net.URI;
@@ -60,50 +61,52 @@ public class Move extends AbstractSftpTask implements RunnableTask<Move.Output> 
     public Output run(RunContext runContext) throws Exception {
         Logger logger = runContext.logger();
 
-        FileSystemManager fsm = VFS.getManager();
+        try (StandardFileSystemManager fsm = new StandardFileSystemManager()) {
+            fsm.init();
 
-        // path
-        URI from = this.sftpUri(runContext, this.from);
-        URI to = this.sftpUri(runContext, this.to);
+            // path
+            URI from = this.sftpUri(runContext, this.from);
+            URI to = this.sftpUri(runContext, this.to);
 
-        // user pass a destination without filename, we add it
-        if (!isDirectory(from) && isDirectory(to)) {
-            to = to.resolve(StringUtils.stripEnd(to.getPath(), "/") + "/" + FilenameUtils.getName(from.getPath()));
-        }
-
-        // connection options
-        FileSystemOptions fileSystemOptions = this.fsOptions(runContext);
-
-        // list
-        try (
-            FileObject local = fsm.resolveFile(from.toString(), fileSystemOptions);
-            FileObject remote = fsm.resolveFile(to.toString(), fileSystemOptions);
-        ) {
-            if (!local.exists()) {
-                throw new NoSuchElementException("Unable to find file '" + from + "'");
+            // user pass a destination without filename, we add it
+            if (!isDirectory(from) && isDirectory(to)) {
+                to = to.resolve(StringUtils.stripEnd(to.getPath(), "/") + "/" + FilenameUtils.getName(from.getPath()));
             }
 
-            if (!remote.exists()) {
-                URI pathToCreate = to.resolve("/" + FilenameUtils.getPath(to.getPath()));
+            // connection options
+            FileSystemOptions fileSystemOptions = this.fsOptions(runContext);
 
-                try (FileObject directory = fsm.resolveFile(pathToCreate)) {
-                    directory.createFolder();
-                    logger.debug("Create directory '{}", pathToCreate);
+            // list
+            try (
+                FileObject local = fsm.resolveFile(from.toString(), fileSystemOptions);
+                FileObject remote = fsm.resolveFile(to.toString(), fileSystemOptions);
+            ) {
+                if (!local.exists()) {
+                    throw new NoSuchElementException("Unable to find file '" + from + "'");
                 }
+
+                if (!remote.exists()) {
+                    URI pathToCreate = to.resolve("/" + FilenameUtils.getPath(to.getPath()));
+
+                    try (FileObject directory = fsm.resolveFile(pathToCreate)) {
+                        directory.createFolder();
+                        logger.debug("Create directory '{}", pathToCreate);
+                    }
+                }
+
+                local.moveTo(remote);
+
+                if (local.exists()) {
+                    logger.debug("Move file '{}'", from);
+                } else {
+                    logger.debug("File doesn't exists '{}'", from);
+                }
+
+                return Output.builder()
+                    .from(output(from))
+                    .to(output(to))
+                    .build();
             }
-
-            local.moveTo(remote);
-
-            if (local.exists()) {
-                logger.debug("Move file '{}'", from);
-            } else {
-                logger.debug("File doesn't exists '{}'", from);
-            }
-
-            return Output.builder()
-                .from(output(from))
-                .to(output(to))
-                .build();
         }
     }
 

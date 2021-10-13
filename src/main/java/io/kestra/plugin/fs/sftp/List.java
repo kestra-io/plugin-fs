@@ -12,7 +12,8 @@ import lombok.experimental.SuperBuilder;
 import org.apache.commons.vfs2.FileObject;
 import org.apache.commons.vfs2.FileSystemManager;
 import org.apache.commons.vfs2.FileSystemOptions;
-import org.apache.commons.vfs2.VFS;
+import org.apache.commons.vfs2.impl.DefaultFileSystemManager;
+import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 import org.apache.commons.vfs2.provider.sftp.SftpFileObject;
 import org.slf4j.Logger;
 
@@ -57,31 +58,33 @@ public class List extends AbstractSftpTask implements RunnableTask<List.Output> 
     public Output run(RunContext runContext) throws Exception {
         Logger logger = runContext.logger();
 
-        FileSystemManager fsm = VFS.getManager();
+        try (StandardFileSystemManager fsm = new StandardFileSystemManager()) {
+            fsm.init();
 
-        // path
-        URI from = this.sftpUri(runContext, this.from);
-        String regExp = runContext.render(this.regExp);
+            // path
+            URI from = this.sftpUri(runContext, this.from);
+            String regExp = runContext.render(this.regExp);
 
-        // connection options
-        FileSystemOptions fileSystemOptions = this.fsOptions(runContext);
+            // connection options
+            FileSystemOptions fileSystemOptions = this.fsOptions(runContext);
 
-        // list
-        try (
-            FileObject local = fsm.resolveFile(from.toString(), fileSystemOptions)
-        ) {
-            FileObject[] children = local.getChildren();
+            // list
+            try (
+                FileObject local = fsm.resolveFile(from.toString(), fileSystemOptions)
+            ) {
+                FileObject[] children = local.getChildren();
 
-            java.util.List<File> list = Stream.of(children)
-                .map(throwFunction(r -> File.of((SftpFileObject) r)))
-                .filter(r -> regExp == null || r.getPath().toString().matches(regExp))
-                .collect(Collectors.toList());
+                java.util.List<File> list = Stream.of(children)
+                    .map(throwFunction(r -> File.of((SftpFileObject) r)))
+                    .filter(r -> regExp == null || r.getPath().toString().matches(regExp))
+                    .collect(Collectors.toList());
 
-            logger.debug("Found '{}' files from '{}'", list.size(), from);
+                logger.debug("Found '{}' files from '{}'", list.size(), from);
 
-            return Output.builder()
-                .files(list)
-                .build();
+                return Output.builder()
+                    .files(list)
+                    .build();
+            }
         }
     }
 

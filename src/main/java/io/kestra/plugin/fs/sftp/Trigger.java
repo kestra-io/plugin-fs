@@ -16,7 +16,12 @@ import io.kestra.core.utils.IdUtils;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.apache.commons.vfs2.*;
+import org.apache.commons.vfs2.FileNotFolderException;
+import org.apache.commons.vfs2.FileSystemManager;
+import org.apache.commons.vfs2.FileSystemOptions;
+import org.apache.commons.vfs2.FileType;
+import org.apache.commons.vfs2.impl.DefaultFileSystemManager;
+import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 import org.slf4j.Logger;
 
 import java.io.File;
@@ -181,102 +186,104 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         RunContext runContext = conditionContext.getRunContext();
         Logger logger = runContext.logger();
 
-        FileSystemManager fsm = VFS.getManager();
+        try (StandardFileSystemManager fsm = new StandardFileSystemManager()) {
+            fsm.init();
 
-        // path
-        URI from = AbstractSftpTask.sftpUri(runContext, this.host, this.port, this.username, this.password, this.from);
+            // path
+            URI from = AbstractSftpTask.sftpUri(runContext, this.host, this.port, this.username, this.password, this.from);
 
-        // connection options
-        FileSystemOptions fileSystemOptions = AbstractSftpTask.fsOptions(
-            runContext,
-            this.keyfile,
-            this.passphrase,
-            this.proxyHost,
-            this.proxyPassword,
-            this.proxyPort,
-            this.proxyUser,
-            this.proxyType,
-            this.rootDir
-        );
+            // connection options
+            FileSystemOptions fileSystemOptions = AbstractSftpTask.fsOptions(
+                runContext,
+                this.keyfile,
+                this.passphrase,
+                this.proxyHost,
+                this.proxyPassword,
+                this.proxyPort,
+                this.proxyUser,
+                this.proxyType,
+                this.rootDir
+            );
 
-        // list files
-        List task = List.builder()
-            .id(this.id)
-            .type(List.class.getName())
-            .from(this.from)
-            .regExp(this.regExp)
-            .host(this.host)
-            .port(this.port)
-            .username(this.username)
-            .password(this.password)
-            .keyfile(this.keyfile)
-            .passphrase(this.passphrase)
-            .build();
+            // list files
+            List task = List.builder()
+                .id(this.id)
+                .type(List.class.getName())
+                .from(this.from)
+                .regExp(this.regExp)
+                .host(this.host)
+                .port(this.port)
+                .username(this.username)
+                .password(this.password)
+                .keyfile(this.keyfile)
+                .passphrase(this.passphrase)
+                .build();
 
-        List.Output run;
-        try {
-            run = task.run(runContext);
-        } catch (FileNotFolderException fileNotFolderException) {
-            logger.debug("From path doesn't exist '{}'", String.join(", ", fileNotFolderException.getInfo()));
-            return Optional.empty();
+            List.Output run;
+            try {
+                run = task.run(runContext);
+            } catch (FileNotFolderException fileNotFolderException) {
+                logger.debug("From path doesn't exist '{}'", String.join(", ", fileNotFolderException.getInfo()));
+                return Optional.empty();
+            }
+
+            if (run.getFiles().size() == 0) {
+                return Optional.empty();
+            }
+
+            String executionId = IdUtils.create();
+
+            java.util.List<io.kestra.plugin.fs.sftp.models.File> files = run
+                .getFiles()
+                .stream()
+                .filter(file -> file.getFileType() == FileType.FILE)
+                .collect(Collectors.toList());
+
+            java.util.List<io.kestra.plugin.fs.sftp.models.File> list = files
+                .stream()
+                .map(throwFunction(file -> {
+                    File download = Download.download(
+                        fsm,
+                        fileSystemOptions,
+                        AbstractSftpTask.sftpUri(runContext, this.host, this.port, this.username, this.password, file.getPath().toString()),
+                        runContext
+                    );
+
+                    URI storageUri = runContext.putTempFile(
+                        download,
+                        executionId,
+                        this
+                    );
+
+                    logger.debug("File '{}' download to '{}'", from, storageUri);
+
+                    return file.withPath(storageUri);
+                }))
+                .collect(Collectors.toList());
+
+            Downloads.archive(
+                files,
+                this.action,
+                this.moveDirectory,
+                this,
+                runContext
+            );
+
+            ExecutionTrigger executionTrigger = ExecutionTrigger.of(
+                this,
+                Downloads.Output.builder().files(list).build()
+            );
+
+            Execution execution = Execution.builder()
+                .id(executionId)
+                .namespace(context.getNamespace())
+                .flowId(context.getFlowId())
+                .flowRevision(context.getFlowRevision())
+                .state(new State())
+                .trigger(executionTrigger)
+                .build();
+
+            return Optional.of(execution);
         }
-
-        if (run.getFiles().size() == 0) {
-            return Optional.empty();
-        }
-
-        String executionId = IdUtils.create();
-
-        java.util.List<io.kestra.plugin.fs.sftp.models.File> files = run
-            .getFiles()
-            .stream()
-            .filter(file -> file.getFileType() == FileType.FILE)
-            .collect(Collectors.toList());
-
-        java.util.List<io.kestra.plugin.fs.sftp.models.File> list = files
-            .stream()
-            .map(throwFunction(file -> {
-                File download = Download.download(
-                    fsm,
-                    fileSystemOptions,
-                    AbstractSftpTask.sftpUri(runContext, this.host, this.port, this.username, this.password, file.getPath().toString()),
-                    runContext
-                );
-
-                URI storageUri = runContext.putTempFile(
-                    download,
-                    executionId,
-                    this
-                );
-
-                logger.debug("File '{}' download to '{}'", from, storageUri);
-
-                return file.withPath(storageUri);
-            }))
-            .collect(Collectors.toList());
-
-        Downloads.archive(
-            files,
-            this.action,
-            this.moveDirectory,
-            this,
-            runContext
-        );
-
-        ExecutionTrigger executionTrigger = ExecutionTrigger.of(
-            this,
-            Downloads.Output.builder().files(list).build()
-        );
-
-        Execution execution = Execution.builder()
-            .id(executionId)
-            .namespace(context.getNamespace())
-            .flowId(context.getFlowId())
-            .flowRevision(context.getFlowRevision())
-            .state(new State())
-            .trigger(executionTrigger)
-            .build();
-
-        return Optional.of(execution);
     }
 }

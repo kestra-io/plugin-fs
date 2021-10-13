@@ -11,7 +11,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
-import org.apache.commons.vfs2.*;
+import org.apache.commons.vfs2.FileObject;
+import org.apache.commons.vfs2.FileSystemManager;
+import org.apache.commons.vfs2.FileSystemOptions;
+import org.apache.commons.vfs2.Selectors;
+import org.apache.commons.vfs2.impl.DefaultFileSystemManager;
+import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 import org.slf4j.Logger;
 
 import java.io.File;
@@ -49,25 +54,27 @@ public class Download extends AbstractSftpTask implements RunnableTask<SftpOutpu
     public SftpOutput run(RunContext runContext) throws Exception {
         Logger logger = runContext.logger();
 
-        FileSystemManager fsm = VFS.getManager();
+        try (StandardFileSystemManager fsm = new StandardFileSystemManager()) {
+            fsm.init();
 
-        // path
-        URI from = this.sftpUri(runContext, this.from);
+            // path
+            URI from = this.sftpUri(runContext, this.from);
 
-        // connection options
-        FileSystemOptions fileSystemOptions = this.fsOptions(runContext);
+            // connection options
+            FileSystemOptions fileSystemOptions = this.fsOptions(runContext);
 
-        // download
-        File tempFile = download(fsm, fileSystemOptions, from, runContext);
+            // download
+            File tempFile = download(fsm, fileSystemOptions, from, runContext);
 
-        URI storageUri = runContext.putTempFile(tempFile);
+            URI storageUri = runContext.putTempFile(tempFile);
 
-        logger.debug("File '{}' download to '{}'", from.getPath(), storageUri);
+            logger.debug("File '{}' download to '{}'", from.getPath(), storageUri);
 
-        return SftpOutput.builder()
-            .from(from)
-            .to(storageUri)
-            .build();
+            return SftpOutput.builder()
+                .from(from)
+                .to(storageUri)
+                .build();
+        }
     }
 
     static File download(FileSystemManager fsm, FileSystemOptions fileSystemOptions, URI from, RunContext runContext) throws IOException {

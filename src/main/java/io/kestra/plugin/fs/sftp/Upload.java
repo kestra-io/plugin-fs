@@ -13,6 +13,8 @@ import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.vfs2.*;
+import org.apache.commons.vfs2.impl.DefaultFileSystemManager;
+import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 import org.slf4j.Logger;
 
 import java.io.File;
@@ -58,36 +60,38 @@ public class Upload extends AbstractSftpTask implements RunnableTask<SftpOutput>
     public SftpOutput run(RunContext runContext) throws Exception {
         Logger logger = runContext.logger();
 
-        FileSystemManager fsm = VFS.getManager();
+        try (StandardFileSystemManager fsm = new StandardFileSystemManager()) {
+            fsm.init();
 
-        // from & to
-        String toPath = runContext.render(this.to);
-        URI to = this.sftpUri(runContext, toPath);
-        URI from = new URI(runContext.render(this.from));
+            // from & to
+            String toPath = runContext.render(this.to);
+            URI to = this.sftpUri(runContext, toPath);
+            URI from = new URI(runContext.render(this.from));
 
-        // copy from to a temp files
-        File tempFile = runContext.tempFile().toFile();
+            // copy from to a temp files
+            File tempFile = runContext.tempFile().toFile();
 
-        // copy from to a temp file
-        try (OutputStream outputStream = new FileOutputStream(tempFile)) {
-            IOUtils.copy(runContext.uriToInputStream(from), outputStream);
+            // copy from to a temp file
+            try (OutputStream outputStream = new FileOutputStream(tempFile)) {
+                IOUtils.copy(runContext.uriToInputStream(from), outputStream);
+            }
+
+            // connection options
+            FileSystemOptions fileSystemOptions = this.fsOptions(runContext);
+
+            // upload
+            try (FileObject local = fsm.resolveFile(tempFile.toURI());
+                 FileObject remote = fsm.resolveFile(to.toString(), fileSystemOptions);
+            ) {
+                remote.copyFrom(local, Selectors.SELECT_SELF);
+            }
+
+            logger.debug("File '{}' uploaded to '{}'", from, to.getPath());
+
+            return SftpOutput.builder()
+                .from(from)
+                .to(to)
+                .build();
         }
-
-        // connection options
-        FileSystemOptions fileSystemOptions = this.fsOptions(runContext);
-
-        // upload
-        try (FileObject local = fsm.resolveFile(tempFile.toURI());
-             FileObject remote = fsm.resolveFile(to.toString(), fileSystemOptions);
-        ) {
-            remote.copyFrom(local, Selectors.SELECT_SELF);
-        }
-
-        logger.debug("File '{}' uploaded to '{}'", from, to.getPath());
-
-        return SftpOutput.builder()
-            .from(from)
-            .to(to)
-            .build();
     }
 }
