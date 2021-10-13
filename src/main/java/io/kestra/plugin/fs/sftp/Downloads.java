@@ -13,7 +13,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.vfs2.FileSystemManager;
 import org.apache.commons.vfs2.FileSystemOptions;
 import org.apache.commons.vfs2.FileType;
-import org.apache.commons.vfs2.VFS;
+import org.apache.commons.vfs2.impl.DefaultFileSystemManager;
+import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 import org.slf4j.Logger;
 
 import java.io.File;
@@ -120,73 +121,82 @@ public class Downloads extends AbstractSftpTask implements RunnableTask<Download
     public Output run(RunContext runContext) throws Exception {
         Logger logger = runContext.logger();
 
-        FileSystemManager fsm = VFS.getManager();
+        try (StandardFileSystemManager fsm = new StandardFileSystemManager()) {
+            fsm.init();
 
-        // path
-        URI from = this.sftpUri(runContext, this.from);
+            // path
+            URI from = this.sftpUri(runContext, this.from);
 
-        // connection options
-        FileSystemOptions fileSystemOptions = this.fsOptions(runContext);
+            // connection options
+            FileSystemOptions fileSystemOptions = this.fsOptions(runContext);
 
-        // list files
-        List task = List.builder()
-            .id(this.id)
-            .type(List.class.getName())
-            .from(this.from)
-            .regExp(this.regExp)
-            .host(this.host)
-            .port(this.port)
-            .username(this.username)
-            .password(this.password)
-            .keyfile(this.keyfile)
-            .passphrase(this.passphrase)
-            .proxyHost(this.proxyHost)
-            .proxyPassword(this.proxyPassword)
-            .proxyUser(this.proxyUser)
-            .proxyPort(this.proxyPort)
-            .proxyType(this.proxyType)
-            .build();
-        List.Output run = task.run(runContext);
+            // list files
+            List task = List.builder()
+                .id(this.id)
+                .type(List.class.getName())
+                .from(this.from)
+                .regExp(this.regExp)
+                .host(this.host)
+                .port(this.port)
+                .username(this.username)
+                .password(this.password)
+                .keyfile(this.keyfile)
+                .passphrase(this.passphrase)
+                .proxyHost(this.proxyHost)
+                .proxyPassword(this.proxyPassword)
+                .proxyUser(this.proxyUser)
+                .proxyPort(this.proxyPort)
+                .proxyType(this.proxyType)
+                .build();
+            List.Output run = task.run(runContext);
 
-        java.util.List<io.kestra.plugin.fs.sftp.models.File> files = run
-            .getFiles()
-            .stream()
-            .filter(file -> file.getFileType() == FileType.FILE)
-            .collect(Collectors.toList());
+            java.util.List<io.kestra.plugin.fs.sftp.models.File> files = run
+                .getFiles()
+                .stream()
+                .filter(file -> file.getFileType() == FileType.FILE)
+                .collect(Collectors.toList());
 
-        java.util.List<io.kestra.plugin.fs.sftp.models.File> list = files
-            .stream()
-            .map(throwFunction(file -> {
-                File download = Download.download(
-                    fsm,
-                    fileSystemOptions,
-                    AbstractSftpTask.sftpUri(runContext, this.host, this.port, this.username, this.password, file.getPath().toString()),
+            java.util.List<io.kestra.plugin.fs.sftp.models.File> list = files
+                .stream()
+                .map(throwFunction(file -> {
+                    File download = Download.download(
+                        fsm,
+                        fileSystemOptions,
+                        AbstractSftpTask.sftpUri(
+                            runContext,
+                            this.host,
+                            this.port,
+                            this.username,
+                            this.password,
+                            file.getPath().toString()
+                        ),
+                        runContext
+                    );
+
+                    URI storageUri = runContext.putTempFile(download);
+
+                    logger.debug("File '{}' download to '{}'", from.getPath(), storageUri);
+
+                    return file.withPath(storageUri);
+                }))
+                .collect(Collectors.toList());
+
+
+            if (this.action != null) {
+                Downloads.archive(
+                    files,
+                    this.action,
+                    this.moveDirectory,
+                    this,
                     runContext
                 );
+            }
 
-                URI storageUri = runContext.putTempFile(download);
-
-                logger.debug("File '{}' download to '{}'", from.getPath(), storageUri);
-
-                return file.withPath(storageUri);
-            }))
-            .collect(Collectors.toList());
-
-
-        if (this.action != null) {
-            Downloads.archive(
-                files,
-                this.action,
-                this.moveDirectory,
-                this,
-                runContext
-            );
+            return Output
+                .builder()
+                .files(list)
+                .build();
         }
-
-        return Output
-            .builder()
-            .files(list)
-            .build();
     }
 
     public enum Action {
