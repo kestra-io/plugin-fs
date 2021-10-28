@@ -1,21 +1,26 @@
 package io.kestra.plugin.fs.http;
 
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
+import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.tasks.Task;
+import io.kestra.core.runners.RunContext;
+import io.kestra.core.serializers.JacksonMapper;
 import io.micronaut.http.*;
 import io.micronaut.http.client.DefaultHttpClientConfiguration;
 import io.micronaut.http.client.HttpClientConfiguration;
+import io.micronaut.http.client.multipart.MultipartBody;
 import io.micronaut.http.client.netty.DefaultHttpClient;
 import io.micronaut.logging.LogLevel;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import io.kestra.core.exceptions.IllegalVariableEvaluationException;
-import io.kestra.core.models.annotations.PluginProperty;
-import io.kestra.core.models.tasks.Task;
-import io.kestra.core.runners.RunContext;
+import org.apache.commons.io.IOUtils;
 
+import java.io.*;
 import java.net.*;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.AbstractMap;
@@ -143,7 +148,7 @@ abstract public class AbstractHttp extends Task {
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    protected HttpRequest request(RunContext runContext) throws IllegalVariableEvaluationException, URISyntaxException {
+    protected HttpRequest request(RunContext runContext) throws IllegalVariableEvaluationException, URISyntaxException, IOException {
         URI from = new URI(runContext.render(this.uri));
 
         MutableHttpRequest request = HttpRequest
@@ -158,8 +163,37 @@ abstract public class AbstractHttp extends Task {
         }
 
         if (this.formData != null) {
-            request.contentType(MediaType.APPLICATION_FORM_URLENCODED);
-            request.body(runContext.render(this.formData));
+            if (this.contentType.equals(MediaType.MULTIPART_FORM_DATA)) {
+                request.contentType(MediaType.MULTIPART_FORM_DATA);
+
+                MultipartBody.Builder builder = MultipartBody.builder();
+                for (Map.Entry<String, Object> e : this.formData.entrySet()) {
+                    String key = runContext.render(e.getKey());
+
+                    if (e.getValue() instanceof String) {
+                        String render = runContext.render((String) e.getValue());
+
+                        if (render.startsWith("kestra://")) {
+                            File tempFile = runContext.tempFile().toFile();
+
+                            try (OutputStream outputStream = new FileOutputStream(tempFile)) {
+                                IOUtils.copyLarge(runContext.uriToInputStream(new URI(render)), outputStream);
+                            }
+
+                            builder.addPart(key, tempFile);
+                        } else {
+                            builder.addPart(key, render);
+                        }
+                    } else {
+                        builder.addPart(key, JacksonMapper.ofJson().writeValueAsString(e.getValue()));
+                    }
+                }
+
+                request.body(builder.build());
+            } else {
+                request.contentType(MediaType.APPLICATION_FORM_URLENCODED);
+                request.body(runContext.render(this.formData));
+            }
         } else if (this.body != null) {
             request.body(runContext.render(body));
         }

@@ -41,6 +41,18 @@ import java.util.Map;
                 "  user: \"user\"",
                 "  password: \"pass\""
             }
+        ),
+        @Example(
+            title = "Post a multipart request to a webserver",
+            code = {
+                "uri: \"https://server.com/upload\"",
+                "headers: ",
+                "  user-agent: \"kestra-io\"",
+                "method: \"POST\"",
+                "contentType: \"multipart/form-data\"",
+                "formData:",
+                "  user: \"{{ inputs.file }}\"",
+            }
         )
     }
 )
