@@ -163,7 +163,7 @@ abstract public class AbstractHttp extends Task {
         }
 
         if (this.formData != null) {
-            if (this.contentType.equals(MediaType.MULTIPART_FORM_DATA)) {
+            if (MediaType.MULTIPART_FORM_DATA.equals(this.contentType)) {
                 request.contentType(MediaType.MULTIPART_FORM_DATA);
 
                 MultipartBody.Builder builder = MultipartBody.builder();
