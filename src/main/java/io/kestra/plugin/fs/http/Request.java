@@ -1,18 +1,18 @@
 package io.kestra.plugin.fs.http;
 
-import io.micronaut.core.type.Argument;
-import io.micronaut.http.HttpRequest;
-import io.micronaut.http.HttpResponse;
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import io.micronaut.http.client.netty.DefaultHttpClient;
-import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.*;
-import lombok.experimental.SuperBuilder;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
+import io.micronaut.core.type.Argument;
+import io.micronaut.http.HttpRequest;
+import io.micronaut.http.HttpResponse;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import io.micronaut.rxjava2.http.client.RxHttpClient;
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
 import org.slf4j.Logger;
 
 import java.net.URI;
@@ -68,7 +68,7 @@ public class Request extends AbstractHttp implements RunnableTask<Request.Output
         Logger logger = runContext.logger();
 
         try (
-            DefaultHttpClient client = this.client(runContext);
+            RxHttpClient client = this.client(runContext);
         ) {
             HttpRequest<String> request = this.request(runContext);
             HttpResponse<String> response;
