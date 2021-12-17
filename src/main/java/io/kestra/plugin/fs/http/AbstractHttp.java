@@ -9,18 +9,21 @@ import io.micronaut.http.*;
 import io.micronaut.http.client.DefaultHttpClientConfiguration;
 import io.micronaut.http.client.HttpClientConfiguration;
 import io.micronaut.http.client.multipart.MultipartBody;
-import io.micronaut.http.client.netty.DefaultHttpClient;
 import io.micronaut.logging.LogLevel;
+import io.micronaut.rxjava2.http.client.RxHttpClient;
+import io.micronaut.rxjava2.http.client.RxStreamingHttpClient;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.io.IOUtils;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.net.*;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.AbstractMap;
@@ -141,10 +144,16 @@ abstract public class AbstractHttp extends Task {
         return configuration;
     }
 
-    protected DefaultHttpClient client(RunContext runContext) throws IllegalVariableEvaluationException, MalformedURLException, URISyntaxException {
+    protected RxHttpClient client(RunContext runContext) throws IllegalVariableEvaluationException, MalformedURLException, URISyntaxException {
         URI from = new URI(runContext.render(this.uri));
 
-        return new DefaultHttpClient(from.toURL(), this.configuration(runContext));
+        return RxHttpClient.create(from.toURL(), this.configuration(runContext));
+    }
+
+    protected RxStreamingHttpClient streamingClient(RunContext runContext) throws IllegalVariableEvaluationException, MalformedURLException, URISyntaxException {
+        URI from = new URI(runContext.render(this.uri));
+
+        return RxStreamingHttpClient.create(from.toURL(), this.configuration(runContext));
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})

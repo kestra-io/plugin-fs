@@ -1,22 +1,18 @@
 package io.kestra.plugin.fs.http;
 
-import io.micronaut.core.io.buffer.ByteBuffer;
-import io.micronaut.http.HttpRequest;
-import io.micronaut.http.HttpResponse;
-import io.micronaut.http.HttpStatus;
-import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import io.micronaut.http.client.netty.DefaultHttpClient;
-import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.*;
-import lombok.experimental.SuperBuilder;
-import org.apache.commons.io.FilenameUtils;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
-import org.reactivestreams.Subscriber;
-import org.reactivestreams.Subscription;
+import io.micronaut.http.HttpRequest;
+import io.micronaut.http.HttpResponse;
+import io.micronaut.http.HttpStatus;
+import io.micronaut.http.client.exceptions.HttpClientResponseException;
+import io.micronaut.rxjava2.http.client.RxStreamingHttpClient;
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
 import org.slf4j.Logger;
 
 import java.io.BufferedOutputStream;
@@ -25,7 +21,6 @@ import java.io.FileOutputStream;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 
 @SuperBuilder
 @ToString
@@ -58,7 +53,7 @@ public class Download extends AbstractHttp implements RunnableTask<Download.Outp
 
         // do it
         try (
-            DefaultHttpClient client = this.client(runContext);
+            RxStreamingHttpClient client = this.streamingClient(runContext);
             BufferedOutputStream output = new BufferedOutputStream(new FileOutputStream(tempFile));
         ) {
             @SuppressWarnings("unchecked")
@@ -66,7 +61,6 @@ public class Download extends AbstractHttp implements RunnableTask<Download.Outp
 
             Long size = client
                 .exchangeStream(request)
-
                 .map(response -> {
                     if (builder.code == null) {
                         builder
