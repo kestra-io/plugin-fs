@@ -8,3 +8,14 @@ services:
     command: "foo:pass:1001:1001:upload"
     volumes:
       - ${PWD}/id_rsa.pub:/home/foo/.ssh/authorized_keys
+
+  # https://github.com/fauria/docker-vsftpd/issues/41
+  ftp:
+    image: markhobson/vsftpd
+    ports:
+      - "6621:21"
+      - "21100-21110:21100-21110"
+    environment:
+      FTP_USER: guest
+      FTP_PASS: guest
+      PASV_ADDRESS: 127.0.0.1
