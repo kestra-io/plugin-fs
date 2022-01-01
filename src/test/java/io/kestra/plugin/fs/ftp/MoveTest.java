@@ -1,4 +1,4 @@
-package io.kestra.plugin.fs.sftp;
+package io.kestra.plugin.fs.ftp;
 
 import com.google.common.collect.ImmutableMap;
 import io.kestra.core.runners.RunContextFactory;
@@ -18,14 +18,14 @@ class MoveTest {
     private RunContextFactory runContextFactory;
 
     @Inject
-    private SftpUtils sftpUtils;
+    private FtpUtils ftpUtils;
 
     @Test
     void moveFileToOther() throws Exception {
         String from = "upload/" + IdUtils.create() + "/" + IdUtils.create() + ".yaml";
         String to = "upload/" + IdUtils.create() + "-move/" + IdUtils.create() + "/" + IdUtils.create() + "/" + IdUtils.create() + ".yaml";
 
-        sftpUtils.upload(from);
+        ftpUtils.upload(from);
 
         Move task = Move.builder()
             .id(MoveTest.class.getSimpleName())
@@ -33,9 +33,10 @@ class MoveTest {
             .from(from)
             .to(to)
             .host("localhost")
-            .port("6622")
-            .username("foo")
-            .password("pass")
+            .port("6621")
+            .username("guest")
+            .password("guest")
+            .passiveMode(true)
             .build();
 
         Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
@@ -48,7 +49,7 @@ class MoveTest {
         String from = "upload/" + IdUtils.create() + "/" + IdUtils.create() + ".yaml";
         String to = "upload/" + IdUtils.create() + "-move/" + IdUtils.create() + "/" + IdUtils.create() + "/";
 
-        sftpUtils.upload(from);
+        ftpUtils.upload(from);
 
         Move task = Move.builder()
             .id(MoveTest.class.getSimpleName())
@@ -56,9 +57,10 @@ class MoveTest {
             .from(from)
             .to(to)
             .host("localhost")
-            .port("6622")
-            .username("foo")
-            .password("pass")
+            .port("6621")
+            .username("guest")
+            .password("guest")
+            .passiveMode(true)
             .build();
 
         Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
@@ -71,7 +73,7 @@ class MoveTest {
         String from = "upload/" + IdUtils.create() + "/" + IdUtils.create() + ".yaml";
         String to = "upload/" + IdUtils.create() + "-move/"  + IdUtils.create() + "/";
 
-        sftpUtils.upload(from);
+        ftpUtils.upload(from);
 
         Move task = Move.builder()
             .id(MoveTest.class.getSimpleName())
@@ -79,9 +81,10 @@ class MoveTest {
             .from(FilenameUtils.getPath(from))
             .to(to)
             .host("localhost")
-            .port("6622")
-            .username("foo")
-            .password("pass")
+            .port("6621")
+            .username("guest")
+            .password("guest")
+            .passiveMode(true)
             .build();
 
         Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));

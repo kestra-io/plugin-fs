@@ -1,28 +1,15 @@
 package io.kestra.plugin.fs.sftp;
 
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.annotations.PluginProperty;
-import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.vfs2.FileSystemManager;
 import org.apache.commons.vfs2.FileSystemOptions;
-import org.apache.commons.vfs2.FileType;
-import org.apache.commons.vfs2.impl.DefaultFileSystemManager;
-import org.apache.commons.vfs2.impl.StandardFileSystemManager;
-import org.slf4j.Logger;
 
-import java.io.File;
-import java.net.URI;
-import java.util.stream.Collectors;
-import javax.validation.constraints.NotNull;
-
-import static io.kestra.core.utils.Rethrow.throwFunction;
+import java.io.IOException;
 
 @SuperBuilder
 @ToString
@@ -30,7 +17,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Download multiple files from sftp server"
+    title = "Download multiple files from SFTP server"
 )
 @Plugin(
     examples = {
@@ -38,7 +25,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
             title = "Download a list of files and move it to an archive folders",
             code = {
                 "host: localhost",
-                "port: 6622",
+                "port: 22",
                 "username: foo",
                 "password: pass",
                 "from: \"/in/\"",
@@ -49,169 +36,26 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         )
     }
 )
-public class Downloads extends AbstractSftpTask implements RunnableTask<Downloads.Output> {
-    @Schema(
-        title = "The directory to list"
-    )
-    @PluginProperty(dynamic = true)
-    @NotNull
-    private String from;
+public class Downloads extends io.kestra.plugin.fs.vfs.Downloads implements SftpInterface {
+    protected String keyfile;
+    protected String passphrase;
+    protected String proxyHost;
+    protected String proxyPort;
+    protected String proxyUser;
+    protected String proxyPassword;
+    protected String proxyType;
+    @Builder.Default
+    protected Boolean rootDir = true;
+    @Builder.Default
+    protected String port = "22";
 
-    @Schema(
-        title = "The action to do on find files"
-    )
-    @PluginProperty(dynamic = true)
-    private Downloads.Action action;
-
-    @Schema(
-        title = "The destination directory in case off `MOVE` "
-    )
-    @PluginProperty(dynamic = true)
-    private String moveDirectory;
-
-    @Schema(
-        title = "A regexp to filter on full path"
-    )
-    @PluginProperty(dynamic = true)
-    private String regExp;
-
-    static void archive(
-        java.util.List<io.kestra.plugin.fs.sftp.models.File> blobList,
-        Action action,
-        String moveDirectory,
-        AbstractSftpInterface abstractSftpTask,
-        RunContext runContext
-    ) throws Exception {
-        if (action == Action.DELETE) {
-            for (io.kestra.plugin.fs.sftp.models.File file : blobList) {
-                Delete delete = Delete.builder()
-                    .id("delete")
-                    .type(Delete.class.getName())
-                    .uri(file.getPath().toString())
-                    .host(abstractSftpTask.getHost())
-                    .port(abstractSftpTask.getPort())
-                    .username(abstractSftpTask.getUsername())
-                    .password(abstractSftpTask.getPassword())
-                    .keyfile(abstractSftpTask.getKeyfile())
-                    .passphrase(abstractSftpTask.getPassphrase())
-                    .build();
-                delete.run(runContext);
-            }
-        } else if (action == Action.MOVE) {
-            for (io.kestra.plugin.fs.sftp.models.File file : blobList) {
-                Move copy = Move.builder()
-                    .id("archive")
-                    .type(Move.class.getName())
-                    .from(file.getPath().toString())
-                    .to(StringUtils.stripEnd(runContext.render(moveDirectory) + "/", "/")
-                        + "/" + FilenameUtils.getName(file.getName())
-                    )
-                    .host(abstractSftpTask.getHost())
-                    .port(abstractSftpTask.getPort())
-                    .username(abstractSftpTask.getUsername())
-                    .password(abstractSftpTask.getPassword())
-                    .keyfile(abstractSftpTask.getKeyfile())
-                    .passphrase(abstractSftpTask.getPassphrase())
-                    .build();
-                copy.run(runContext);
-            }
-        }
+    @Override
+    protected FileSystemOptions fsOptions(RunContext runContext) throws IllegalVariableEvaluationException, IOException {
+        return SftpService.fsOptions(runContext, this);
     }
 
-    public Output run(RunContext runContext) throws Exception {
-        Logger logger = runContext.logger();
-
-        try (StandardFileSystemManager fsm = new StandardFileSystemManager()) {
-            fsm.init();
-
-            // path
-            URI from = this.sftpUri(runContext, this.from);
-
-            // connection options
-            FileSystemOptions fileSystemOptions = this.fsOptions(runContext);
-
-            // list files
-            List task = List.builder()
-                .id(this.id)
-                .type(List.class.getName())
-                .from(this.from)
-                .regExp(this.regExp)
-                .host(this.host)
-                .port(this.port)
-                .username(this.username)
-                .password(this.password)
-                .keyfile(this.keyfile)
-                .passphrase(this.passphrase)
-                .proxyHost(this.proxyHost)
-                .proxyPassword(this.proxyPassword)
-                .proxyUser(this.proxyUser)
-                .proxyPort(this.proxyPort)
-                .proxyType(this.proxyType)
-                .build();
-            List.Output run = task.run(runContext);
-
-            java.util.List<io.kestra.plugin.fs.sftp.models.File> files = run
-                .getFiles()
-                .stream()
-                .filter(file -> file.getFileType() == FileType.FILE)
-                .collect(Collectors.toList());
-
-            java.util.List<io.kestra.plugin.fs.sftp.models.File> list = files
-                .stream()
-                .map(throwFunction(file -> {
-                    File download = Download.download(
-                        fsm,
-                        fileSystemOptions,
-                        AbstractSftpTask.sftpUri(
-                            runContext,
-                            this.host,
-                            this.port,
-                            this.username,
-                            this.password,
-                            file.getPath().toString()
-                        ),
-                        runContext
-                    );
-
-                    URI storageUri = runContext.putTempFile(download);
-
-                    logger.debug("File '{}' download to '{}'", from.getPath(), storageUri);
-
-                    return file.withPath(storageUri);
-                }))
-                .collect(Collectors.toList());
-
-
-            if (this.action != null) {
-                Downloads.archive(
-                    files,
-                    this.action,
-                    this.moveDirectory,
-                    this,
-                    runContext
-                );
-            }
-
-            return Output
-                .builder()
-                .files(list)
-                .build();
-        }
-    }
-
-    public enum Action {
-        MOVE,
-        DELETE
-    }
-
-
-    @Builder
-    @Getter
-    public static class Output implements io.kestra.core.models.tasks.Output {
-        @Schema(
-            title = "The bucket of the downloaded file"
-        )
-        @PluginProperty(additionalProperties = io.kestra.plugin.fs.sftp.models.File.class)
-        private final java.util.List<io.kestra.plugin.fs.sftp.models.File> files;
+    @Override
+    protected String scheme() {
+        return "sftp";
     }
 }
