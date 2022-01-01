@@ -1,4 +1,4 @@
-package io.kestra.plugin.fs.sftp;
+package io.kestra.plugin.fs.ftp;
 
 import com.google.common.collect.ImmutableMap;
 import io.kestra.core.runners.RunContextFactory;
@@ -10,21 +10,21 @@ import jakarta.inject.Singleton;
 import java.net.URI;
 
 @Singleton
-class SftpUtils extends AbstractUtils {
+class FtpUtils extends AbstractUtils {
     @Inject
     private RunContextFactory runContextFactory;
 
-    public Upload.Output upload(URI source, String to) throws Exception {
+    public io.kestra.plugin.fs.sftp.Upload.Output upload(URI source, String to) throws Exception {
         var task = Upload.builder()
-            .id(SftpUtils.class.getSimpleName())
-            .type(Upload.class.getName())
+            .id(FtpUtils.class.getSimpleName())
+            .type(FtpUtils.class.getName())
             .from(source.toString())
             .to(to)
             .host("localhost")
-            .port("6622")
-            .username("foo")
-            .password("pass")
-            .rootDir(true)
+            .port("6621")
+            .username("guest")
+            .password("guest")
+            .passiveMode(true)
             .build();
 
         return task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));

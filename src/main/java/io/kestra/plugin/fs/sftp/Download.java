@@ -1,27 +1,15 @@
 package io.kestra.plugin.fs.sftp;
 
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.annotations.PluginProperty;
-import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
+import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.apache.commons.vfs2.FileObject;
-import org.apache.commons.vfs2.FileSystemManager;
 import org.apache.commons.vfs2.FileSystemOptions;
-import org.apache.commons.vfs2.Selectors;
-import org.apache.commons.vfs2.impl.DefaultFileSystemManager;
-import org.apache.commons.vfs2.impl.StandardFileSystemManager;
-import org.slf4j.Logger;
 
-import java.io.File;
 import java.io.IOException;
-import java.net.URI;
 
 @SuperBuilder
 @ToString
@@ -29,14 +17,14 @@ import java.net.URI;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Download file from sftp server"
+    title = "Download file from SFTP server"
 )
 @Plugin(
     examples = {
         @Example(
             code = {
                 "host: localhost",
-                "port: 6622",
+                "port: 22",
                 "username: foo",
                 "password: pass",
                 "from: \"/in/file.txt\"",
@@ -44,51 +32,26 @@ import java.net.URI;
         )
     }
 )
-public class Download extends AbstractSftpTask implements RunnableTask<SftpOutput> {
-    @Schema(
-        title = "The fully-qualified URIs that point to destination path"
-    )
-    @PluginProperty(dynamic = true)
-    protected String from;
+public class Download extends io.kestra.plugin.fs.vfs.Download implements SftpInterface {
+    protected String keyfile;
+    protected String passphrase;
+    protected String proxyHost;
+    protected String proxyPort;
+    protected String proxyUser;
+    protected String proxyPassword;
+    protected String proxyType;
+    @Builder.Default
+    protected Boolean rootDir = true;
+    @Builder.Default
+    protected String port = "22";
 
-    public SftpOutput run(RunContext runContext) throws Exception {
-        Logger logger = runContext.logger();
-
-        try (StandardFileSystemManager fsm = new StandardFileSystemManager()) {
-            fsm.init();
-
-            // path
-            URI from = this.sftpUri(runContext, this.from);
-
-            // connection options
-            FileSystemOptions fileSystemOptions = this.fsOptions(runContext);
-
-            // download
-            File tempFile = download(fsm, fileSystemOptions, from, runContext);
-
-            URI storageUri = runContext.putTempFile(tempFile);
-
-            logger.debug("File '{}' download to '{}'", from.getPath(), storageUri);
-
-            return SftpOutput.builder()
-                .from(from)
-                .to(storageUri)
-                .build();
-        }
+    @Override
+    protected FileSystemOptions fsOptions(RunContext runContext) throws IllegalVariableEvaluationException, IOException {
+        return SftpService.fsOptions(runContext, this);
     }
 
-    static File download(FileSystemManager fsm, FileSystemOptions fileSystemOptions, URI from, RunContext runContext) throws IOException {
-        // temp file where download will be copied
-        File tempFile = runContext.tempFile().toFile();
-
-        try (
-            FileObject local = fsm.resolveFile(tempFile.toURI());
-            FileObject remote = fsm.resolveFile(from.toString(), fileSystemOptions)
-        ) {
-            local.copyFrom(remote, Selectors.SELECT_SELF);
-        }
-
-        return tempFile;
-
+    @Override
+    protected String scheme() {
+        return "sftp";
     }
 }

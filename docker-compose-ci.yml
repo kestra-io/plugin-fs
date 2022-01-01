@@ -8,3 +8,12 @@ services:
     command: "foo:pass:1001:1001:upload"
     volumes:
       - ${PWD}/id_rsa.pub:/home/foo/.ssh/authorized_keys
+
+  ftp:
+    image: loicmathieu/vsftpd
+    ports:
+      - "6621:21"
+      - "21100-21110:21100-21110"
+    command: "ftp"
+    environment:
+      PASV_ADDRESS: 127.0.0.1

@@ -1,13 +1,15 @@
 package io.kestra.plugin.fs.sftp;
 
 import com.devskiller.friendly_id.FriendlyId;
-import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
-import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.io.IOUtils;
-import org.junit.jupiter.api.Test;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.storages.StorageInterface;
+import io.kestra.plugin.fs.vfs.Download.Output;
+import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
+import jakarta.inject.Inject;
+import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.io.IOUtils;
+import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -17,7 +19,6 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import java.util.UUID;
-import jakarta.inject.Inject;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -96,7 +97,7 @@ class SftpTest {
         }
 
         Download taskDownload = downloadTask.build();
-        SftpOutput runOutputDownload = taskDownload.run(runContext);
+        Output runOutputDownload = taskDownload.run(runContext);
         URI to = runOutputDownload.getTo();
 
         // copy from to a temp files
