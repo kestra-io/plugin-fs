@@ -1,0 +1,255 @@
+package io.kestra.plugin.fs.vfs;
+
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
+import io.kestra.core.runners.RunContext;
+import io.kestra.plugin.fs.vfs.models.File;
+import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.vfs2.FileObject;
+import org.apache.commons.vfs2.FileSystemOptions;
+import org.apache.commons.vfs2.Selectors;
+import org.apache.commons.vfs2.impl.StandardFileSystemManager;
+import org.apache.commons.vfs2.provider.AbstractFileObject;
+
+import java.io.FileOutputStream;
+import java.io.OutputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.NoSuchElementException;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static io.kestra.core.utils.Rethrow.throwFunction;
+
+public abstract class VfsService {
+    private static String basicAuth(RunContext runContext, String username, String password) throws IllegalVariableEvaluationException {
+        username = runContext.render(username);
+        password = runContext.render(password);
+
+        if (username != null && password != null) {
+            return username + ":" + password;
+        }
+
+        if (username != null) {
+            return username;
+
+        }
+
+        return null;
+    }
+
+    public static URI uri(
+        RunContext runContext,
+        String scheme,
+        String host,
+        String port,
+        String username,
+        String password,
+        String filepath
+    ) throws IllegalVariableEvaluationException, URISyntaxException {
+        return new URI(
+            scheme,
+            basicAuth(runContext, username, password),
+            runContext.render(host),
+            port == null ? 22 : Integer.parseInt(runContext.render(port)),
+            "/" + StringUtils.stripStart(runContext.render(filepath), "/"),
+            null,
+            null
+        );
+    }
+
+    public static URI uriWithoutAuth(URI uri) throws URISyntaxException {
+        return new URI(
+            uri.getScheme(),
+            uri.getHost(),
+            uri.getPath(),
+            uri.getQuery(),
+            uri.getFragment()
+        );
+    }
+
+    public static List.Output list(
+        RunContext runContext,
+        StandardFileSystemManager fsm,
+        FileSystemOptions fileSystemOptions,
+        URI from,
+        String regExp
+    ) throws Exception {
+        try (FileObject local = fsm.resolveFile(from.toString(), fileSystemOptions)) {
+            FileObject[] children = local.getChildren();
+
+            java.util.List<File> list = Stream.of(children)
+                .map(throwFunction(r -> File.of((AbstractFileObject<?>) r)))
+                .filter(r -> regExp == null || r.getPath().toString().matches(regExp))
+                .collect(Collectors.toList());
+
+            runContext.logger().debug("Found '{}' files from '{}'", list.size(), from);
+
+            return List.Output.builder()
+                .files(list)
+                .build();
+        }
+    }
+
+    public static Download.Output download(
+        RunContext runContext,
+        StandardFileSystemManager fsm,
+        FileSystemOptions fileSystemOptions,
+        URI from
+    ) throws Exception {
+        java.io.File tempFile = runContext.tempFile().toFile();
+
+        try (
+            FileObject local = fsm.resolveFile(tempFile.toURI());
+            FileObject remote = fsm.resolveFile(from.toString(), fileSystemOptions)
+        ) {
+            local.copyFrom(remote, Selectors.SELECT_SELF);
+        }
+
+        URI storageUri = runContext.putTempFile(tempFile);
+
+        runContext.logger().debug("File '{}' download to '{}'", from.getPath(), storageUri);
+
+        return Download.Output.builder()
+            .from(VfsService.uriWithoutAuth(from))
+            .to(storageUri)
+            .build();
+    }
+
+    public static Upload.Output upload(
+        RunContext runContext,
+        StandardFileSystemManager fsm,
+        FileSystemOptions fileSystemOptions,
+        URI from,
+        URI to
+    ) throws Exception {
+        // copy from to a temp files
+        java.io.File tempFile = runContext.tempFile().toFile();
+
+        // copy from to a temp file
+        try (OutputStream outputStream = new FileOutputStream(tempFile)) {
+            IOUtils.copy(runContext.uriToInputStream(from), outputStream);
+        }
+
+        // upload
+        try (FileObject local = fsm.resolveFile(tempFile.toURI());
+             FileObject remote = fsm.resolveFile(to.toString(), fileSystemOptions);
+        ) {
+            remote.copyFrom(local, Selectors.SELECT_SELF);
+        }
+
+        runContext.logger().debug("File '{}' uploaded to '{}'", from, to.getPath());
+
+        return Upload.Output.builder()
+            .from(from)
+            .to(VfsService.uriWithoutAuth(to))
+            .build();
+    }
+
+    public static Delete.Output delete(
+        RunContext runContext,
+        StandardFileSystemManager fsm,
+        FileSystemOptions fileSystemOptions,
+        URI from,
+        Boolean errorOnMissing
+    ) throws Exception {
+        try (FileObject local = fsm.resolveFile(from.toString(), fileSystemOptions)) {
+            if (!local.exists() && errorOnMissing) {
+                throw new NoSuchElementException("Unable to find file '" + from + "'");
+            }
+
+            if (local.exists()) {
+                runContext.logger().debug("Deleted file '{}'", from);
+            } else {
+                runContext.logger().debug("File doesn't exists '{}'", from);
+            }
+
+            return Delete.Output.builder()
+                .uri(VfsService.uriWithoutAuth(from))
+                .deleted(local.delete())
+                .build();
+        }
+    }
+
+    public static Move.Output move(
+        RunContext runContext,
+        StandardFileSystemManager fsm,
+        FileSystemOptions fileSystemOptions,
+        URI from,
+        URI to
+    ) throws Exception {
+        // user pass a destination without filename, we add it
+        if (!isDirectory(from) && isDirectory(to)) {
+            to = to.resolve(StringUtils.stripEnd(to.getPath(), "/") + "/" + FilenameUtils.getName(from.getPath()));
+        }
+
+        try (
+            FileObject local = fsm.resolveFile(from.toString(), fileSystemOptions);
+            FileObject remote = fsm.resolveFile(to.toString(), fileSystemOptions);
+        ) {
+            if (!local.exists()) {
+                throw new NoSuchElementException("Unable to find file '" + from + "'");
+            }
+
+            if (!remote.exists()) {
+                URI pathToCreate = to.resolve("/" + FilenameUtils.getPath(to.getPath()));
+
+                try (FileObject directory = fsm.resolveFile(to.toString(), fileSystemOptions)) {
+                    if (!directory.exists()) {
+                        directory.createFolder();
+                        runContext.logger().debug("Create directory '{}", pathToCreate);
+                    }
+                }
+            }
+
+            local.moveTo(remote);
+
+            if (local.exists()) {
+                runContext.logger().debug("Move file '{}'", from);
+            } else {
+                runContext.logger().debug("File doesn't exists '{}'", from);
+            }
+
+            return Move.Output.builder()
+                .from(VfsService.uriWithoutAuth(from))
+                .to(VfsService.uriWithoutAuth(to))
+                .build();
+        }
+    }
+
+    public static void archive(
+        RunContext runContext,
+        StandardFileSystemManager fsm,
+        FileSystemOptions fileSystemOptions,
+        java.util.List<io.kestra.plugin.fs.vfs.models.File> blobList,
+        Downloads.Action action,
+        URI moveDirectory
+    ) throws Exception {
+        if (action == Downloads.Action.DELETE) {
+            for (io.kestra.plugin.fs.vfs.models.File file : blobList) {
+                VfsService.delete(
+                    runContext,
+                    fsm,
+                    fileSystemOptions,
+                    file.getServerPath(),
+                    false
+                );
+            }
+        } else if (action == Downloads.Action.MOVE) {
+            for (io.kestra.plugin.fs.vfs.models.File file : blobList) {
+                VfsService.move(
+                    runContext,
+                    fsm,
+                    fileSystemOptions,
+                    file.getServerPath(),
+                    moveDirectory
+                );
+            }
+        }
+    }
+
+    private static boolean isDirectory(URI uri) {
+        return ("/" + FilenameUtils.getPath(uri.getPath())).equals(uri.getPath());
+    }
+}
