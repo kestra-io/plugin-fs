@@ -19,3 +19,14 @@ services:
       FTP_USER: guest
       FTP_PASS: guest
       PASV_ADDRESS: 127.0.0.1
+      PASV_MIN_PORT: 21100
+      PASV_MAX_PORT: 21110
+
+  ftps:
+    image: pcavezzan/ftpsdev
+    ports:
+      - "6990:21"
+      - "50000-50009:50000-50009"
+    environment:
+      FTP_USER: guest
+      FTP_PWD: guest
