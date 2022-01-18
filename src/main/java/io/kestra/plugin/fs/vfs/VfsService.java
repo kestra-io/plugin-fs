@@ -23,17 +23,13 @@ import java.util.stream.Stream;
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
 public abstract class VfsService {
-    private static String basicAuth(RunContext runContext, String username, String password) throws IllegalVariableEvaluationException {
-        username = runContext.render(username);
-        password = runContext.render(password);
-
+    public static String basicAuth(String username, String password) {
         if (username != null && password != null) {
             return username + ":" + password;
         }
 
         if (username != null) {
             return username;
-
         }
 
         return null;
@@ -48,12 +44,30 @@ public abstract class VfsService {
         String password,
         String filepath
     ) throws IllegalVariableEvaluationException, URISyntaxException {
-        return new URI(
+        return uri(
             scheme,
-            basicAuth(runContext, username, password),
             runContext.render(host),
             port == null ? 22 : Integer.parseInt(runContext.render(port)),
-            "/" + StringUtils.stripStart(runContext.render(filepath), "/"),
+            runContext.render(username),
+            runContext.render(password),
+            runContext.render(filepath)
+        );
+    }
+
+    public static URI uri(
+        String scheme,
+        String host,
+        Integer port,
+        String username,
+        String password,
+        String filepath
+    ) throws IllegalVariableEvaluationException, URISyntaxException {
+        return new URI(
+            scheme,
+            basicAuth(username, password),
+            host,
+            port == null ? 22 : port,
+            "/" + StringUtils.stripStart(filepath, "/"),
             null,
             null
         );
@@ -84,7 +98,7 @@ public abstract class VfsService {
                 .filter(r -> regExp == null || r.getPath().toString().matches(regExp))
                 .collect(Collectors.toList());
 
-            runContext.logger().debug("Found '{}' files from '{}'", list.size(), from);
+            runContext.logger().debug("Found '{}' files from '{}'", list.size(), VfsService.uriWithoutAuth(from));
 
             return List.Output.builder()
                 .files(list)
@@ -109,7 +123,7 @@ public abstract class VfsService {
 
         URI storageUri = runContext.putTempFile(tempFile);
 
-        runContext.logger().debug("File '{}' download to '{}'", from.getPath(), storageUri);
+        runContext.logger().debug("File '{}' download to '{}'", VfsService.uriWithoutAuth(from), storageUri);
 
         return Download.Output.builder()
             .from(VfsService.uriWithoutAuth(from))
@@ -139,7 +153,7 @@ public abstract class VfsService {
             remote.copyFrom(local, Selectors.SELECT_SELF);
         }
 
-        runContext.logger().debug("File '{}' uploaded to '{}'", from, to.getPath());
+        runContext.logger().debug("File '{}' uploaded to '{}'", VfsService.uriWithoutAuth(from), VfsService.uriWithoutAuth(to));
 
         return Upload.Output.builder()
             .from(from)
@@ -156,13 +170,13 @@ public abstract class VfsService {
     ) throws Exception {
         try (FileObject local = fsm.resolveFile(from.toString(), fileSystemOptions)) {
             if (!local.exists() && errorOnMissing) {
-                throw new NoSuchElementException("Unable to find file '" + from + "'");
+                throw new NoSuchElementException("Unable to find file '" + VfsService.uriWithoutAuth(from) + "'");
             }
 
             if (local.exists()) {
-                runContext.logger().debug("Deleted file '{}'", from);
+                runContext.logger().debug("Deleted file '{}'", VfsService.uriWithoutAuth(from));
             } else {
-                runContext.logger().debug("File doesn't exists '{}'", from);
+                runContext.logger().debug("File doesn't exists '{}'", VfsService.uriWithoutAuth(from));
             }
 
             return Delete.Output.builder()
@@ -189,7 +203,7 @@ public abstract class VfsService {
             FileObject remote = fsm.resolveFile(to.toString(), fileSystemOptions);
         ) {
             if (!local.exists()) {
-                throw new NoSuchElementException("Unable to find file '" + from + "'");
+                throw new NoSuchElementException("Unable to find file '" + VfsService.uriWithoutAuth(from) + "'");
             }
 
             if (!remote.exists()) {
@@ -198,7 +212,7 @@ public abstract class VfsService {
                 try (FileObject directory = fsm.resolveFile(to.toString(), fileSystemOptions)) {
                     if (!directory.exists()) {
                         directory.createFolder();
-                        runContext.logger().debug("Create directory '{}", pathToCreate);
+                        runContext.logger().debug("Create directory '{}", VfsService.uriWithoutAuth(pathToCreate));
                     }
                 }
             }
@@ -206,9 +220,9 @@ public abstract class VfsService {
             local.moveTo(remote);
 
             if (local.exists()) {
-                runContext.logger().debug("Move file '{}'", from);
+                runContext.logger().debug("Move file '{}'", VfsService.uriWithoutAuth(from));
             } else {
-                runContext.logger().debug("File doesn't exists '{}'", from);
+                runContext.logger().debug("File doesn't exists '{}'", VfsService.uriWithoutAuth(from));
             }
 
             return Move.Output.builder()
