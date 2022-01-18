@@ -44,6 +44,8 @@ public class List extends io.kestra.plugin.fs.vfs.List implements FtpInterface {
     protected String port = "21";
     @Builder.Default
     protected Boolean passiveMode = true;
+    @Builder.Default
+    protected Boolean remoteIpVerification = true;
 
     @Override
     protected FileSystemOptions fsOptions(RunContext runContext) throws IllegalVariableEvaluationException, IOException {

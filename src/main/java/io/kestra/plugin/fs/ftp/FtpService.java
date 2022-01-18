@@ -39,6 +39,10 @@ public abstract class FtpService {
             instance.setPassiveMode(options, ftpInterface.getPassiveMode());
         }
 
+        if (ftpInterface.getRemoteIpVerification() != null) {
+            instance.setRemoteVerification(options, ftpInterface.getRemoteIpVerification());
+        }
+
         return options;
     }
 }
