@@ -9,6 +9,7 @@ import io.micronaut.http.*;
 import io.micronaut.http.client.DefaultHttpClientConfiguration;
 import io.micronaut.http.client.HttpClientConfiguration;
 import io.micronaut.http.client.multipart.MultipartBody;
+import io.micronaut.http.ssl.ClientSslConfiguration;
 import io.micronaut.logging.LogLevel;
 import io.micronaut.rxjava2.http.client.RxHttpClient;
 import io.micronaut.rxjava2.http.client.RxStreamingHttpClient;
@@ -82,6 +83,11 @@ abstract public class AbstractHttp extends Task {
     )
     protected RequestOptions options;
 
+    @Schema(
+        title = "The ssl request options"
+    )
+    protected SslOptions sslOptions;
+
     protected DefaultHttpClientConfiguration configuration(RunContext runContext) throws IllegalVariableEvaluationException {
         DefaultHttpClientConfiguration configuration = new DefaultHttpClientConfiguration();
 
@@ -138,8 +144,15 @@ abstract public class AbstractHttp extends Task {
             }
         }
 
-        // @TODO
-        // configuration.setSslConfiguration(new SslConfiguration());
+        ClientSslConfiguration clientSslConfiguration = new ClientSslConfiguration();
+
+        if (this.sslOptions != null) {
+            if (this.sslOptions.getInsecureTrustAllCertificates() != null) {
+                clientSslConfiguration.setInsecureTrustAllCertificates(this.sslOptions.getInsecureTrustAllCertificates());
+            }
+        }
+
+        configuration.setSslConfiguration(clientSslConfiguration);
 
         return configuration;
     }
@@ -309,5 +322,16 @@ abstract public class AbstractHttp extends Task {
         @Schema(title = "The basicAuth password.")
         @PluginProperty(dynamic = true)
         private final String basicAuthPassword;
+    }
+
+    @Getter
+    @Builder
+    public static class SslOptions {
+        @Schema(
+            title = "Whether the client should disable checking of the remote SSL certificate.",
+            description = "Only applies if no trust store is configured. Note: This makes the SSL connection insecure, and should only be used for testing. If you are using a self-signed certificate, set up a trust store instead."
+        )
+        @PluginProperty(dynamic = false)
+        private final Boolean insecureTrustAllCertificates;
     }
 }
