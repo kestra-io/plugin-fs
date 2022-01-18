@@ -35,4 +35,10 @@ public interface FtpInterface {
     )
     @PluginProperty(dynamic = false)
     Boolean getPassiveMode();
+
+    @Schema(
+        title = "Control that the server ip that emit the request is the same than send response."
+    )
+    @PluginProperty(dynamic = false)
+    Boolean getRemoteIpVerification();
 }

@@ -50,11 +50,14 @@ public class Downloads extends io.kestra.plugin.fs.vfs.Downloads implements FtpI
     protected String port = "990";
     @Builder.Default
     protected Boolean passiveMode = true;
+    @Builder.Default
+    protected Boolean remoteIpVerification = true;
 
     @Builder.Default
     protected FtpsMode mode = FtpsMode.EXPLICIT;
     @Builder.Default
     protected FtpsDataChannelProtectionLevel dataChannelProtectionLevel = FtpsDataChannelProtectionLevel.P;
+    protected Boolean insecureTrustAllCertificates;
 
     @Override
     protected FileSystemOptions fsOptions(RunContext runContext) throws IllegalVariableEvaluationException, IOException {

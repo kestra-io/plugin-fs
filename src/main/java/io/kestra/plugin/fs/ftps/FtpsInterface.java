@@ -18,4 +18,11 @@ public interface FtpsInterface {
     )
     @PluginProperty(dynamic = false)
     FtpsDataChannelProtectionLevel getDataChannelProtectionLevel();
+
+    @Schema(
+        title = "Whether the client should disable checking of the remote SSL certificate.",
+        description = "Note: This makes the SSL connection insecure, and should only be used for testing."
+    )
+    @PluginProperty(dynamic = false)
+    Boolean getInsecureTrustAllCertificates();
 }

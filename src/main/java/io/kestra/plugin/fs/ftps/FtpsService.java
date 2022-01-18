@@ -8,6 +8,10 @@ import org.apache.commons.vfs2.FileSystemOptions;
 import org.apache.commons.vfs2.provider.ftps.FtpsFileSystemConfigBuilder;
 
 import java.io.IOException;
+import java.security.cert.X509Certificate;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 
 public abstract class FtpsService {
     public static FileSystemOptions fsOptions(RunContext runContext, FtpInterface ftpInterface, FtpsInterface ftpsInterface) throws IOException, IllegalVariableEvaluationException {
@@ -24,7 +28,20 @@ public abstract class FtpsService {
         }
 
         // instance.setKeyManager(options, null);
-        // instance.setTrustManager(options, null);
+
+        if (ftpsInterface.getInsecureTrustAllCertificates() != null && ftpsInterface.getInsecureTrustAllCertificates()) {
+            instance.setTrustManager(options, new X509TrustManager() {
+                public X509Certificate[] getAcceptedIssuers() {
+                    return null;
+                }
+
+                public void checkClientTrusted(X509Certificate[] certs, String authType) {
+                }
+
+                public void checkServerTrusted(X509Certificate[] certs, String authType) {
+                }
+            });
+        }
 
         return options;
     }
