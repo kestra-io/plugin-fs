@@ -31,6 +31,7 @@ import java.util.Objects;
 import jakarta.inject.Inject;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 
 @MicronautTest
@@ -80,6 +81,27 @@ class RequestTest {
         assertThat(output.getUri(), is(URI.create(url)));
         assertThat(output.getBody(), is("{ \"hello\": \"world\" }"));
         assertThat(output.getCode(), is(417));
+    }
+
+    @Test
+    void selfSigned() throws Exception {
+        final String url = "https://self-signed.badssl.com/";
+
+        Request task = Request.builder()
+            .id(RequestTest.class.getSimpleName())
+            .type(RequestTest.class.getName())
+            .uri(url)
+            .allowFailed(true)
+            .sslOptions(AbstractHttp.SslOptions.builder().insecureTrustAllCertificates(true).build())
+            .build();
+
+        RunContext runContext = TestsUtils.mockRunContext(this.runContextFactory, task, ImmutableMap.of());
+
+        Request.Output output = task.run(runContext);
+
+        assertThat(output.getUri(), is(URI.create(url)));
+        assertThat(output.getBody(), containsString("self-signed.<br>badssl.com"));
+        assertThat(output.getCode(), is(200));
     }
 
     @Test
