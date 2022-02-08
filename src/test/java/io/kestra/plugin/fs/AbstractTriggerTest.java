@@ -61,11 +61,6 @@ public abstract class AbstractTriggerTest {
     @Value("${kestra.variables.globals.random}")
     protected String random;
 
-    @BeforeEach
-    private void init() throws IOException, URISyntaxException {
-        repositoryLoader.load(Objects.requireNonNull(AbstractTriggerTest.class.getClassLoader().getResource("flows")));
-    }
-
     abstract public Upload.Output upload(String to) throws Exception;
 
     @Test
@@ -97,6 +92,7 @@ public abstract class AbstractTriggerTest {
             upload("/upload/" + random + "/" + out2);
 
             scheduler.run();
+            repositoryLoader.load(Objects.requireNonNull(AbstractTriggerTest.class.getClassLoader().getResource("flows")));
 
             queueCount.await(1, TimeUnit.MINUTES);
 
@@ -131,6 +127,7 @@ public abstract class AbstractTriggerTest {
 
 
             scheduler.run();
+            repositoryLoader.load(Objects.requireNonNull(AbstractTriggerTest.class.getClassLoader().getResource("flows")));
 
             Thread.sleep(1000);
 
