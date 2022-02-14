@@ -88,7 +88,7 @@ abstract public class AbstractHttp extends Task {
     )
     protected SslOptions sslOptions;
 
-    protected DefaultHttpClientConfiguration configuration(RunContext runContext) throws IllegalVariableEvaluationException {
+    protected DefaultHttpClientConfiguration configuration(RunContext runContext, HttpMethod httpMethod) throws IllegalVariableEvaluationException {
         DefaultHttpClientConfiguration configuration = new DefaultHttpClientConfiguration();
 
         if (this.options != null) {
@@ -144,6 +144,10 @@ abstract public class AbstractHttp extends Task {
             }
         }
 
+        if (httpMethod == HttpMethod.HEAD) {
+            configuration.setMaxContentLength(Integer.MAX_VALUE);
+        }
+
         ClientSslConfiguration clientSslConfiguration = new ClientSslConfiguration();
 
         if (this.sslOptions != null) {
@@ -157,16 +161,16 @@ abstract public class AbstractHttp extends Task {
         return configuration;
     }
 
-    protected RxHttpClient client(RunContext runContext) throws IllegalVariableEvaluationException, MalformedURLException, URISyntaxException {
+    protected RxHttpClient client(RunContext runContext, HttpMethod httpMethod) throws IllegalVariableEvaluationException, MalformedURLException, URISyntaxException {
         URI from = new URI(runContext.render(this.uri));
 
-        return RxHttpClient.create(from.toURL(), this.configuration(runContext));
+        return RxHttpClient.create(from.toURL(), this.configuration(runContext, httpMethod));
     }
 
-    protected RxStreamingHttpClient streamingClient(RunContext runContext) throws IllegalVariableEvaluationException, MalformedURLException, URISyntaxException {
+    protected RxStreamingHttpClient streamingClient(RunContext runContext, HttpMethod httpMethod) throws IllegalVariableEvaluationException, MalformedURLException, URISyntaxException {
         URI from = new URI(runContext.render(this.uri));
 
-        return RxStreamingHttpClient.create(from.toURL(), this.configuration(runContext));
+        return RxStreamingHttpClient.create(from.toURL(), this.configuration(runContext, httpMethod));
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})

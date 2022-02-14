@@ -64,6 +64,25 @@ class RequestTest {
     }
 
     @Test
+    void head() throws Exception {
+        final String url = "https://proof.ovh.net/files/100Mb.dat";
+
+        Request task = Request.builder()
+            .id(RequestTest.class.getSimpleName())
+            .type(RequestTest.class.getName())
+            .uri(url)
+            .method(HttpMethod.HEAD)
+            .build();
+
+        RunContext runContext = TestsUtils.mockRunContext(this.runContextFactory, task, ImmutableMap.of());
+
+        Request.Output output = task.run(runContext);
+
+        assertThat(output.getUri(), is(URI.create(url)));
+        assertThat(output.getHeaders().get("content-length").get(0), is("104857600"));
+    }
+
+    @Test
     void failed() throws Exception {
         final String url = "http://www.mocky.io/v2/5ed0d31c3500009300ff9f94";
 
