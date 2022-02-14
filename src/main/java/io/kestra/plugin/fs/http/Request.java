@@ -2,6 +2,7 @@ package io.kestra.plugin.fs.http;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
@@ -68,7 +69,7 @@ public class Request extends AbstractHttp implements RunnableTask<Request.Output
         Logger logger = runContext.logger();
 
         try (
-            RxHttpClient client = this.client(runContext);
+            RxHttpClient client = this.client(runContext, this.method);
         ) {
             HttpRequest<String> request = this.request(runContext);
             HttpResponse<String> response;
@@ -127,6 +128,7 @@ public class Request extends AbstractHttp implements RunnableTask<Request.Output
         @Schema(
             title = "The headers of the response"
         )
+        @PluginProperty(additionalProperties = List.class)
         private final Map<String, List<String>> headers;
 
         @Schema(

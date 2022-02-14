@@ -53,7 +53,7 @@ public class Download extends AbstractHttp implements RunnableTask<Download.Outp
 
         // do it
         try (
-            RxStreamingHttpClient client = this.streamingClient(runContext);
+            RxStreamingHttpClient client = this.streamingClient(runContext, this.method);
             BufferedOutputStream output = new BufferedOutputStream(new FileOutputStream(tempFile));
         ) {
             @SuppressWarnings("unchecked")
