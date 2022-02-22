@@ -70,7 +70,7 @@ class DownloadTest {
             () -> task.run(runContext)
         );
 
-        assertThat(exception.getMessage(), is("No response from server"));
+        assertThat(exception.getMessage(), is("Service Unavailable"));
     }
 
     @Test
