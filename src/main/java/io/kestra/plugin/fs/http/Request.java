@@ -9,6 +9,7 @@ import io.kestra.core.runners.RunContext;
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
+import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.rxjava2.http.client.RxHttpClient;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -68,9 +69,7 @@ public class Request extends AbstractHttp implements RunnableTask<Request.Output
     public Request.Output run(RunContext runContext) throws Exception {
         Logger logger = runContext.logger();
 
-        try (
-            RxHttpClient client = this.client(runContext, this.method);
-        ) {
+        try (HttpClient client = this.client(runContext, this.method)) {
             HttpRequest<String> request = this.request(runContext);
             HttpResponse<String> response;
 

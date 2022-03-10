@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @MicronautTest
 class DownloadTest {
-    public static final String FILE = "https://file-examples.com/wp-content/uploads/2017/02/file_example_CSV_5000.csv";
+    public static final String FILE = "https://proof.ovh.net/files/1Mb.dat";
     @Inject
     private RunContextFactory runContextFactory;
 
