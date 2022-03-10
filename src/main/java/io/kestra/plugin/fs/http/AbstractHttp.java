@@ -12,7 +12,6 @@ import io.micronaut.http.client.HttpClientConfiguration;
 import io.micronaut.http.client.multipart.MultipartBody;
 import io.micronaut.http.ssl.ClientSslConfiguration;
 import io.micronaut.logging.LogLevel;
-import io.micronaut.rxjava2.http.client.ExtendedBridgedRxHttpClient;
 import io.micronaut.rxjava2.http.client.RxStreamingHttpClient;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
