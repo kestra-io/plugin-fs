@@ -7,11 +7,12 @@ import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
 import io.micronaut.http.*;
 import io.micronaut.http.client.DefaultHttpClientConfiguration;
+import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.HttpClientConfiguration;
 import io.micronaut.http.client.multipart.MultipartBody;
 import io.micronaut.http.ssl.ClientSslConfiguration;
 import io.micronaut.logging.LogLevel;
-import io.micronaut.rxjava2.http.client.RxHttpClient;
+import io.micronaut.rxjava2.http.client.ExtendedBridgedRxHttpClient;
 import io.micronaut.rxjava2.http.client.RxStreamingHttpClient;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
@@ -161,16 +162,16 @@ abstract public class AbstractHttp extends Task {
         return configuration;
     }
 
-    protected RxHttpClient client(RunContext runContext, HttpMethod httpMethod) throws IllegalVariableEvaluationException, MalformedURLException, URISyntaxException {
+    protected HttpClient client(RunContext runContext, HttpMethod httpMethod) throws IllegalVariableEvaluationException, MalformedURLException, URISyntaxException {
         URI from = new URI(runContext.render(this.uri));
 
-        return RxHttpClient.create(from.toURL(), this.configuration(runContext, httpMethod));
+        return HttpClient.create(from.toURL(), this.configuration(runContext, httpMethod));
     }
 
     protected RxStreamingHttpClient streamingClient(RunContext runContext, HttpMethod httpMethod) throws IllegalVariableEvaluationException, MalformedURLException, URISyntaxException {
         URI from = new URI(runContext.render(this.uri));
 
-        return RxStreamingHttpClient.create(from.toURL(), this.configuration(runContext, httpMethod));
+        return ExtendedBridgedRxHttpClient.create(from.toURL(), this.configuration(runContext, httpMethod));
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
