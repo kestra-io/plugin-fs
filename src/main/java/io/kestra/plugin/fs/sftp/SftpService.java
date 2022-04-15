@@ -9,6 +9,7 @@ import org.apache.commons.vfs2.provider.sftp.SftpFileSystemConfigBuilder;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 
 public abstract class SftpService {
     public static FileSystemOptions fsOptions(RunContext runContext, SftpInterface sftpInterface) throws IOException, IllegalVariableEvaluationException {
@@ -19,7 +20,7 @@ public abstract class SftpService {
         instance.setStrictHostKeyChecking(options, "no");
         instance.setUserDirIsRoot(options, sftpInterface.getRootDir());
 
-        instance.setSessionTimeoutMillis(options, 10000);
+        instance.setSessionTimeout(options, Duration.ofSeconds(10));
         // see https://issues.apache.org/jira/browse/VFS-766
         instance.setDisableDetectExecChannel(options, true);
 
