@@ -36,7 +36,7 @@ import java.net.Proxy;
                 "      - id: return",
                 "        type: io.kestra.core.tasks.debugs.Return",
                 "        format: \"{{taskrun.value}}\"",
-                "    value: \"{{ trigger.files | jq '.path' }}\"",
+                "    value: \"{{ trigger.files | jq('.path') }}\"",
                 "",
                 "triggers:",
                 "  - id: watch",
