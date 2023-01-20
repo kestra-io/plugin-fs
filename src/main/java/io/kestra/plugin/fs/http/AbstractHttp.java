@@ -10,6 +10,7 @@ import io.micronaut.http.client.DefaultHttpClientConfiguration;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.HttpClientConfiguration;
 import io.micronaut.http.client.multipart.MultipartBody;
+import io.micronaut.http.client.netty.NettyHttpClientFactory;
 import io.micronaut.http.ssl.ClientSslConfiguration;
 import io.micronaut.logging.LogLevel;
 import io.micronaut.rxjava2.http.client.RxStreamingHttpClient;
@@ -88,6 +89,8 @@ abstract public class AbstractHttp extends Task {
     )
     protected SslOptions sslOptions;
 
+    private static final NettyHttpClientFactory FACTORY = new NettyHttpClientFactory();
+
     protected DefaultHttpClientConfiguration configuration(RunContext runContext, HttpMethod httpMethod) throws IllegalVariableEvaluationException {
         DefaultHttpClientConfiguration configuration = new DefaultHttpClientConfiguration();
 
@@ -164,13 +167,13 @@ abstract public class AbstractHttp extends Task {
     protected HttpClient client(RunContext runContext, HttpMethod httpMethod) throws IllegalVariableEvaluationException, MalformedURLException, URISyntaxException {
         URI from = new URI(runContext.render(this.uri));
 
-        return HttpClient.create(from.toURL(), this.configuration(runContext, httpMethod));
+        return FACTORY.createClient(from.toURL(), this.configuration(runContext, httpMethod));
     }
 
     protected RxStreamingHttpClient streamingClient(RunContext runContext, HttpMethod httpMethod) throws IllegalVariableEvaluationException, MalformedURLException, URISyntaxException {
         URI from = new URI(runContext.render(this.uri));
 
-        return ExtendedBridgedRxHttpClient.create(from.toURL(), this.configuration(runContext, httpMethod));
+        return new ExtendedBridgedRxHttpClient(FACTORY.createStreamingClient(from.toURL(), this.configuration(runContext, httpMethod)));
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
