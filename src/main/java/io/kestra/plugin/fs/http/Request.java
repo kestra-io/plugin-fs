@@ -54,6 +54,20 @@ import java.util.Map;
                 "formData:",
                 "  user: \"{{ inputs.file }}\"",
             }
+        ),
+        @Example(
+            title = "Post a multipart request to a webserver while renaming the file sent",
+            code = {
+                "uri: \"https://server.com/upload\"",
+                "headers: ",
+                "  user-agent: \"kestra-io\"",
+                "method: \"POST\"",
+                "contentType: \"multipart/form-data\"",
+                "formData:",
+                "  user:",
+                "    name: \"my-file.txt\"",
+                "    content: \"{{ inputs.file }}\"",
+            }
         )
     }
 )
@@ -133,5 +147,12 @@ public class Request extends AbstractHttp implements RunnableTask<Request.Output
             title = "The body of the response"
         )
         private final String body;
+
+        @Schema(
+            title = "The form data to be send",
+            description = "When sending a file, you can pass a map with a key 'name' for the filename and 'content' for the file content."
+        )
+        @PluginProperty(dynamic = true)
+        protected Map<String, Object> formData;
     }
 }
