@@ -26,6 +26,7 @@ import java.io.OutputStream;
 import java.net.*;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.AbstractMap;
@@ -213,6 +214,18 @@ abstract public class AbstractHttp extends Task {
                         } else {
                             builder.addPart(key, render);
                         }
+                    } else if (e.getValue() instanceof Map && ((Map<String, String>) e.getValue()).containsKey("name") && ((Map<String, String>) e.getValue()).containsKey("content")) {
+                        String name = runContext.render(((Map<String, String>) e.getValue()).get("name"));
+                        String content = runContext.render(((Map<String, String>) e.getValue()).get("content"));
+
+                        File tempFile = runContext.tempFile().toFile();
+                        File renamedFile = new File(Files.move(tempFile.toPath(), tempFile.toPath().resolveSibling(name)).toUri());
+
+                        try (OutputStream outputStream = new FileOutputStream(renamedFile)) {
+                            IOUtils.copyLarge(runContext.uriToInputStream(new URI(content)), outputStream);
+                        }
+                        
+                        builder.addPart(key, renamedFile);
                     } else {
                         builder.addPart(key, JacksonMapper.ofJson().writeValueAsString(e.getValue()));
                     }
