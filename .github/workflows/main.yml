@@ -25,6 +25,7 @@ jobs:
       - name: Build the docker-compose stack
         run: |
           ssh-keygen -f id_rsa -q -N "" -m PEM -P "testPassPhrase"
+          chmod go+x src/test/resources/ssh/setpasswd.sh
           docker-compose -f docker-compose-ci.yml up -d
           sleep 3
           docker exec plugin-fs_sftp_1 chown -R foo /home/foo/upload
