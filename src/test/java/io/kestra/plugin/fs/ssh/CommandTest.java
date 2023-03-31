@@ -28,7 +28,7 @@ class CommandTest {
             .username("foo")
             .password("password")
             .port("2222")
-            .command("ls")
+            .commands(new String[] {"echo 'Hello World'", "echo 'Hello World'"})
             .build();
 
         command.run(TestsUtils.mockRunContext(runContextFactory, command, ImmutableMap.of()));
