@@ -30,3 +30,13 @@ services:
     environment:
       FTP_USER: guest
       FTP_PWD: guest
+
+  ssh:
+    image: panubo/sshd
+    ports:
+      - "2222:22"
+    environment:
+      SSH_USERS: foo:48:48
+      SSH_ENABLE_PASSWORD_AUTH: "true"
+    volumes:
+      - ${PWD}/src/test/resources/ssh/:/etc/entrypoint.d/
