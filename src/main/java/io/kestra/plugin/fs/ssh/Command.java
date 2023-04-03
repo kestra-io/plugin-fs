@@ -74,6 +74,8 @@ public class Command extends Task implements AbstractVfsInterface, RunnableTask<
     public VoidOutput run(RunContext runContext) throws Exception {
         Session session = null;
         ChannelExec channel = null;
+        AbstractLogThread stdOut = null;
+        AbstractLogThread stdErr = null;
 
         try(
             var outStream = new PipedOutputStream();
@@ -97,17 +99,14 @@ public class Command extends Task implements AbstractVfsInterface, RunnableTask<
             channel.setCommand(String.join("\n", renderedCommands));
             channel.setOutputStream(new BufferedOutputStream(outStream), true);
             channel.setErrStream(new BufferedOutputStream(errStream), true);
-            var stdOut = threadLogSupplier(runContext).call(inStream, false);
-            var stdErr = threadLogSupplier(runContext).call(inErrStream, true);
+            stdOut = threadLogSupplier(runContext).call(inStream, false);
+            stdErr = threadLogSupplier(runContext).call(inErrStream, true);
 
             channel.connect();
             while (channel.isConnected()) {
                 Thread.sleep(SLEEP_DELAY_MS);
             }
 
-            stdOut.join();
-            stdErr.join();
-            
             if(channel.getExitStatus() != 0) {
                 throw new Exception("SSH command fails with exit status " + channel.getExitStatus());
             }
@@ -119,6 +118,12 @@ public class Command extends Task implements AbstractVfsInterface, RunnableTask<
             }
             if (session != null) {
                 session.disconnect();
+            }
+            if (stdOut != null) {
+                stdOut.join();
+            }
+            if (stdErr != null) {
+                stdErr.join();
             }
         }
     }
