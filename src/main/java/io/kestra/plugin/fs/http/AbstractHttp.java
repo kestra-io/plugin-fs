@@ -35,6 +35,8 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import javax.validation.constraints.NotNull;
+
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
 @SuperBuilder
@@ -47,13 +49,14 @@ abstract public class AbstractHttp extends Task {
         title = "The fully-qualified URIs that point to destination http server"
     )
     @PluginProperty(dynamic = true)
+    @NotNull
     protected String uri;
 
     @Schema(
         title = "The http method to use"
     )
     @Builder.Default
-    @PluginProperty(dynamic = false)
+    @PluginProperty
     protected HttpMethod method = HttpMethod.GET;
 
     @Schema(
