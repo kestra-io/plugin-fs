@@ -118,8 +118,6 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                 return Optional.empty();
             }
 
-            String executionId = IdUtils.create();
-
             java.util.List<File> files = run
                 .getFiles()
                 .stream()
@@ -176,7 +174,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
             );
 
             Execution execution = Execution.builder()
-                .id(executionId)
+                .id(runContext.getTriggerExecutionId())
                 .namespace(context.getNamespace())
                 .flowId(context.getFlowId())
                 .flowRevision(context.getFlowRevision())
