@@ -17,7 +17,7 @@ import java.net.URI;
 @NoArgsConstructor
 public abstract class Upload extends AbstractVfsTask implements RunnableTask<Upload.Output> {
     @Schema(
-        title = "The file path to copy"
+        title = "The file to copy, must be an internal storage URI"
     )
     @PluginProperty(dynamic = true)
     private String from;
