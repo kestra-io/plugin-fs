@@ -25,7 +25,7 @@ import java.util.NoSuchElementException;
 @NoArgsConstructor
 public abstract class Move extends AbstractVfsTask implements RunnableTask<Move.Output> {
     @Schema(
-        title = "The file to move"
+        title = "The file to move, must be an internal storage URI"
     )
     @PluginProperty(dynamic = true)
     private String from;
