@@ -61,4 +61,49 @@ class DownloadUploadTest {
 
         assertThat(IOUtils.toString(this.storageInterface.get(downloadRun.getTo()), Charsets.UTF_8), is(IOUtils.toString(this.storageInterface.get(uri), Charsets.UTF_8)));
     }
+
+
+
+    @Test
+    void downloadsUploads() throws Exception {
+        URI uri1 = ftpUtils.uploadToStorage();
+        URI uri2 = ftpUtils.uploadToStorage();
+
+        String sftpPath = "/upload/" + IdUtils.create() + "/";
+
+        Uploads uploadsTask = Uploads.builder().id(DownloadUploadTest.class.getSimpleName())
+                .type(DownloadUploadTest.class.getName())
+                .from(new String[]{uri1.toString(), uri2.toString()})
+                .to(sftpPath)
+                .host("127.0.0.1")
+                .port("6990")
+                .username("guest")
+                .password("guest")
+                .build();
+        Uploads.Output uploadsRun = uploadsTask.run(TestsUtils.mockRunContext(runContextFactory, uploadsTask, ImmutableMap.of()));
+
+        io.kestra.plugin.fs.ftps.Downloads downloadsTask = io.kestra.plugin.fs.ftps.Downloads.builder()
+                .id(DownloadUploadTest.class.getSimpleName())
+                .type(DownloadUploadTest.class.getName())
+                .from(sftpPath)
+                .action(io.kestra.plugin.fs.ftp.Downloads.Action.DELETE)
+                .host("127.0.0.1")
+                .port("6990")
+                .username("guest")
+                .password("guest")
+                .build();
+
+        Downloads.Output downloadsRun = downloadsTask.run(TestsUtils.mockRunContext(runContextFactory, downloadsTask, ImmutableMap.of()));
+
+        assertThat(uploadsRun.getFiles().size(), is(2));
+        assertThat(downloadsRun.getFiles().size(), is(2));
+        assertThat(downloadsRun.getFiles().stream()
+                        .filter(file -> file.getServerPath().getPath().equals(uploadsRun.getFiles().get(uri1).getPath())).count(),
+                is(1L)
+        );
+        assertThat(downloadsRun.getFiles().stream()
+                        .filter(file -> file.getServerPath().getPath().equals(uploadsRun.getFiles().get(uri2).getPath())).count(),
+                is(1L)
+        );
+    }
 }
