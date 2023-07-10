@@ -36,17 +36,17 @@ import java.io.IOException;
         }
 )
 public class Uploads extends io.kestra.plugin.fs.vfs.Uploads implements SftpInterface {
-    protected String keyfile;
-    protected String passphrase;
-    protected String proxyHost;
-    protected String proxyPort;
-    protected String proxyUser;
-    protected String proxyPassword;
-    protected String proxyType;
+    private String keyfile;
+    private String passphrase;
+    private String proxyHost;
+    private String proxyPort;
+    private String proxyUser;
+    private String proxyPassword;
+    private String proxyType;
     @Builder.Default
-    protected Boolean rootDir = true;
+    private Boolean rootDir = true;
     @Builder.Default
-    protected String port = "22";
+    private String port = "22";
 
     @Override
     protected FileSystemOptions fsOptions(RunContext runContext) throws IllegalVariableEvaluationException, IOException {

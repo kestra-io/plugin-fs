@@ -7,12 +7,15 @@ import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.ftp.FtpUtils;
+import io.kestra.plugin.fs.vfs.models.File;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 import org.apache.commons.io.IOUtils;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
+import java.util.List;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -97,13 +100,9 @@ class DownloadUploadTest {
 
         assertThat(uploadsRun.getFiles().size(), is(2));
         assertThat(downloadsRun.getFiles().size(), is(2));
-        assertThat(downloadsRun.getFiles().stream()
-                        .filter(file -> file.getServerPath().getPath().equals(uploadsRun.getFiles().get(uri1).getPath())).count(),
-                is(1L)
-        );
-        assertThat(downloadsRun.getFiles().stream()
-                        .filter(file -> file.getServerPath().getPath().equals(uploadsRun.getFiles().get(uri2).getPath())).count(),
-                is(1L)
-        );
+        List<String> remoteFileUris = downloadsRun.getFiles().stream().map(File::getServerPath).map(URI::getPath).toList();
+        assertThat(uploadsRun.getFiles().stream().map(URI::getPath).toList(), Matchers.everyItem(
+                Matchers.is(Matchers.in(remoteFileUris))
+        ));
     }
 }

@@ -24,7 +24,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Uploads.Output> {
     @PluginProperty(dynamic = true)
     @Schema(
-            title = "The files to copy, must be internal storage URIs"
+            title = "The files to upload, must be internal storage URIs"
     )
     private String[] from;
 
@@ -48,10 +48,8 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
 
             return Output.builder()
                     .files(outputs.stream()
-                            .collect(Collectors.toMap(
-                                    Upload.Output::getFrom,
-                                    Upload.Output::getTo
-                            ))
+                            .map(Upload.Output::getTo)
+                            .toList()
                     )
                     .build();
         }
@@ -61,8 +59,8 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
-                title = "The fully-qualified URIs that point to source data mapped to its fully-qualified destination URI"
+                title = "The fully-qualified URIs that point to the uploaded files on remote"
         )
-        private Map<URI, URI> files;
+        private List<URI> files;
     }
 }
