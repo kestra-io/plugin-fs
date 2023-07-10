@@ -7,12 +7,15 @@ import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.ftp.FtpUtils;
+import io.kestra.plugin.fs.vfs.models.File;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 import org.apache.commons.io.IOUtils;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
+import java.util.List;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -60,5 +63,46 @@ class DownloadUploadTest {
         var downloadRun = download.run(TestsUtils.mockRunContext(runContextFactory, download, ImmutableMap.of()));
 
         assertThat(IOUtils.toString(this.storageInterface.get(downloadRun.getTo()), Charsets.UTF_8), is(IOUtils.toString(this.storageInterface.get(uri), Charsets.UTF_8)));
+    }
+
+
+
+    @Test
+    void downloadsUploads() throws Exception {
+        URI uri1 = ftpUtils.uploadToStorage();
+        URI uri2 = ftpUtils.uploadToStorage();
+
+        String sftpPath = "/upload/" + IdUtils.create() + "/";
+
+        Uploads uploadsTask = Uploads.builder().id(DownloadUploadTest.class.getSimpleName())
+                .type(DownloadUploadTest.class.getName())
+                .from(new String[]{uri1.toString(), uri2.toString()})
+                .to(sftpPath)
+                .host("127.0.0.1")
+                .port("6990")
+                .username("guest")
+                .password("guest")
+                .build();
+        Uploads.Output uploadsRun = uploadsTask.run(TestsUtils.mockRunContext(runContextFactory, uploadsTask, ImmutableMap.of()));
+
+        io.kestra.plugin.fs.ftps.Downloads downloadsTask = io.kestra.plugin.fs.ftps.Downloads.builder()
+                .id(DownloadUploadTest.class.getSimpleName())
+                .type(DownloadUploadTest.class.getName())
+                .from(sftpPath)
+                .action(io.kestra.plugin.fs.ftp.Downloads.Action.DELETE)
+                .host("127.0.0.1")
+                .port("6990")
+                .username("guest")
+                .password("guest")
+                .build();
+
+        Downloads.Output downloadsRun = downloadsTask.run(TestsUtils.mockRunContext(runContextFactory, downloadsTask, ImmutableMap.of()));
+
+        assertThat(uploadsRun.getFiles().size(), is(2));
+        assertThat(downloadsRun.getFiles().size(), is(2));
+        List<String> remoteFileUris = downloadsRun.getFiles().stream().map(File::getServerPath).map(URI::getPath).toList();
+        assertThat(uploadsRun.getFiles().stream().map(URI::getPath).toList(), Matchers.everyItem(
+                Matchers.is(Matchers.in(remoteFileUris))
+        ));
     }
 }
