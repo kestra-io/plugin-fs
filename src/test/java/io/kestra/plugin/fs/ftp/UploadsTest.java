@@ -43,6 +43,21 @@ class UploadsTest {
                 .build();
         Uploads.Output uploadsRun = uploadsTask.run(TestsUtils.mockRunContext(runContextFactory, uploadsTask, ImmutableMap.of()));
 
+        URI uri3 = ftpUtils.uploadToStorage();
+        URI uri4 = ftpUtils.uploadToStorage();
+        uploadsTask = Uploads.builder().id(UploadsTest.class.getSimpleName())
+                .type(UploadsTest.class.getName())
+                .from("{{ inputs.uris }}")
+                .to("/upload/" + random + "/")
+                .host("localhost")
+                .port("6621")
+                .username("guest")
+                .password("guest")
+                .build();
+        Uploads.Output uploadsRunTemplate = uploadsTask.run(TestsUtils.mockRunContext(runContextFactory, uploadsTask,
+                ImmutableMap.of("uris", "[\""+uri3.toString()+"\",\""+uri4.toString()+"\"]"))
+        );
+
         Downloads downloadsTask = Downloads.builder()
                 .id(UploadsTest.class.getSimpleName())
                 .type(UploadsTest.class.getName())
@@ -57,9 +72,13 @@ class UploadsTest {
         Downloads.Output downloadsRun = downloadsTask.run(TestsUtils.mockRunContext(runContextFactory, downloadsTask, ImmutableMap.of()));
 
         assertThat(uploadsRun.getFiles().size(), is(2));
-        assertThat(downloadsRun.getFiles().size(), is(2));
+        assertThat(uploadsRunTemplate.getFiles().size(), is(2));
+        assertThat(downloadsRun.getFiles().size(), is(4));
         List<String> remoteFileUris = downloadsRun.getFiles().stream().map(File::getServerPath).map(URI::getPath).toList();
         assertThat(uploadsRun.getFiles().stream().map(URI::getPath).toList(), Matchers.everyItem(
+                Matchers.is(Matchers.in(remoteFileUris))
+        ));
+        assertThat(uploadsRunTemplate.getFiles().stream().map(URI::getPath).toList(), Matchers.everyItem(
                 Matchers.is(Matchers.in(remoteFileUris))
         ));
     }

@@ -3,6 +3,7 @@ package io.kestra.plugin.fs.vfs;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
+import io.kestra.core.serializers.JacksonMapper;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -11,8 +12,6 @@ import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -24,9 +23,13 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Uploads.Output> {
     @PluginProperty(dynamic = true)
     @Schema(
-            title = "The files to upload, must be internal storage URIs"
+            title = "The files to upload, must be internal storage URIs, must be a list of URIs or a pebble template that returns a list of URIs",
+            anyOf = {
+                    String.class,
+                    String[].class
+            }
     )
-    private String[] from;
+    private Object from;
 
     @Schema(
             title = "The destination directory"
@@ -38,7 +41,13 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
         try (StandardFileSystemManager fsm = new StandardFileSystemManager()) {
             fsm.init();
 
-            List<Upload.Output> outputs = Arrays.stream(this.from).map(throwFunction((fromURI) -> VfsService.upload(
+            String[] renderedFrom;
+            if (this.from instanceof String[] fromURIs) {
+                renderedFrom = fromURIs;
+            } else {
+                renderedFrom = JacksonMapper.ofJson().readValue(runContext.render((String) this.from), String[].class);
+            }
+            List<Upload.Output> outputs = Arrays.stream(renderedFrom).map(throwFunction((fromURI) -> VfsService.upload(
                     runContext,
                     fsm,
                     this.fsOptions(runContext),
