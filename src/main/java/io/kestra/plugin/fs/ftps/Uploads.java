@@ -40,23 +40,23 @@ import java.net.Proxy;
     }
 )
 public class Uploads extends io.kestra.plugin.fs.vfs.Uploads implements FtpInterface, FtpsInterface {
-    protected String proxyHost;
-    protected String proxyPort;
-    protected Proxy.Type proxyType;
+    private String proxyHost;
+    private String proxyPort;
+    private Proxy.Type proxyType;
     @Builder.Default
-    protected Boolean rootDir = true;
+    private Boolean rootDir = true;
     @Builder.Default
-    protected String port = "990";
+    private String port = "990";
     @Builder.Default
-    protected Boolean passiveMode = true;
+    private Boolean passiveMode = true;
     @Builder.Default
-    protected Boolean remoteIpVerification = true;
+    private Boolean remoteIpVerification = true;
 
     @Builder.Default
-    protected FtpsMode mode = FtpsMode.EXPLICIT;
+    private FtpsMode mode = FtpsMode.EXPLICIT;
     @Builder.Default
-    protected FtpsDataChannelProtectionLevel dataChannelProtectionLevel = FtpsDataChannelProtectionLevel.P;
-    protected Boolean insecureTrustAllCertificates;
+    private FtpsDataChannelProtectionLevel dataChannelProtectionLevel = FtpsDataChannelProtectionLevel.P;
+    private Boolean insecureTrustAllCertificates;
 
     @Override
     protected FileSystemOptions fsOptions(RunContext runContext) throws IllegalVariableEvaluationException, IOException {

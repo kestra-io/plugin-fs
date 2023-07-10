@@ -38,7 +38,7 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
         try (StandardFileSystemManager fsm = new StandardFileSystemManager()) {
             fsm.init();
 
-            List<Upload.Output> outputs = Arrays.stream(from).map(throwFunction((fromURI) -> VfsService.upload(
+            List<Upload.Output> outputs = Arrays.stream(this.from).map(throwFunction((fromURI) -> VfsService.upload(
                     runContext,
                     fsm,
                     this.fsOptions(runContext),
@@ -63,6 +63,6 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
         @Schema(
                 title = "The fully-qualified URIs that point to source data mapped to its fully-qualified destination URI"
         )
-        Map<URI, URI> files;
+        private Map<URI, URI> files;
     }
 }
