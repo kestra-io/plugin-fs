@@ -15,14 +15,14 @@ import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.utils.TestsUtils;
 
-import java.io.FileNotFoundException;
-import java.net.URI;
+import java.io.IOException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import jakarta.inject.Inject;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @MicronautTest
@@ -71,6 +71,22 @@ class DownloadTest {
         );
 
         assertThat(exception.getMessage(), is("Service Unavailable"));
+    }
+
+    @Test
+    void allowNoResponse() throws IOException {
+        Download task = Download.builder()
+            .id(DownloadTest.class.getSimpleName())
+            .failOnEmptyResponse(false)
+            .type(DownloadTest.class.getName())
+            .uri("https://run.mocky.io/v3/513a88cf-65fc-4819-9fbf-3a3216a998c4")
+            .build();
+
+        RunContext runContext = TestsUtils.mockRunContext(this.runContextFactory, task, ImmutableMap.of());
+        Download.Output output = assertDoesNotThrow(() -> task.run(runContext));
+
+        assertThat(output.getLength(), is(0L));
+        assertThat(IOUtils.toString(this.storageInterface.get(output.getUri()), StandardCharsets.UTF_8), is(""));
     }
 
     @Test

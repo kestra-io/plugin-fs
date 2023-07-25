@@ -2,6 +2,7 @@ package io.kestra.plugin.fs.http;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
@@ -10,7 +11,6 @@ import io.micronaut.http.HttpResponse;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.rxjava2.http.client.RxStreamingHttpClient;
-import io.reactivex.schedulers.Schedulers;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -44,6 +44,11 @@ import java.util.Map;
     }
 )
 public class Download extends AbstractHttp implements RunnableTask<Download.Output> {
+    @Schema(title = "Should the task fail on downloading an empty file.")
+    @Builder.Default
+    @PluginProperty(dynamic = false)
+    private final Boolean failOnEmptyResponse = true;
+
     public Download.Output run(RunContext runContext) throws Exception {
         Logger logger = runContext.logger();
         URI from = new URI(runContext.render(this.uri));
@@ -81,19 +86,28 @@ public class Download extends AbstractHttp implements RunnableTask<Download.Outp
                 .reduce(Long::sum)
                 .blockingGet();
 
+            if (size == null) {
+                size = 0L;
+            }
+
             if (builder.headers != null && builder.headers.containsKey("Content-Length")) {
                 long length = Long.parseLong(builder.headers.get("Content-Length").get(0));
                 if (length != size) {
-                    throw new IllegalStateException("Invalid size, got " + size + ", expexted " + length);
+                    throw new IllegalStateException("Invalid size, got " + size + ", expected " + length);
                 }
             }
 
             output.flush();
 
-            runContext.metric(Counter.of("response.length", size == null ? 0 : size, this.tags(request, null)));
+            runContext.metric(Counter.of("response.length", size, this.tags(request, null)));
+            builder.length(size);
 
-            if (size == null) {
-                throw new HttpClientResponseException("No response from server", HttpResponse.status(HttpStatus.SERVICE_UNAVAILABLE));
+            if (size == 0) {
+                if (this.failOnEmptyResponse) {
+                    throw new HttpClientResponseException("No response from server", HttpResponse.status(HttpStatus.SERVICE_UNAVAILABLE));
+                } else {
+                    logger.warn("File '{}' is empty", from);
+                }
             }
 
             builder.uri(runContext.putTempFile(tempFile));
@@ -116,6 +130,11 @@ public class Download extends AbstractHttp implements RunnableTask<Download.Outp
             title = "The status code of the response"
         )
         private final Integer code;
+
+        @Schema(
+                title = "The content-length of the response"
+        )
+        private final Long length;
 
         @Schema(
             title = "The headers of the response"
