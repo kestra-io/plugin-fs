@@ -5,7 +5,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 public interface SftpInterface {
     @Schema(
-        title = "Private keyfile to login on the source server with ssh"
+        title = "Private keyfile in the PEM file format to connect to a remote server using SSH",
+        description = "To generate a PEM format key from OpenSSH, use the following command: `ssh-keygen -m PEM`"
     )
     @PluginProperty(dynamic = true)
     String getKeyfile();
