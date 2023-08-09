@@ -112,7 +112,7 @@ public abstract class VfsService {
         FileSystemOptions fileSystemOptions,
         URI from
     ) throws Exception {
-        java.io.File tempFile = runContext.tempFile().toFile();
+        java.io.File tempFile = runContext.tempFile(extension(from)).toFile();
 
         try (
             FileObject local = fsm.resolveFile(tempFile.toURI());
@@ -265,5 +265,20 @@ public abstract class VfsService {
 
     private static boolean isDirectory(URI uri) {
         return ("/" + FilenameUtils.getPath(uri.getPath())).equals(uri.getPath());
+    }
+
+    public static String extension(URI uri) {
+        String path = uri.getPath();
+        if (path == null) {
+            return null;
+        }
+
+        if (path.indexOf('/') != -1) {
+            path = path.substring(path.lastIndexOf('/')); // keep the last segment
+        }
+        if (path.indexOf('.') != -1) {
+            return path.substring(path.indexOf('.'));
+        }
+        return null;
     }
 }

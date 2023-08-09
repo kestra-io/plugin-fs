@@ -21,7 +21,7 @@ import java.nio.charset.StandardCharsets;
 import jakarta.inject.Inject;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -53,6 +53,7 @@ class DownloadTest {
             IOUtils.toString(this.storageInterface.get(output.getUri()), StandardCharsets.UTF_8),
             is(IOUtils.toString(new URL(FILE).openStream(), StandardCharsets.UTF_8))
         );
+        assertThat(output.getUri().toString(), endsWith(".dat"));
     }
 
     @Test
