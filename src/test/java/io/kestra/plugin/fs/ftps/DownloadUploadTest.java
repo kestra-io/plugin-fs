@@ -18,6 +18,7 @@ import java.net.URI;
 import java.util.List;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.is;
 
 @MicronautTest
@@ -63,6 +64,7 @@ class DownloadUploadTest {
         var downloadRun = download.run(TestsUtils.mockRunContext(runContextFactory, download, ImmutableMap.of()));
 
         assertThat(IOUtils.toString(this.storageInterface.get(downloadRun.getTo()), Charsets.UTF_8), is(IOUtils.toString(this.storageInterface.get(uri), Charsets.UTF_8)));
+        assertThat(downloadRun.getFrom().getPath(), endsWith(".yaml"));
     }
 
 

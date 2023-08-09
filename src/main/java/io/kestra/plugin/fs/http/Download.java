@@ -1,11 +1,13 @@
 package io.kestra.plugin.fs.http;
 
 import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Metric;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
+import io.kestra.plugin.fs.vfs.VfsService;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.HttpStatus;
@@ -29,8 +31,8 @@ import java.util.Map;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Download file from http server",
-    description = "This task connects to http server and copy file to kestra file storage"
+    title = "Download a file from a HTTP server",
+    description = "This task connects to a HTTP server and copy a file to Kestra's internal storage"
 )
 @Plugin(
     examples = {
@@ -41,18 +43,22 @@ import java.util.Map;
                 "uri: \"https://server.com/file\""
             }
         )
+    },
+    metrics = {
+        @Metric(name = "response.length", type = "counter", description = "The content length")
     }
 )
 public class Download extends AbstractHttp implements RunnableTask<Download.Output> {
-    @Schema(title = "Should the task fail on downloading an empty file.")
+    @Schema(title = "Should the task fail when downloading an empty file.")
     @Builder.Default
-    @PluginProperty(dynamic = false)
+    @PluginProperty
     private final Boolean failOnEmptyResponse = true;
 
     public Download.Output run(RunContext runContext) throws Exception {
         Logger logger = runContext.logger();
-        URI from = new URI(runContext.render(this.uri));
-        File tempFile = runContext.tempFile().toFile();
+        URI from = new URI(this.uri);
+
+        File tempFile = runContext.tempFile(VfsService.extension(from)).toFile();
 
         // output
         Output.OutputBuilder builder = Output.builder();
@@ -112,7 +118,7 @@ public class Download extends AbstractHttp implements RunnableTask<Download.Outp
 
             builder.uri(runContext.putTempFile(tempFile));
 
-            logger.debug("File '{}' download to '{}'", from, builder.uri);
+            logger.debug("File '{}' downloaded to '{}'", from, builder.uri);
 
             return builder.build();
         }
@@ -122,7 +128,7 @@ public class Download extends AbstractHttp implements RunnableTask<Download.Outp
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
-            title = "The url of the downloaded file on kestra storage"
+            title = "The URL of the downloaded file on Kestra's internal storage"
         )
         private final URI uri;
 
