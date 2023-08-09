@@ -11,6 +11,7 @@ import io.kestra.core.utils.TestsUtils;
 import jakarta.inject.Inject;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.is;
 
 @MicronautTest
@@ -27,9 +28,9 @@ class DownloadsTest {
     @Test
     void run() throws Exception {
         String out1 = FriendlyId.createFriendlyId();
-        sftpUtils.upload("/upload/" + random + "/" + out1);
+        sftpUtils.upload("/upload/" + random + "/" + out1 + ".txt");
         String out2 = FriendlyId.createFriendlyId();
-        sftpUtils.upload("/upload/" + random + "/" + out2);
+        sftpUtils.upload("/upload/" + random + "/" + out2 + ".txt");
 
         Downloads task = Downloads.builder()
             .id(DownloadsTest.class.getSimpleName())
@@ -45,5 +46,6 @@ class DownloadsTest {
         Downloads.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
 
         assertThat(run.getFiles().size(), is(2));
+        assertThat(run.getFiles().get(0).getPath().getPath(), endsWith(".txt"));
     }
 }
