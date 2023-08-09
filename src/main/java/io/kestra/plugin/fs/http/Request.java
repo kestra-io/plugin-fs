@@ -26,8 +26,11 @@ import java.util.Map;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Request an http server",
-    description = "This task connects to http server, request the provided url and store the response as output"
+    title = "Make an HTTP request to a server",
+    description = """
+                  This task connects to a HTTP server, send a request, and store the response as output.
+                  By default, the maximum length of the response is limited to 10MB but it can be increased to at most 2GB by using the `options.maxContentLength` property.
+                  Note that the response is added as output to the task, to download large content it is advised to use the Download task instead."""
 )
 @Plugin(
     examples = {
