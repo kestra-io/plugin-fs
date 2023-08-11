@@ -22,10 +22,16 @@ import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 
 import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiFunction;
+import java.util.function.Supplier;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 
@@ -74,8 +80,8 @@ public class Command extends Task implements AbstractVfsInterface, RunnableTask<
     public VoidOutput run(RunContext runContext) throws Exception {
         Session session = null;
         ChannelExec channel = null;
-        AbstractLogThread stdOut = null;
-        AbstractLogThread stdErr = null;
+        LogThread stdOut = null;
+        LogThread stdErr = null;
 
         try(
             var outStream = new PipedOutputStream();
@@ -99,8 +105,8 @@ public class Command extends Task implements AbstractVfsInterface, RunnableTask<
             channel.setCommand(String.join("\n", renderedCommands));
             channel.setOutputStream(new BufferedOutputStream(outStream), true);
             channel.setErrStream(new BufferedOutputStream(errStream), true);
-            stdOut = threadLogSupplier(runContext).call(inStream, false);
-            stdErr = threadLogSupplier(runContext).call(inErrStream, true);
+            stdOut = threadLogSupplier(runContext).apply(inStream, false);
+            stdErr = threadLogSupplier(runContext).apply(inErrStream, true);
 
             channel.connect();
             while (channel.isConnected()) {
@@ -128,13 +134,46 @@ public class Command extends Task implements AbstractVfsInterface, RunnableTask<
         }
     }
 
-    private AbstractBash.LogSupplier threadLogSupplier(RunContext runContext) {
+    private BiFunction<InputStream, Boolean, LogThread> threadLogSupplier(RunContext runContext) {
         return (inputStream, isStdErr) -> {
-            AbstractLogThread thread = new AbstractBash.LogThread(runContext.logger(), inputStream, isStdErr, runContext);
+            LogThread thread = new LogThread(inputStream, isStdErr, runContext);
             thread.setName("ssh-log-" + (isStdErr ? "-err" : "-out"));
             thread.start();
 
             return thread;
         };
+    }
+
+    private static class LogThread extends Thread {
+        private final InputStream inputStream;
+
+        private final boolean isStdErr;
+
+        private final RunContext runContext;
+
+        protected LogThread(InputStream inputStream, boolean isStdErr, RunContext runContext) {
+            this.inputStream = inputStream;
+            this.isStdErr = isStdErr;
+            this.runContext = runContext;
+        }
+
+        @Override
+        public void run() {
+            try {
+                InputStreamReader inputStreamReader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
+                try (BufferedReader bufferedReader = new BufferedReader(inputStreamReader)) {
+                    String line;
+                    while ((line = bufferedReader.readLine()) != null) {
+                        if (isStdErr) {
+                            runContext.logger().warn(line);
+                        } else {
+                            runContext.logger().info(line);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                // silently fail if we cannot log a line
+            }
+        }
     }
 }
