@@ -56,7 +56,7 @@ public class Download extends AbstractHttp implements RunnableTask<Download.Outp
 
     public Download.Output run(RunContext runContext) throws Exception {
         Logger logger = runContext.logger();
-        URI from = new URI(this.uri);
+        URI from = new URI(runContext.render(this.uri));
 
         File tempFile = runContext.tempFile(VfsService.extension(from)).toFile();
 
