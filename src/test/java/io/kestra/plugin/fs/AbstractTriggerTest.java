@@ -76,10 +76,10 @@ public abstract class AbstractTriggerTest {
 
             // wait for execution
             executionQueue.receive(AbstractTriggerTest.class, execution -> {
-                last.set(execution);
+                last.set(execution.getLeft());
 
                 queueCount.countDown();
-                assertThat(execution.getFlowId(), containsString("ftp-listen"));
+                assertThat(execution.getLeft().getFlowId(), containsString("ftp-listen"));
             });
 
 
@@ -119,10 +119,10 @@ public abstract class AbstractTriggerTest {
 
             // wait for execution
             executionQueue.receive(AbstractTriggerTest.class, execution -> {
-                last.set(execution);
+                last.set(execution.getLeft());
 
                 queueCount.countDown();
-                assertThat(execution.getFlowId(), is("sftp-listen"));
+                assertThat(execution.getLeft().getFlowId(), is("sftp-listen"));
             });
 
 
