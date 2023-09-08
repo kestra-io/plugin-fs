@@ -12,6 +12,9 @@ import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Stream;
+
+import javax.validation.constraints.NotNull;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -29,12 +32,14 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
                     String[].class
             }
     )
+    @NotNull
     private Object from;
 
     @Schema(
             title = "The destination directory"
     )
     @PluginProperty(dynamic = true)
+    @NotNull
     private String to;
 
     public Output run(RunContext runContext) throws Exception {
@@ -43,17 +48,24 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
 
             String[] renderedFrom;
             if (this.from instanceof String[] fromURIs) {
-                renderedFrom = fromURIs;
+                renderedFrom = Stream.of(fromURIs).map(throwFunction(from -> runContext.render(from))).toArray(String[]::new);
             } else {
                 renderedFrom = JacksonMapper.ofJson().readValue(runContext.render((String) this.from), String[].class);
             }
-            List<Upload.Output> outputs = Arrays.stream(renderedFrom).map(throwFunction((fromURI) -> VfsService.upload(
+            List<Upload.Output> outputs = Arrays.stream(renderedFrom).map(throwFunction((fromURI) -> {
+                if (!fromURI.startsWith("kestra://")) {
+                    throw new IllegalArgumentException("'from' must be a list of Kestra's internal storage URI");
+                }
+                String renderedTo = runContext.render(this.to);
+                return VfsService.upload(
                     runContext,
                     fsm,
                     this.fsOptions(runContext),
-                    URI.create(runContext.render(fromURI)),
-                    this.uri(runContext, this.to + fromURI.substring(fromURI.lastIndexOf('/') + (this.to.endsWith("/") ? 1 : 0)))
-            ))).toList();
+                    URI.create(fromURI),
+                    this.uri(runContext, renderedTo + fromURI.substring(fromURI.lastIndexOf('/') + (renderedTo.endsWith("/") ? 1 : 0)))
+                );
+            }
+            )).toList();
 
             return Output.builder()
                     .files(outputs.stream()

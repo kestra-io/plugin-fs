@@ -17,6 +17,7 @@ import org.slf4j.Logger;
 
 import java.net.URI;
 import java.util.NoSuchElementException;
+import javax.validation.constraints.NotNull;
 
 @SuperBuilder
 @ToString
@@ -28,6 +29,7 @@ public abstract class Move extends AbstractVfsTask implements RunnableTask<Move.
         title = "The file to move, must be an internal storage URI"
     )
     @PluginProperty(dynamic = true)
+    @NotNull
     private String from;
 
     @Schema(
@@ -37,6 +39,7 @@ public abstract class Move extends AbstractVfsTask implements RunnableTask<Move.
             "If the destFile exists, it is deleted first."
     )
     @PluginProperty(dynamic = true)
+    @NotNull
     private String to;
 
     public Output run(RunContext runContext) throws Exception {

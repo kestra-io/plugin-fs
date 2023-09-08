@@ -114,7 +114,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                 return Optional.empty();
             }
 
-            if (run.getFiles().size() == 0) {
+            if (run.getFiles().isEmpty()) {
                 return Optional.empty();
             }
 

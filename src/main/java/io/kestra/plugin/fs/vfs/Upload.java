@@ -9,6 +9,7 @@ import lombok.experimental.SuperBuilder;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 
 import java.net.URI;
+import javax.validation.constraints.NotNull;
 
 @SuperBuilder
 @ToString
@@ -20,10 +21,11 @@ public abstract class Upload extends AbstractVfsTask implements RunnableTask<Upl
         title = "The file to copy, must be an internal storage URI"
     )
     @PluginProperty(dynamic = true)
+    @NotNull
     private String from;
 
     @Schema(
-        title = "The destination path"
+        title = "The destination path, if not set it will use the name of the file denoted by the `from` property"
     )
     @PluginProperty(dynamic = true)
     private String to;
@@ -32,12 +34,17 @@ public abstract class Upload extends AbstractVfsTask implements RunnableTask<Upl
         try (StandardFileSystemManager fsm = new StandardFileSystemManager()) {
             fsm.init();
 
+            var renderedFrom = runContext.render(this.from);
+            if (!renderedFrom.startsWith("kestra://")) {
+                throw new IllegalArgumentException("'from' must be a Kestra's internal storage URI");
+            }
+            var renderedTo = this.to != null ? runContext.render(this.to) : renderedFrom.substring(renderedFrom.lastIndexOf('/'));
             return VfsService.upload(
                 runContext,
                 fsm,
                 this.fsOptions(runContext),
-                URI.create(runContext.render(this.from)),
-                this.uri(runContext, this.to)
+                URI.create(renderedFrom),
+                this.uri(runContext, renderedTo)
             );
         }
     }
