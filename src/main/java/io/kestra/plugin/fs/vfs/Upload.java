@@ -34,12 +34,17 @@ public abstract class Upload extends AbstractVfsTask implements RunnableTask<Upl
         try (StandardFileSystemManager fsm = new StandardFileSystemManager()) {
             fsm.init();
 
+            var renderedFrom = runContext.render(this.from);
+            if (!renderedFrom.startsWith("kestra://")) {
+                throw new IllegalArgumentException("'from' must be a Kestra's internal storage URI");
+            }
+            var renderedTo = this.to != null ? runContext.render(this.to) : renderedFrom.substring(renderedFrom.lastIndexOf('/'));
             return VfsService.upload(
                 runContext,
                 fsm,
                 this.fsOptions(runContext),
-                URI.create(runContext.render(this.from)),
-                this.uri(runContext, this.to)
+                URI.create(renderedFrom),
+                this.uri(runContext, renderedTo)
             );
         }
     }
