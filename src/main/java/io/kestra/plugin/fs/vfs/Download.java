@@ -9,6 +9,7 @@ import lombok.experimental.SuperBuilder;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 
 import java.net.URI;
+import javax.validation.constraints.NotNull;
 
 @SuperBuilder
 @ToString
@@ -20,6 +21,7 @@ public abstract class Download extends AbstractVfsTask implements RunnableTask<D
         title = "The fully-qualified URIs that point to destination path"
     )
     @PluginProperty(dynamic = true)
+    @NotNull
     protected String from;
 
     public Output run(RunContext runContext) throws Exception {

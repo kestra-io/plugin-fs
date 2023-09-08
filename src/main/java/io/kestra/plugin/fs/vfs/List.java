@@ -9,6 +9,8 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 
+import javax.validation.constraints.NotNull;
+
 @SuperBuilder
 @ToString
 @EqualsAndHashCode
@@ -19,6 +21,7 @@ public abstract class List extends AbstractVfsTask implements RunnableTask<List.
         title = "The fully-qualified URIs that point to path"
     )
     @PluginProperty(dynamic = true)
+    @NotNull
     protected String from;
 
     @Schema(
