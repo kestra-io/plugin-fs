@@ -12,6 +12,7 @@ import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
+import javax.validation.constraints.NotNull;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -29,12 +30,14 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
                     String[].class
             }
     )
+    @NotNull
     private Object from;
 
     @Schema(
             title = "The destination directory"
     )
     @PluginProperty(dynamic = true)
+    @NotNull
     private String to;
 
     public Output run(RunContext runContext) throws Exception {

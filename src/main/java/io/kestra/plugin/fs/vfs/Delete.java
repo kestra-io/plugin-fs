@@ -1,5 +1,6 @@
 package io.kestra.plugin.fs.vfs;
 
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -8,6 +9,7 @@ import lombok.experimental.SuperBuilder;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 
 import java.net.URI;
+import javax.validation.constraints.NotNull;
 
 @SuperBuilder(toBuilder = true)
 @ToString
@@ -17,12 +19,15 @@ import java.net.URI;
 public abstract class Delete extends AbstractVfsTask implements RunnableTask<Delete.Output> {
     @Schema(
         title = "The file to delete")
+    @PluginProperty(dynamic = true)
+    @NotNull
     private String uri;
 
     @Schema(
         title = "raise an error if the file is not found"
     )
     @Builder.Default
+    @PluginProperty
     private final Boolean errorOnMissing = false;
 
     public Output run(RunContext runContext) throws Exception {
