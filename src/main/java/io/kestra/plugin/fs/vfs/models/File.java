@@ -15,6 +15,7 @@ import org.apache.commons.vfs2.provider.URLFileName;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URLEncoder;
 import java.time.Instant;
 
 @Getter
@@ -37,7 +38,7 @@ public class File {
 
     public static File of(AbstractFileObject<?> fileObject) throws FileSystemException, NoSuchFieldException, IllegalAccessException, URISyntaxException {
         FileBuilder builder = File.builder()
-            .path(URI.create(fileObject.getName().getPath()))
+            .path(URI.create(fileObject.getName().getPath().replace(" ", "%20")))
             .serverPath(serverPath(fileObject))
             .name(FilenameUtils.getName(fileObject.getName().getPath()))
             .fileType(fileObject.getType())
