@@ -25,10 +25,11 @@ class ListTest {
     void all() throws Exception {
         String dir = "/" + IdUtils.create();
         String lastFile = null;
-        for (int i = 0; i < 7; i++) {
+        for (int i = 0; i < 6; i++) {
             lastFile = IdUtils.create();
             sftpUtils.upload("upload" + dir + "/" + lastFile + ".yaml");
         }
+        sftpUtils.upload("upload" + dir + "/file with space.yaml");
 
         // List task
         List.ListBuilder<?, ?> builder = List.builder()
