@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @MicronautTest
 class DownloadTest {
-    public static final String FILE = "https://proof.ovh.net/files/1Mb.dat";
+    public static final String FILE = "http://speedtest.ftp.otenet.gr/files/test1Mb.db";
     @Inject
     private RunContextFactory runContextFactory;
 
@@ -53,7 +53,7 @@ class DownloadTest {
             IOUtils.toString(this.storageInterface.get(output.getUri()), StandardCharsets.UTF_8),
             is(IOUtils.toString(new URL(FILE).openStream(), StandardCharsets.UTF_8))
         );
-        assertThat(output.getUri().toString(), endsWith(".dat"));
+        assertThat(output.getUri().toString(), endsWith(".db"));
     }
 
     @Test

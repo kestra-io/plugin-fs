@@ -65,7 +65,7 @@ class RequestTest {
 
     @Test
     void head() throws Exception {
-        final String url = "https://proof.ovh.net/files/100Mb.dat";
+        final String url = "http://speedtest.ftp.otenet.gr/files/test100Mb.db";
 
         Request task = Request.builder()
             .id(RequestTest.class.getSimpleName())
