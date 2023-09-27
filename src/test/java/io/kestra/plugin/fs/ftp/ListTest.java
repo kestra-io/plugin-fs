@@ -26,6 +26,7 @@ class ListTest {
         for (int i = 0; i < 6; i++) {
             lastFile = IdUtils.create();
             ftpUtils.upload("upload" + dir + "/" + lastFile + ".yaml");
+            ftpUtils.upload("upload" + dir + "/subfolder/" + lastFile + ".yaml");
         }
         ftpUtils.upload("upload" + dir + "/file with space.yaml");
 
@@ -52,5 +53,33 @@ class ListTest {
         run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
 
         assertThat(run.getFiles().size(), is(1));
+
+        task = List.builder()
+            .id(ListTest.class.getSimpleName())
+            .type(ListTest.class.getName())
+            .from("/upload" + dir)
+            .host("localhost")
+            .port("6621")
+            .username("guest")
+            .password("guest")
+            .recursive(true).build();
+
+        run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+
+        assertThat(run.getFiles().size(), is(13));
+
+        task = List.builder()
+            .id(ListTest.class.getSimpleName())
+            .type(ListTest.class.getName())
+            .from("/" + dir)
+            .host("localhost")
+            .port("6621")
+            .username("guest")
+            .password("guest")
+            .recursive(true).build();
+
+        run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+
+        assertThat(run.getFiles().size(), is(0));
     }
 }
