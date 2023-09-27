@@ -6,9 +6,7 @@ import io.kestra.plugin.fs.vfs.models.File;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.vfs2.FileObject;
-import org.apache.commons.vfs2.FileSystemOptions;
-import org.apache.commons.vfs2.Selectors;
+import org.apache.commons.vfs2.*;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 import org.apache.commons.vfs2.provider.AbstractFileObject;
 
@@ -17,6 +15,7 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -88,10 +87,30 @@ public abstract class VfsService {
         StandardFileSystemManager fsm,
         FileSystemOptions fileSystemOptions,
         URI from,
-        String regExp
+        String regExp,
+        boolean recursive
     ) throws Exception {
         try (FileObject local = fsm.resolveFile(from.toString(), fileSystemOptions)) {
-            FileObject[] children = local.getChildren();
+            FileObject[] children = local.findFiles(new FileSelector() {
+                @Override
+                public boolean traverseDescendents(FileSelectInfo file) {
+                    // if not recursive only traverse "from"
+                    return recursive || Objects.equals(file.getFile().getName().getPath(), local.getName().getPath());
+                }
+
+                @Override
+                public boolean includeFile(FileSelectInfo file) throws Exception {
+                    // Do not include directories in the result and apply user's filter
+                    return file.getFile().isFile()
+                        && (regExp == null || file.getFile().getName().getPath().matches(regExp));
+                }
+            });
+
+            if (children == null) {
+                return List.Output.builder()
+                    .files(java.util.List.of())
+                    .build();
+            }
 
             java.util.List<File> list = Stream.of(children)
                 .map(throwFunction(r -> File.of((AbstractFileObject<?>) r)))

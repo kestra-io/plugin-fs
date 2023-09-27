@@ -1,8 +1,6 @@
 package io.kestra.plugin.fs.vfs;
 
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
-import io.kestra.core.models.annotations.Example;
-import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
@@ -13,8 +11,6 @@ import io.kestra.core.models.triggers.PollingTriggerInterface;
 import io.kestra.core.models.triggers.TriggerContext;
 import io.kestra.core.models.triggers.TriggerOutput;
 import io.kestra.core.runners.RunContext;
-import io.kestra.core.utils.IdUtils;
-import io.kestra.plugin.fs.sftp.SftpInterface;
 import io.kestra.plugin.fs.vfs.models.File;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
@@ -25,12 +21,12 @@ import org.apache.commons.vfs2.FileType;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 import org.slf4j.Logger;
 
+import javax.validation.constraints.NotNull;
 import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import javax.validation.constraints.NotNull;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -76,8 +72,16 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
     @PluginProperty(dynamic = true)
     private String regExp;
 
+    @Schema(
+        title = "List file recursively"
+    )
+    @Builder.Default
+    private boolean recursive = false;
+
     abstract public String getPort();
+
     abstract protected FileSystemOptions fsOptions(RunContext runContext) throws IllegalVariableEvaluationException, IOException;
+
     abstract protected String scheme();
 
     @Override
@@ -107,7 +111,8 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                     fsm,
                     fileSystemOptions,
                     from,
-                    this.regExp
+                    this.regExp,
+                    this.recursive
                 );
             } catch (FileNotFolderException fileNotFolderException) {
                 logger.debug("From path doesn't exist '{}'", String.join(", ", fileNotFolderException.getInfo()));
