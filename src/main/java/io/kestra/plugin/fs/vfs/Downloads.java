@@ -11,9 +11,9 @@ import org.apache.commons.vfs2.FileType;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 import org.slf4j.Logger;
 
+import javax.validation.constraints.NotNull;
 import java.net.URI;
 import java.util.stream.Collectors;
-import javax.validation.constraints.NotNull;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -49,6 +49,12 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
     @PluginProperty(dynamic = true)
     private String regExp;
 
+    @Schema(
+        title = "List file recursively"
+    )
+    @Builder.Default
+    private boolean recursive = false;
+
     public Output run(RunContext runContext) throws Exception {
         Logger logger = runContext.logger();
 
@@ -66,7 +72,8 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
                 fsm,
                 fileSystemOptions,
                 this.uri(runContext, this.from),
-                this.regExp
+                this.regExp,
+                recursive
             );
 
             java.util.List<io.kestra.plugin.fs.vfs.models.File> files = run
