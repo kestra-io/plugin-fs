@@ -30,6 +30,12 @@ public abstract class List extends AbstractVfsTask implements RunnableTask<List.
     @PluginProperty(dynamic = true)
     private String regExp;
 
+    @Schema(
+        title = "List file recursively"
+    )
+    @Builder.Default
+    private boolean recursive = false;
+
     public Output run(RunContext runContext) throws Exception {
         try (StandardFileSystemManager fsm = new StandardFileSystemManager()) {
             fsm.init();
@@ -39,7 +45,8 @@ public abstract class List extends AbstractVfsTask implements RunnableTask<List.
                 fsm,
                 this.fsOptions(runContext),
                 this.uri(runContext, this.from),
-                this.regExp
+                this.regExp,
+                this.recursive
             );
         }
     }
