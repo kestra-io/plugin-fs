@@ -50,7 +50,7 @@ class DownloadTest {
         Download.Output output = task.run(runContext);
 
         assertThat(
-            IOUtils.toString(this.storageInterface.get(output.getUri()), StandardCharsets.UTF_8),
+            IOUtils.toString(this.storageInterface.get(null, output.getUri()), StandardCharsets.UTF_8),
             is(IOUtils.toString(new URL(FILE).openStream(), StandardCharsets.UTF_8))
         );
         assertThat(output.getUri().toString(), endsWith(".db"));
@@ -87,7 +87,7 @@ class DownloadTest {
         Download.Output output = assertDoesNotThrow(() -> task.run(runContext));
 
         assertThat(output.getLength(), is(0L));
-        assertThat(IOUtils.toString(this.storageInterface.get(output.getUri()), StandardCharsets.UTF_8), is(""));
+        assertThat(IOUtils.toString(this.storageInterface.get(null, output.getUri()), StandardCharsets.UTF_8), is(""));
     }
 
     @Test
