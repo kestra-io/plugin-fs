@@ -72,7 +72,7 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
                 fsm,
                 fileSystemOptions,
                 this.uri(runContext, this.from),
-                this.regExp,
+                runContext.render(this.regExp),
                 recursive
             );
 

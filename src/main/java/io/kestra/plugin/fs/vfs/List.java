@@ -45,7 +45,7 @@ public abstract class List extends AbstractVfsTask implements RunnableTask<List.
                 fsm,
                 this.fsOptions(runContext),
                 this.uri(runContext, this.from),
-                this.regExp,
+                runContext.render(this.regExp),
                 this.recursive
             );
         }
