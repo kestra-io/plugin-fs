@@ -111,7 +111,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                     fsm,
                     fileSystemOptions,
                     from,
-                    this.regExp,
+                    runContext.render(this.regExp),
                     this.recursive
                 );
             } catch (FileNotFolderException fileNotFolderException) {
