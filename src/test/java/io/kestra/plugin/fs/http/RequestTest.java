@@ -8,11 +8,9 @@ import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.utils.TestsUtils;
 import io.micronaut.context.ApplicationContext;
-import io.micronaut.http.HttpMethod;
-import io.micronaut.http.HttpRequest;
-import io.micronaut.http.HttpResponse;
-import io.micronaut.http.MediaType;
+import io.micronaut.http.*;
 import io.micronaut.http.annotation.Controller;
+import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.http.multipart.StreamingFileUpload;
 import io.micronaut.runtime.server.EmbeddedServer;
@@ -46,21 +44,24 @@ class RequestTest {
 
     @Test
     void run() throws Exception {
-        final String url = "http://www.mocky.io/v2/5ed0ce483500009300ff9f55";
+        try (
+            ApplicationContext applicationContext = ApplicationContext.run();
+            EmbeddedServer server = applicationContext.getBean(EmbeddedServer.class).start();
 
-        Request task = Request.builder()
-            .id(RequestTest.class.getSimpleName())
-            .type(RequestTest.class.getName())
-            .uri(url)
-            .build();
+        ) {
+            Request task = Request.builder()
+                .id(RequestTest.class.getSimpleName())
+                .type(RequestTest.class.getName())
+                .uri(server.getURL().toString() + "/hello")
+                .build();
 
-        RunContext runContext = TestsUtils.mockRunContext(this.runContextFactory, task, ImmutableMap.of());
+            RunContext runContext = TestsUtils.mockRunContext(this.runContextFactory, task, ImmutableMap.of());
 
-        Request.Output output = task.run(runContext);
+            Request.Output output = task.run(runContext);
 
-        assertThat(output.getUri(), is(URI.create(url)));
-        assertThat(output.getBody(), is("{ \"hello\": \"world\" }"));
-        assertThat(output.getCode(), is(200));
+            assertThat(output.getBody(), is("{ \"hello\": \"world\" }"));
+            assertThat(output.getCode(), is(200));
+        }
     }
 
     @Test
@@ -84,22 +85,25 @@ class RequestTest {
 
     @Test
     void failed() throws Exception {
-        final String url = "http://www.mocky.io/v2/5ed0d31c3500009300ff9f94";
+        try (
+            ApplicationContext applicationContext = ApplicationContext.run();
+            EmbeddedServer server = applicationContext.getBean(EmbeddedServer.class).start();
 
-        Request task = Request.builder()
-            .id(RequestTest.class.getSimpleName())
-            .type(RequestTest.class.getName())
-            .uri(url)
-            .allowFailed(true)
-            .build();
+        ) {
+            Request task = Request.builder()
+                .id(RequestTest.class.getSimpleName())
+                .type(RequestTest.class.getName())
+                .uri(server.getURL().toString() + "/hello417")
+                .allowFailed(true)
+                .build();
 
-        RunContext runContext = TestsUtils.mockRunContext(this.runContextFactory, task, ImmutableMap.of());
+            RunContext runContext = TestsUtils.mockRunContext(this.runContextFactory, task, ImmutableMap.of());
 
-        Request.Output output = task.run(runContext);
+            Request.Output output = task.run(runContext);
 
-        assertThat(output.getUri(), is(URI.create(url)));
-        assertThat(output.getBody(), is("{ \"hello\": \"world\" }"));
-        assertThat(output.getCode(), is(417));
+            assertThat(output.getBody(), is("{ \"hello\": \"world\" }"));
+            assertThat(output.getCode(), is(417));
+        }
     }
 
     @Test
@@ -220,14 +224,24 @@ class RequestTest {
         }
     }
 
-    @Controller(value = "/post", consumes = MediaType.APPLICATION_FORM_URLENCODED)
+    @Controller
     static class MockController {
-        @Post("/simple")
+        @Get("/hello")
+        HttpResponse<String> hello() {
+            return HttpResponse.ok("{ \"hello\": \"world\" }");
+        }
+
+        @Get("/hello417")
+        HttpResponse<String> hello417() {
+            return HttpResponse.status(HttpStatus.EXPECTATION_FAILED).body("{ \"hello\": \"world\" }");
+        }
+
+        @Post(uri = "/post/simple", consumes = MediaType.APPLICATION_FORM_URLENCODED)
         HttpResponse<String> simple(HttpRequest<?> request, String hello) {
             return HttpResponse.ok(hello + " > " + request.getHeaders().get("test"));
         }
 
-        @Post(uri = "/multipart", consumes = MediaType.MULTIPART_FORM_DATA)
+        @Post(uri = "/post/multipart", consumes = MediaType.MULTIPART_FORM_DATA)
         Single<String> multipart(HttpRequest<?> request, String hello, StreamingFileUpload file) throws IOException {
             File tempFile = File.createTempFile(file.getFilename(), "temp");
 
