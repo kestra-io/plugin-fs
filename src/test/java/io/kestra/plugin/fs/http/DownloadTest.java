@@ -58,10 +58,13 @@ class DownloadTest {
 
     @Test
     void noResponse() throws Exception {
+        EmbeddedServer embeddedServer = applicationContext.getBean(EmbeddedServer.class);
+        embeddedServer.start();
+
         Download task = Download.builder()
             .id(DownloadTest.class.getSimpleName())
             .type(DownloadTest.class.getName())
-            .uri("https://run.mocky.io/v3/bd4e25ed-2de1-44c9-b613-9612c965684b")
+            .uri(embeddedServer.getURI() + "/204")
             .build();
 
         RunContext runContext = TestsUtils.mockRunContext(this.runContextFactory, task, ImmutableMap.of());
@@ -71,16 +74,19 @@ class DownloadTest {
             () -> task.run(runContext)
         );
 
-        assertThat(exception.getMessage(), is("Service Unavailable"));
+        assertThat(exception.getMessage(), is("No response from server"));
     }
 
     @Test
     void allowNoResponse() throws IOException {
+        EmbeddedServer embeddedServer = applicationContext.getBean(EmbeddedServer.class);
+        embeddedServer.start();
+
         Download task = Download.builder()
             .id(DownloadTest.class.getSimpleName())
             .failOnEmptyResponse(false)
             .type(DownloadTest.class.getName())
-            .uri("https://run.mocky.io/v3/513a88cf-65fc-4819-9fbf-3a3216a998c4")
+            .uri(embeddedServer.getURI() + "/204")
             .build();
 
         RunContext runContext = TestsUtils.mockRunContext(this.runContextFactory, task, ImmutableMap.of());
@@ -116,6 +122,11 @@ class DownloadTest {
         @Get("500")
         public HttpResponse<String> error() {
             return HttpResponse.serverError();
+        }
+
+        @Get("204")
+        public HttpResponse<Void> noContent() {
+            return HttpResponse.noContent();
         }
     }
 }
