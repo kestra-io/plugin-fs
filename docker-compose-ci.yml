@@ -1,5 +1,11 @@
 version: "3.6"
 
+volumes:
+  samba-data:
+    driver: local
+  another-samba-data:
+    driver: local
+
 services:
   sftp:
     image: atmoz/sftp
@@ -40,3 +46,20 @@ services:
       SSH_ENABLE_PASSWORD_AUTH: "true"
     volumes:
       - ${PWD}/src/test/resources/ssh/:/etc/entrypoint.d/
+
+  samba:
+    image: elswork/samba
+    container_name: samba
+    ports:
+      - "139:139"
+      - "445:445"
+    volumes:
+      - samba-data:/share/data/to_share
+      - another-samba-data:/share/data/second_share
+    entrypoint: /bin/bash -c
+    command: >
+      'sed -i "\$$i chown -R 1000:1000 /share/data" /entrypoint.sh &&
+      /entrypoint.sh
+      -u "1000:1000:alice:alice:alipass"
+      -s "upload:/share/data/to_share:rw:alice"
+      -s "another_upload:/share/data/second_share:rw:alice"'

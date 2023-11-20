@@ -9,7 +9,7 @@ import io.kestra.core.schedulers.AbstractScheduler;
 import io.kestra.core.schedulers.DefaultScheduler;
 import io.kestra.core.schedulers.SchedulerTriggerStateInterface;
 import io.kestra.core.services.FlowListenersInterface;
-import io.kestra.plugin.fs.AbstractTriggerTest;
+import io.kestra.plugin.fs.AbstractFileTriggerTest;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
@@ -60,7 +60,7 @@ class TriggerTest {
             AtomicReference<Execution> last = new AtomicReference<>();
 
             // wait for execution
-            executionQueue.receive(AbstractTriggerTest.class, execution -> {
+            executionQueue.receive(AbstractFileTriggerTest.class, execution -> {
                 last.set(execution.getLeft());
 
                 queueCount.countDown();
@@ -69,7 +69,7 @@ class TriggerTest {
 
             worker.run();
             scheduler.run();
-            repositoryLoader.load(Objects.requireNonNull(AbstractTriggerTest.class.getClassLoader().getResource("flows")));
+            repositoryLoader.load(Objects.requireNonNull(AbstractFileTriggerTest.class.getClassLoader().getResource("flows")));
 
             assertTrue(queueCount.await(1, TimeUnit.MINUTES));
         }
