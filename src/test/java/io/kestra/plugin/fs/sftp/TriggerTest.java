@@ -6,7 +6,7 @@ import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.triggers.TriggerContext;
 import io.kestra.core.utils.TestsUtils;
-import io.kestra.plugin.fs.AbstractTriggerTest;
+import io.kestra.plugin.fs.AbstractFileTriggerTest;
 import io.kestra.plugin.fs.vfs.Upload;
 import io.kestra.plugin.fs.vfs.models.File;
 import jakarta.inject.Inject;
@@ -21,7 +21,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-public class TriggerTest extends AbstractTriggerTest {
+public class TriggerTest extends AbstractFileTriggerTest {
     @Inject
     private SftpUtils sftpUtils;
 
@@ -30,10 +30,15 @@ public class TriggerTest extends AbstractTriggerTest {
         return this.sftpUtils.upload(to);
     }
 
+    @Override
+    protected String triggeringFlowId() {
+        return "sftp-listen";
+    }
+
     @Test
     void move() throws Exception {
         Trigger trigger = Trigger.builder()
-            .id(AbstractTriggerTest.class.getSimpleName())
+            .id(AbstractFileTriggerTest.class.getSimpleName())
             .type(Trigger.class.getName())
             .host("localhost")
             .port("6622")
@@ -58,7 +63,7 @@ public class TriggerTest extends AbstractTriggerTest {
 
         assertThrows(FileSystemException.class, () -> {
             Download task = Download.builder()
-                .id(AbstractTriggerTest.class.getSimpleName())
+                .id(AbstractFileTriggerTest.class.getSimpleName())
                 .type(Download.class.getName())
                 .host("localhost")
                 .port("6622")
@@ -71,7 +76,7 @@ public class TriggerTest extends AbstractTriggerTest {
         });
 
         Download task = Download.builder()
-            .id(AbstractTriggerTest.class.getSimpleName())
+            .id(AbstractFileTriggerTest.class.getSimpleName())
             .type(Download.class.getName())
             .host("localhost")
             .port("6622")

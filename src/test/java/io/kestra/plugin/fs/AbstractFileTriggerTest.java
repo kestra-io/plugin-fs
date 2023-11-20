@@ -28,11 +28,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 
 @MicronautTest
-public abstract class AbstractTriggerTest {
+public abstract class AbstractFileTriggerTest {
     @Inject
     private ApplicationContext applicationContext;
 
@@ -58,6 +57,8 @@ public abstract class AbstractTriggerTest {
 
     abstract public Upload.Output upload(String to) throws Exception;
 
+    abstract protected String triggeringFlowId();
+
     @Test
     void flow() throws Exception {
         // mock flow listeners
@@ -75,11 +76,12 @@ public abstract class AbstractTriggerTest {
             AtomicReference<Execution> last = new AtomicReference<>();
 
             // wait for execution
-            executionQueue.receive(AbstractTriggerTest.class, execution -> {
-                last.set(execution.getLeft());
+            executionQueue.receive(AbstractFileTriggerTest.class, execution -> {
+                if (execution.getLeft().getFlowId().equals(triggeringFlowId())){
+                    last.set(execution.getLeft());
 
-                queueCount.countDown();
-                assertThat(execution.getLeft().getFlowId(), containsString("ftp-listen"));
+                    queueCount.countDown();
+                }
             });
 
 
@@ -90,7 +92,7 @@ public abstract class AbstractTriggerTest {
 
             worker.run();
             scheduler.run();
-            repositoryLoader.load(Objects.requireNonNull(AbstractTriggerTest.class.getClassLoader().getResource("flows")));
+            repositoryLoader.load(Objects.requireNonNull(AbstractFileTriggerTest.class.getClassLoader().getResource("flows")));
 
             queueCount.await(1, TimeUnit.MINUTES);
 
@@ -118,7 +120,7 @@ public abstract class AbstractTriggerTest {
             AtomicReference<Execution> last = new AtomicReference<>();
 
             // wait for execution
-            executionQueue.receive(AbstractTriggerTest.class, execution -> {
+            executionQueue.receive(AbstractFileTriggerTest.class, execution -> {
                 last.set(execution.getLeft());
 
                 queueCount.countDown();
@@ -128,7 +130,7 @@ public abstract class AbstractTriggerTest {
 
             worker.run();
             scheduler.run();
-            repositoryLoader.load(Objects.requireNonNull(AbstractTriggerTest.class.getClassLoader().getResource("flows")));
+            repositoryLoader.load(Objects.requireNonNull(AbstractFileTriggerTest.class.getClassLoader().getResource("flows")));
 
             Thread.sleep(1000);
 

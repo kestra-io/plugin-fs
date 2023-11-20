@@ -1,23 +1,15 @@
 package io.kestra.plugin.fs.vfs;
 
-import io.kestra.core.models.annotations.Example;
-import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.vfs2.FileObject;
-import org.apache.commons.vfs2.FileSystemOptions;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
-import org.slf4j.Logger;
 
-import java.net.URI;
-import java.util.NoSuchElementException;
 import javax.validation.constraints.NotNull;
+import java.net.URI;
 
 @SuperBuilder
 @ToString
@@ -26,14 +18,14 @@ import javax.validation.constraints.NotNull;
 @NoArgsConstructor
 public abstract class Move extends AbstractVfsTask implements RunnableTask<Move.Output> {
     @Schema(
-        title = "The file to move, must be an internal storage URI"
+        title = "The file or directory to move from remote server."
     )
     @PluginProperty(dynamic = true)
     @NotNull
     private String from;
 
     @Schema(
-        title = "The destination path to move",
+        title = "The path to move the file or directory to on the remote server.",
         description = "The full destination path (with filename optionally)\n" +
             "If end with a `/`, the destination is considered as a directory and filename will be happen\n" +
             "If the destFile exists, it is deleted first."

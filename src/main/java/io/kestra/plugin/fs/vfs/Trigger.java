@@ -144,7 +144,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                             this.getPort(),
                             this.username,
                             this.password,
-                            file.getPath().toString()
+                            file.getServerPath().getPath()
                         )
                     );
 
