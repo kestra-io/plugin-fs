@@ -4,7 +4,6 @@ import com.devskiller.friendly_id.FriendlyId;
 import io.kestra.core.storages.StorageInterface;
 import io.kestra.plugin.fs.sftp.Upload;
 import jakarta.inject.Inject;
-import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -15,7 +14,6 @@ public abstract class AbstractUtils {
     @Inject
     private StorageInterface storageInterface;
 
-    @Test
     public URI uploadToStorage() throws Exception {
         File applicationFile = new File(Objects.requireNonNull(AbstractUtils.class.getClassLoader()
                 .getResource("application.yml"))

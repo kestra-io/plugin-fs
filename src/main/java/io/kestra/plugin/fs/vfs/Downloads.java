@@ -95,7 +95,7 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
                             this.getPort(),
                             this.username,
                             this.password,
-                            file.getPath().toString()
+                            file.getServerPath().getPath()
                         )
                     );
 
