@@ -40,7 +40,6 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
         title = "The destination directory in case off `MOVE` "
     )
     @PluginProperty(dynamic = true)
-    @NotNull
     private String moveDirectory;
 
     @Schema(
