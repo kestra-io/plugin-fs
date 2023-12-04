@@ -44,7 +44,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-abstract public class AbstractHttp extends Task implements HttpInterface{
+abstract public class AbstractHttp extends Task implements HttpInterface {
     private static final NettyHttpClientFactory FACTORY = new NettyHttpClientFactory();
 
     @NotNull
