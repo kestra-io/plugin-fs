@@ -44,56 +44,27 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-abstract public class AbstractHttp extends Task {
-    @Schema(
-        title = "The fully-qualified URI that points to the HTTP destination"
-    )
-    @PluginProperty(dynamic = true)
+abstract public class AbstractHttp extends Task implements HttpInterface {
+    private static final NettyHttpClientFactory FACTORY = new NettyHttpClientFactory();
+
     @NotNull
     protected String uri;
 
-    @Schema(
-        title = "The HTTP method to use"
-    )
     @Builder.Default
-    @PluginProperty
     protected HttpMethod method = HttpMethod.GET;
 
-    @Schema(
-        title = "The full body as a string"
-    )
-    @PluginProperty(dynamic = true)
     protected String body;
 
-    @Schema(
-        title = "The form data to be send"
-    )
-    @PluginProperty(dynamic = true)
     protected Map<String, Object> formData;
 
-    @Schema(
-        title = "The request content type"
-    )
-    @PluginProperty(dynamic = true)
     protected String contentType;
 
-    @Schema(
-        title = "The headers to pass to the request"
-    )
-    @PluginProperty(dynamic = true)
     protected Map<CharSequence, CharSequence> headers;
 
-    @Schema(
-        title = "The HTTP request options"
-    )
     protected RequestOptions options;
 
-    @Schema(
-        title = "The SSL request options"
-    )
     protected SslOptions sslOptions;
 
-    private static final NettyHttpClientFactory FACTORY = new NettyHttpClientFactory();
 
     protected DefaultHttpClientConfiguration configuration(RunContext runContext, HttpMethod httpMethod) throws IllegalVariableEvaluationException {
         DefaultHttpClientConfiguration configuration = new DefaultHttpClientConfiguration();
@@ -188,10 +159,10 @@ abstract public class AbstractHttp extends Task {
             .create(method, from.toString());
 
 
-        if (this.options != null && this.options.basicAuthUser != null && this.options.basicAuthPassword != null) {
+        if (this.options != null && this.options.getBasicAuthUser() != null && this.options.getBasicAuthPassword() != null) {
             request.basicAuth(
-                runContext.render(this.options.basicAuthUser),
-                runContext.render(this.options.basicAuthPassword)
+                runContext.render(this.options.getBasicAuthUser()),
+                runContext.render(this.options.getBasicAuthPassword())
             );
         }
 
@@ -274,87 +245,5 @@ abstract public class AbstractHttp extends Task {
         }
 
         return tags.toArray(String[]::new);
-    }
-
-    @Getter
-    @Builder
-    public static class RequestOptions {
-        @Schema(title = "The connect timeout.")
-        @PluginProperty
-        private final Duration connectTimeout;
-
-        @Schema(title = "The default read timeout.")
-        @Builder.Default
-        @PluginProperty
-        private final Duration readTimeout = Duration.ofSeconds(HttpClientConfiguration.DEFAULT_READ_TIMEOUT_SECONDS);
-
-        @Schema(title = "The default amount of time to allow the read connection to remain idle.")
-        @Builder.Default
-        @PluginProperty
-        private final Duration readIdleTimeout = Duration.of(HttpClientConfiguration.DEFAULT_READ_IDLE_TIMEOUT_MINUTES, ChronoUnit.MINUTES);
-
-        @Schema(title = "The idle timeout for connection in the client connection pool.")
-        @Builder.Default
-        @PluginProperty
-        private final Duration connectionPoolIdleTimeout = Duration.ofSeconds(HttpClientConfiguration.DEFAULT_CONNECTION_POOL_IDLE_TIMEOUT_SECONDS);
-
-        @Schema(title = "The maximum content length of the response")
-        @Builder.Default
-        @PluginProperty
-        private final Integer maxContentLength = HttpClientConfiguration.DEFAULT_MAX_CONTENT_LENGTH;
-
-        @Schema(title = "The proxy type.")
-        @Builder.Default
-        @PluginProperty
-        private final Proxy.Type proxyType = Proxy.Type.DIRECT;
-
-        @Schema(title = "The proxy address.")
-        @PluginProperty(dynamic = true)
-        private final String proxyAddress;
-
-        @Schema(title = "The proxy port.")
-        @PluginProperty
-        private final Integer proxyPort;
-
-        @Schema(title = "The proxy username.")
-        @PluginProperty(dynamic = true)
-        private final String proxyUsername;
-
-        @Schema(title = "The proxy password.")
-        @PluginProperty(dynamic = true)
-        private final String proxyPassword;
-
-        @Schema(title = "The default charset.")
-        @Builder.Default
-        @PluginProperty
-        private final Charset defaultCharset = StandardCharsets.UTF_8;
-
-        @Schema(title = "Whether redirects should be followed.")
-        @Builder.Default
-        @PluginProperty
-        private final Boolean followRedirects = HttpClientConfiguration.DEFAULT_FOLLOW_REDIRECTS;
-
-        @Schema(title = "The log level.")
-        @PluginProperty
-        private final LogLevel logLevel;
-
-        @Schema(title = "The HTTP basic authentication username.")
-        @PluginProperty(dynamic = true)
-        private final String basicAuthUser;
-
-        @Schema(title = "The HTTP basic authentication password.")
-        @PluginProperty(dynamic = true)
-        private final String basicAuthPassword;
-    }
-
-    @Getter
-    @Builder
-    public static class SslOptions {
-        @Schema(
-            title = "Whether the client should disable checking of the remote SSL certificate.",
-            description = "Only applies if no trust store is configured. Note: This makes the SSL connection insecure, and should only be used for testing. If you are using a self-signed certificate, set up a trust store instead."
-        )
-        @PluginProperty
-        private final Boolean insecureTrustAllCertificates;
     }
 }
