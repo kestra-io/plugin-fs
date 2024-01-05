@@ -8,9 +8,9 @@ import io.micronaut.http.*;
 import io.micronaut.http.client.DefaultHttpClientConfiguration;
 import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.multipart.MultipartBody;
-import io.micronaut.http.client.netty.NettyHttpClientFactory;
 import io.micronaut.http.ssl.ClientSslConfiguration;
-import io.micronaut.rxjava2.http.client.RxStreamingHttpClient;
+import io.micronaut.reactor.http.client.ReactorHttpClient;
+import io.micronaut.reactor.http.client.ReactorStreamingHttpClient;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.io.IOUtils;
@@ -37,8 +37,6 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 abstract public class AbstractHttp extends Task implements HttpInterface {
-    private static final NettyHttpClientFactory FACTORY = new NettyHttpClientFactory();
-
     @NotNull
     protected String uri;
 
@@ -134,13 +132,13 @@ abstract public class AbstractHttp extends Task implements HttpInterface {
     protected HttpClient client(RunContext runContext, HttpMethod httpMethod) throws IllegalVariableEvaluationException, MalformedURLException, URISyntaxException {
         URI from = new URI(runContext.render(this.uri));
 
-        return FACTORY.createClient(from.toURL(), this.configuration(runContext, httpMethod));
+        return ReactorHttpClient.create(from.toURL(), this.configuration(runContext, httpMethod));
     }
 
-    protected RxStreamingHttpClient streamingClient(RunContext runContext, HttpMethod httpMethod) throws IllegalVariableEvaluationException, MalformedURLException, URISyntaxException {
+    protected ReactorStreamingHttpClient streamingClient(RunContext runContext, HttpMethod httpMethod) throws IllegalVariableEvaluationException, MalformedURLException, URISyntaxException {
         URI from = new URI(runContext.render(this.uri));
 
-        return new ExtendedBridgedRxHttpClient(FACTORY.createStreamingClient(from.toURL(), this.configuration(runContext, httpMethod)));
+        return ReactorStreamingHttpClient.create(from.toURL(), this.configuration(runContext, httpMethod));
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})

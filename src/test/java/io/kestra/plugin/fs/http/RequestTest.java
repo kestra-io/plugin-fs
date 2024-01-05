@@ -15,11 +15,11 @@ import io.micronaut.http.annotation.Post;
 import io.micronaut.http.multipart.StreamingFileUpload;
 import io.micronaut.runtime.server.EmbeddedServer;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
-import io.reactivex.Single;
 import jakarta.inject.Inject;
 import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.Test;
 import org.reactivestreams.Publisher;
+import reactor.core.publisher.Mono;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -28,6 +28,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 
+import static io.kestra.core.utils.Rethrow.throwFunction;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
@@ -242,17 +243,17 @@ class RequestTest {
         }
 
         @Post(uri = "/post/multipart", consumes = MediaType.MULTIPART_FORM_DATA)
-        Single<String> multipart(HttpRequest<?> request, String hello, StreamingFileUpload file) throws IOException {
+        Mono<String> multipart(HttpRequest<?> request, String hello, StreamingFileUpload file) throws IOException {
             File tempFile = File.createTempFile(file.getFilename(), "temp");
 
             Publisher<Boolean> uploadPublisher = file.transferTo(tempFile);
 
-            return Single.fromPublisher(uploadPublisher)
-                .map(success -> {
+            return Mono.from(uploadPublisher)
+                .map(throwFunction(success -> {
                     try (FileInputStream fileInputStream = new FileInputStream(tempFile)) {
                         return hello + " > " + IOUtils.toString(fileInputStream, StandardCharsets.UTF_8);
                     }
-                });
+                }));
         }
     }
 }
