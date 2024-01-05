@@ -12,7 +12,7 @@ import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
-import io.micronaut.rxjava2.http.client.RxStreamingHttpClient;
+import io.micronaut.reactor.http.client.ReactorStreamingHttpClient;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -24,6 +24,8 @@ import java.io.FileOutputStream;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+
+import static io.kestra.core.utils.Rethrow.throwFunction;
 
 @SuperBuilder
 @ToString
@@ -65,7 +67,7 @@ public class Download extends AbstractHttp implements RunnableTask<Download.Outp
 
         // do it
         try (
-            RxStreamingHttpClient client = this.streamingClient(runContext, this.method);
+            ReactorStreamingHttpClient client = this.streamingClient(runContext, this.method);
             BufferedOutputStream output = new BufferedOutputStream(new FileOutputStream(tempFile));
         ) {
             @SuppressWarnings("unchecked")
@@ -73,7 +75,7 @@ public class Download extends AbstractHttp implements RunnableTask<Download.Outp
 
             Long size = client
                 .exchangeStream(request)
-                .map(response -> {
+                .map(throwFunction(response -> {
                     if (builder.code == null) {
                         builder
                             .code(response.code())
@@ -88,9 +90,9 @@ public class Download extends AbstractHttp implements RunnableTask<Download.Outp
                     } else {
                         return 0L;
                     }
-                })
+                }))
                 .reduce(Long::sum)
-                .blockingGet();
+                .block();
 
             if (size == null) {
                 size = 0L;
