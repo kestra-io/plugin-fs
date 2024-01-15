@@ -59,7 +59,7 @@ dependencies {
     api group: 'com.github.new-proimage', name: 'vfs-jcifs-smb', version: '0.9.3'
     api group: 'com.jcraft', name: 'jsch', version: '0.1.55'
     api 'commons-net:commons-net:3.9.0'
-    api group: 'org.slf4j', name: 'jcl-over-slf4j', version: '1.7.36'
+    api group: 'org.slf4j', name: 'jcl-over-slf4j', version: '2.0.11'
     api group: 'org.codelibs', name: 'jcifs', version: '2.1.37'
 
 }
