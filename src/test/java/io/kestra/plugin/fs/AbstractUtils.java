@@ -3,6 +3,7 @@ package io.kestra.plugin.fs;
 import com.devskiller.friendly_id.FriendlyId;
 import io.kestra.core.storages.StorageInterface;
 import io.kestra.plugin.fs.sftp.Upload;
+import io.kestra.plugin.fs.vfs.List;
 import jakarta.inject.Inject;
 
 import java.io.File;
@@ -32,4 +33,6 @@ public abstract class AbstractUtils {
     }
 
     abstract public Upload.Output upload(URI source, String to) throws Exception;
+
+    abstract public List.Output list(String dir) throws Exception;
 }

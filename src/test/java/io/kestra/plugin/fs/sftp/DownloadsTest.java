@@ -26,16 +26,17 @@ class DownloadsTest {
     private String random;
 
     @Test
-    void run() throws Exception {
+    void run_DeleteAfterDownloads() throws Exception {
         String out1 = FriendlyId.createFriendlyId();
-        sftpUtils.upload("/upload/" + random + "/" + out1 + ".txt");
+        String toUploadDir = "/upload/" + random;
+        sftpUtils.upload(toUploadDir + "/" + out1 + ".txt");
         String out2 = FriendlyId.createFriendlyId();
-        sftpUtils.upload("/upload/" + random + "/" + out2 + ".txt");
+        sftpUtils.upload(toUploadDir + "/" + out2 + ".txt");
 
         Downloads task = Downloads.builder()
             .id(DownloadsTest.class.getSimpleName())
             .type(DownloadsTest.class.getName())
-            .from("/upload/" + random + "/")
+            .from(toUploadDir + "/")
             .action(Downloads.Action.DELETE)
             .host("localhost")
             .port("6622")
@@ -47,5 +48,34 @@ class DownloadsTest {
 
         assertThat(run.getFiles().size(), is(2));
         assertThat(run.getFiles().get(0).getPath().getPath(), endsWith(".txt"));
+
+        assertThat(sftpUtils.list(toUploadDir).getFiles().isEmpty(), is(true));
+    }
+
+    @Test
+    void run_NoneAfterDownloads() throws Exception {
+        String out1 = FriendlyId.createFriendlyId();
+        String toUploadDir = "/upload/" + random;
+        sftpUtils.upload(toUploadDir + "/" + out1 + ".txt");
+        String out2 = FriendlyId.createFriendlyId();
+        sftpUtils.upload(toUploadDir + "/" + out2 + ".txt");
+
+        Downloads task = Downloads.builder()
+            .id(DownloadsTest.class.getSimpleName())
+            .type(DownloadsTest.class.getName())
+            .from(toUploadDir + "/")
+            .action(Downloads.Action.NONE)
+            .host("localhost")
+            .port("6622")
+            .username("foo")
+            .password("pass")
+            .build();
+
+        Downloads.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+
+        assertThat(run.getFiles().size(), is(2));
+        assertThat(run.getFiles().get(0).getPath().getPath(), endsWith(".txt"));
+
+        assertThat(sftpUtils.list(toUploadDir).getFiles().size(), is(2));
     }
 }

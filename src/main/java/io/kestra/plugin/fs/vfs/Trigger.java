@@ -54,7 +54,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
     private String from;
 
     @Schema(
-        title = "The action to do on find files"
+        title = "The action to perform on the retrieved files. If using 'NONE' make sure to handle the files inside your flow to avoid infinite triggering."
     )
     @PluginProperty(dynamic = true)
     @NotNull
@@ -155,7 +155,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                 .collect(Collectors.toList());
 
             if (this.action != null) {
-                VfsService.archive(
+                VfsService.performAction(
                     runContext,
                     fsm,
                     fileSystemOptions,

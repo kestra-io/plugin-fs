@@ -23,13 +23,14 @@ class DownloadsTest {
     @Test
     void run_DeleteAfterDownloads() throws Exception {
         String rootFolder = IdUtils.create();
-        smbUtils.upload("/" + SmbUtils.SHARE_NAME + "/" + rootFolder + "/" + IdUtils.create() + ".txt");
-        smbUtils.upload("/" + SmbUtils.SHARE_NAME + "/" + rootFolder + "/" + IdUtils.create() + ".txt");
+        String toUploadDir = "/" + SmbUtils.SHARE_NAME + "/" + rootFolder;
+        smbUtils.upload(toUploadDir + "/" + IdUtils.create() + ".txt");
+        smbUtils.upload(toUploadDir + "/" + IdUtils.create() + ".txt");
 
         Downloads task = Downloads.builder()
             .id(DownloadsTest.class.getSimpleName())
             .type(DownloadsTest.class.getName())
-            .from("/" + SmbUtils.SHARE_NAME + "/" + rootFolder)
+            .from(toUploadDir)
             .action(Downloads.Action.DELETE)
             .host("localhost")
             .port("445")
@@ -42,21 +43,21 @@ class DownloadsTest {
         assertThat(run.getFiles().size(), is(2));
         assertThat(run.getFiles().get(0).getPath().getPath(), endsWith(".txt"));
 
-        run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
-        assertThat(run.getFiles().isEmpty(), is(true));
+        assertThat(smbUtils.list(toUploadDir).getFiles().isEmpty(), is(true));
     }
 
     @Test
     void run_MoveAfterDownloads() throws Exception {
         String rootFolder = IdUtils.create();
-        smbUtils.upload("/" + SmbUtils.SHARE_NAME + "/" + rootFolder + "/" + IdUtils.create() + ".txt");
-        smbUtils.upload("/" + SmbUtils.SHARE_NAME + "/" + rootFolder + "/" + IdUtils.create() + ".txt");
+        String toUploadDir = "/" + SmbUtils.SHARE_NAME + "/" + rootFolder;
+        smbUtils.upload(toUploadDir + "/" + IdUtils.create() + ".txt");
+        smbUtils.upload(toUploadDir + "/" + IdUtils.create() + ".txt");
 
         String archiveShareDirectory = SmbUtils.SECOND_SHARE_NAME + "/" + rootFolder;
         Downloads task = Downloads.builder()
             .id(DownloadsTest.class.getSimpleName())
             .type(DownloadsTest.class.getName())
-            .from(SmbUtils.SHARE_NAME + "/" + rootFolder)
+            .from(toUploadDir)
             .moveDirectory(archiveShareDirectory + "/")
             .action(Downloads.Action.MOVE)
             .host("localhost")
@@ -79,5 +80,34 @@ class DownloadsTest {
         run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
         assertThat(run.getFiles().size(), is(2));
         assertThat(run.getFiles().get(0).getPath().getPath(), endsWith(".txt"));
+
+        assertThat(smbUtils.list(toUploadDir).getFiles().isEmpty(), is(true));
+        assertThat(smbUtils.list(archiveShareDirectory).getFiles().size(), is(2));
+    }
+
+    @Test
+    void run_NoneAfterDownloads() throws Exception {
+        String rootFolder = IdUtils.create();
+        String toUploadDir = "/" + SmbUtils.SHARE_NAME + "/" + rootFolder;
+        smbUtils.upload(toUploadDir + "/" + IdUtils.create() + ".txt");
+        smbUtils.upload(toUploadDir + "/" + IdUtils.create() + ".txt");
+
+        Downloads task = Downloads.builder()
+            .id(DownloadsTest.class.getSimpleName())
+            .type(DownloadsTest.class.getName())
+            .from(toUploadDir)
+            .action(Downloads.Action.NONE)
+            .host("localhost")
+            .port("445")
+            .username("alice")
+            .password("alipass")
+            .build();
+
+        Downloads.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+
+        assertThat(run.getFiles().size(), is(2));
+        assertThat(run.getFiles().get(0).getPath().getPath(), endsWith(".txt"));
+
+        assertThat(smbUtils.list(toUploadDir).getFiles().size(), is(2));
     }
 }

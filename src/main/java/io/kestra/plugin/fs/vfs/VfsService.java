@@ -251,7 +251,7 @@ public abstract class VfsService {
         }
     }
 
-    public static void archive(
+    public static void performAction(
         RunContext runContext,
         StandardFileSystemManager fsm,
         FileSystemOptions fileSystemOptions,
