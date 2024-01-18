@@ -31,7 +31,7 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
     private String from;
 
     @Schema(
-        title = "The action to do on find files"
+        title = "The action to do on downloaded files"
     )
     @PluginProperty(dynamic = true)
     private Downloads.Action action;
@@ -106,7 +106,7 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
                 .collect(Collectors.toList());
 
             if (this.action != null) {
-                VfsService.archive(
+                VfsService.performAction(
                     runContext,
                     fsm,
                     fileSystemOptions,
@@ -125,7 +125,8 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
 
     public enum Action {
         MOVE,
-        DELETE
+        DELETE,
+        NONE
     }
 
 

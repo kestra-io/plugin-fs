@@ -29,4 +29,18 @@ class SftpUtils extends AbstractUtils {
 
         return task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
     }
+
+    @Override
+    public io.kestra.plugin.fs.vfs.List.Output list(String dir) throws Exception {
+        return io.kestra.plugin.fs.sftp.List.builder()
+            .id(TriggerTest.class.getSimpleName())
+            .type(TriggerTest.class.getName())
+            .from(dir)
+            .host("localhost")
+            .port("6622")
+            .username("foo")
+            .password("pass")
+            .build()
+            .run(this.runContextFactory.of());
+    }
 }
