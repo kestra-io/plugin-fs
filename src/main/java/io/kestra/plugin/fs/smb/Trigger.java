@@ -54,6 +54,43 @@ import java.io.IOException;
         ),
         @Example(
             title = """
+                Wait for one or more files in a given SMB server's directory and process each of these files sequentially.
+                Then move them to another share which is used as an archive.""",
+            full = true,
+            code = {
+                "id: smb_trigger_flow",
+                "namespace: dev",
+                "",
+                "tasks:",
+                "  - id: for_each_file",
+                "    type: io.kestra.core.tasks.flows.EachSequential",
+                "    value: \"{{ trigger.files | jq('.path') }}\"",
+                "    tasks:",
+                "      - id: return",
+                "        type: io.kestra.core.tasks.debugs.Return",
+                "        format: \"{{ taskrun.value }}\"",
+                "      - id: delete",
+                "        type: io.kestra.plugin.fs.smb.Delete",
+                "        host: localhost",
+                "        port: 445",
+                "        username: foo",
+                "        password: bar",
+                "        uri: \"/my_share/in/{{ taskrun.value }}\"",
+                "",
+                "triggers:",
+                "  - id: watch",
+                "    type: io.kestra.plugin.fs.smb.Trigger",
+                "    host: localhost",
+                "    port: 445",
+                "    username: foo",
+                "    password: bar",
+                "    from: \"/my_share/in/\"",
+                "    interval: PT10S",
+                "    action: NONE"
+            }
+        ),
+        @Example(
+            title = """
                 Wait for one or more files in a given SMB server's directory (composed of share name followed by dir path) and process each of these files sequentially.
                 In this example, we restrict the trigger to only wait for CSV files in the `mydir` directory.""",
             full = true,

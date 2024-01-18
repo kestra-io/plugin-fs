@@ -7,6 +7,8 @@ import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.triggers.TriggerContext;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.AbstractFileTriggerTest;
+import io.kestra.plugin.fs.AbstractUtils;
+import io.kestra.plugin.fs.vfs.List;
 import io.kestra.plugin.fs.vfs.Upload;
 import io.kestra.plugin.fs.vfs.models.File;
 import jakarta.inject.Inject;
@@ -26,13 +28,13 @@ public class TriggerTest extends AbstractFileTriggerTest {
     private SftpUtils sftpUtils;
 
     @Override
-    public Upload.Output upload(String to) throws Exception {
-        return this.sftpUtils.upload(to);
+    protected String triggeringFlowId() {
+        return "sftp-listen";
     }
 
     @Override
-    protected String triggeringFlowId() {
-        return "sftp-listen";
+    protected AbstractUtils utils() {
+        return sftpUtils;
     }
 
     @Test
@@ -50,7 +52,7 @@ public class TriggerTest extends AbstractFileTriggerTest {
             .build();
 
         String out = FriendlyId.createFriendlyId();
-        Upload.Output upload = upload("/upload/" + random + "/" + out + ".yml");
+        Upload.Output upload = utils().upload("/upload/" + random + "/" + out + ".yml");
 
         Map.Entry<ConditionContext, TriggerContext> context = TestsUtils.mockTrigger(runContextFactory, trigger);
         Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());

@@ -1,7 +1,7 @@
 package io.kestra.plugin.fs.ftp;
 
 import io.kestra.plugin.fs.AbstractFileTriggerTest;
-import io.kestra.plugin.fs.vfs.Upload;
+import io.kestra.plugin.fs.AbstractUtils;
 import jakarta.inject.Inject;
 
 class TriggerTest extends AbstractFileTriggerTest {
@@ -9,12 +9,12 @@ class TriggerTest extends AbstractFileTriggerTest {
     private FtpUtils ftpUtils;
 
     @Override
-    public Upload.Output upload(String to) throws Exception {
-        return this.ftpUtils.upload(to);
+    protected String triggeringFlowId() {
+        return "ftp-listen";
     }
 
     @Override
-    protected String triggeringFlowId() {
-        return "ftp-listen";
+    protected AbstractUtils utils() {
+        return ftpUtils;
     }
 }

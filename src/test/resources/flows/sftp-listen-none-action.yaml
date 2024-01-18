@@ -1,0 +1,19 @@
+id: sftp-listen-none-action
+namespace: io.kestra.tests
+
+triggers:
+  - id: watch
+    type: io.kestra.plugin.fs.sftp.Trigger
+    host: localhost
+    port: 6622
+    username: foo
+    password: pass
+    from: "/upload/{{ globals.random }}-none/"
+    interval: PT10S
+    action: NONE
+    moveDirectory: "/upload/{{ globals.random }}-move/"
+
+tasks:
+  - id: end
+    type: io.kestra.core.tasks.debugs.Return
+    format: "{{task.id}} > {{taskrun.startDate}}"
