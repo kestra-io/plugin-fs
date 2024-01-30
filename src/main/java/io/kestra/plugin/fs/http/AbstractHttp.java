@@ -1,20 +1,16 @@
 package io.kestra.plugin.fs.http;
 
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
-import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
 import io.micronaut.http.*;
 import io.micronaut.http.client.DefaultHttpClientConfiguration;
 import io.micronaut.http.client.HttpClient;
-import io.micronaut.http.client.HttpClientConfiguration;
 import io.micronaut.http.client.multipart.MultipartBody;
 import io.micronaut.http.client.netty.NettyHttpClientFactory;
 import io.micronaut.http.ssl.ClientSslConfiguration;
-import io.micronaut.logging.LogLevel;
 import io.micronaut.rxjava2.http.client.RxStreamingHttpClient;
-import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.io.IOUtils;
@@ -24,18 +20,14 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.*;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.time.Duration;
-import java.time.temporal.ChronoUnit;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 

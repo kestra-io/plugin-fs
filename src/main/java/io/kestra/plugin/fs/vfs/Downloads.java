@@ -11,7 +11,7 @@ import org.apache.commons.vfs2.FileType;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 import org.slf4j.Logger;
 
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 import java.net.URI;
 import java.util.stream.Collectors;
 

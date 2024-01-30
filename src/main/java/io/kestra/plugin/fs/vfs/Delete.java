@@ -9,7 +9,7 @@ import lombok.experimental.SuperBuilder;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 
 import java.net.URI;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 
 @SuperBuilder(toBuilder = true)
 @ToString
