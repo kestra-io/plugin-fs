@@ -2,6 +2,7 @@ package io.kestra.plugin.fs.sftp;
 
 import com.devskiller.friendly_id.FriendlyId;
 import com.google.common.collect.ImmutableMap;
+import io.kestra.core.utils.IdUtils;
 import io.micronaut.context.annotation.Value;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import org.junit.jupiter.api.Test;
@@ -22,8 +23,7 @@ class DownloadsTest {
     @Inject
     private SftpUtils sftpUtils;
 
-    @Value("${kestra.variables.globals.random}")
-    private String random;
+    private final String random = IdUtils.create();
 
     @Test
     void run_DeleteAfterDownloads() throws Exception {

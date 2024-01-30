@@ -8,10 +8,10 @@ triggers:
     port: 6622
     username: foo
     password: pass
-    from: "/upload/{{ globals.random }}-none/"
+    from: "/upload/trigger-none/"
     interval: PT10S
     action: NONE
-    moveDirectory: "/upload/{{ globals.random }}-move/"
+    moveDirectory: "/upload/trigger-move/"
 
 tasks:
   - id: end

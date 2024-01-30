@@ -8,10 +8,10 @@ triggers:
     port: 445
     username: alice
     password: alipass
-    from: "/upload/{{ globals.random }}/"
+    from: "/upload/trigger/"
     interval: PT10S
     action: MOVE
-    moveDirectory: "/upload/{{ globals.random }}-move/"
+    moveDirectory: "/upload/trigger-move/"
 
 tasks:
   - id: end
