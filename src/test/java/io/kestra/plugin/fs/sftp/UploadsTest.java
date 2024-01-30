@@ -2,6 +2,7 @@ package io.kestra.plugin.fs.sftp;
 
 import com.google.common.collect.ImmutableMap;
 import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.vfs.Uploads.Output;
 import io.kestra.plugin.fs.vfs.models.File;
@@ -25,8 +26,7 @@ class UploadsTest {
     @Inject
     private SftpUtils sftpUtils;
 
-    @Value("${kestra.variables.globals.random}")
-    private String random;
+    private final String random = IdUtils.create();
 
     @Test
     void run() throws Exception {

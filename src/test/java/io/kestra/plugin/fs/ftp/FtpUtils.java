@@ -43,4 +43,19 @@ public class FtpUtils extends AbstractUtils {
             .build()
             .run(this.runContextFactory.of());
     }
+
+    @Override
+    public Delete.Output delete(String file) throws Exception {
+        var task = io.kestra.plugin.fs.ftp.Delete.builder()
+            .id(FtpUtils.class.getSimpleName())
+            .type(FtpUtils.class.getName())
+            .uri(file)
+            .host("localhost")
+            .port("6621")
+            .username("guest")
+            .password("guest")
+            .build();
+
+        return task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+    }
 }

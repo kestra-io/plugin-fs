@@ -55,9 +55,6 @@ public abstract class AbstractFileTriggerTest {
     @Inject
     protected RunContextFactory runContextFactory;
 
-    @Value("${kestra.variables.globals.random}")
-    protected String random;
-
     abstract protected String triggeringFlowId();
 
     abstract protected AbstractUtils utils();
@@ -89,7 +86,7 @@ public abstract class AbstractFileTriggerTest {
 
 
             String out1 = FriendlyId.createFriendlyId();
-            String toUploadDir = "/upload/" + random;
+            String toUploadDir = "/upload/trigger";
             utils().upload(toUploadDir + "/" + out1);
             String out2 = FriendlyId.createFriendlyId();
             utils().upload(toUploadDir + "/" + out2);
@@ -107,6 +104,9 @@ public abstract class AbstractFileTriggerTest {
 
             assertThat(utils().list(toUploadDir).getFiles().isEmpty(), is(true));
             assertThat(utils().list(toUploadDir + "-move").getFiles().size(), is(2));
+
+            utils().delete(toUploadDir + "/" + out1);
+            utils().delete(toUploadDir + "/" + out2);
         }
     }
 
@@ -137,7 +137,7 @@ public abstract class AbstractFileTriggerTest {
 
 
             String out1 = FriendlyId.createFriendlyId();
-            String toUploadDir = "/upload/" + random + "-none";
+            String toUploadDir = "/upload/trigger-none";
             utils().upload(toUploadDir + "/" + out1);
             String out2 = FriendlyId.createFriendlyId();
             utils().upload(toUploadDir + "/" + out2);
@@ -154,6 +154,9 @@ public abstract class AbstractFileTriggerTest {
             assertThat(trigger.size(), is(2));
 
             assertThat(utils().list(toUploadDir).getFiles().size(), is(2));
+
+            utils().delete(toUploadDir + "/" + out1);
+            utils().delete(toUploadDir + "/" + out2);
         }
     }
 
@@ -190,7 +193,7 @@ public abstract class AbstractFileTriggerTest {
             Thread.sleep(1000);
 
             String out1 = FriendlyId.createFriendlyId();
-            utils().upload("/upload/" + random + "/" + out1);
+            utils().upload("/upload/trigger/" + out1);
 
             queueCount.await(10, TimeUnit.SECONDS);
 
@@ -198,6 +201,8 @@ public abstract class AbstractFileTriggerTest {
             java.util.List<URI> trigger = (java.util.List<URI>) last.get().getTrigger().getVariables().get("files");
 
             assertThat(trigger.size(), is(1));
+
+            utils().delete("/upload/trigger/" + out1);
         }
     }
 }

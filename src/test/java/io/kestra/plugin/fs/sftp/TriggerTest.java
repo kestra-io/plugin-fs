@@ -46,13 +46,13 @@ public class TriggerTest extends AbstractFileTriggerTest {
             .port("6622")
             .username("foo")
             .password("pass")
-            .from("/upload/" + random + "/")
+            .from("/upload/trigger/")
             .action(Downloads.Action.MOVE)
-            .moveDirectory("/upload/" + random + "-move/")
+            .moveDirectory("/upload/trigger-move/")
             .build();
 
         String out = FriendlyId.createFriendlyId();
-        Upload.Output upload = utils().upload("/upload/" + random + "/" + out + ".yml");
+        Upload.Output upload = utils().upload("/upload/trigger/" + out + ".yml");
 
         Map.Entry<ConditionContext, TriggerContext> context = TestsUtils.mockTrigger(runContextFactory, trigger);
         Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
@@ -84,7 +84,7 @@ public class TriggerTest extends AbstractFileTriggerTest {
             .port("6622")
             .username("foo")
             .password("pass")
-            .from("/upload/" + random + "-move/" + out + ".yml")
+            .from("/upload/trigger" + "-move/" + out + ".yml")
             .build();
 
         io.kestra.plugin.fs.vfs.Download.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
