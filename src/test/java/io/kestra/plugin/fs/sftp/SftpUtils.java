@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableMap;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.AbstractUtils;
+import io.kestra.plugin.fs.vfs.Delete;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
@@ -42,5 +43,21 @@ class SftpUtils extends AbstractUtils {
             .password("pass")
             .build()
             .run(this.runContextFactory.of());
+    }
+
+    @Override
+    public Delete.Output delete(String file) throws Exception {
+        var task = io.kestra.plugin.fs.sftp.Delete.builder()
+            .id(SftpUtils.class.getSimpleName())
+            .type(Upload.class.getName())
+            .uri(file)
+            .host("localhost")
+            .port("6622")
+            .username("foo")
+            .password("pass")
+            .rootDir(true)
+            .build();
+
+        return task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
     }
 }

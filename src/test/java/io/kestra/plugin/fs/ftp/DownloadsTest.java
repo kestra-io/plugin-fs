@@ -3,6 +3,7 @@ package io.kestra.plugin.fs.ftp;
 import com.devskiller.friendly_id.FriendlyId;
 import com.google.common.collect.ImmutableMap;
 import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.micronaut.context.annotation.Value;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
@@ -21,8 +22,7 @@ class DownloadsTest {
     @Inject
     private FtpUtils ftpUtils;
 
-    @Value("${kestra.variables.globals.random}")
-    private String random;
+    private final String random = IdUtils.create();
 
     @Test
     void run_DeleteAfterDownloads() throws Exception {

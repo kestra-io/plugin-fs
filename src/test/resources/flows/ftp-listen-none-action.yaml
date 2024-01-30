@@ -8,11 +8,11 @@ triggers:
     port: 6621
     username: guest
     password: guest
-    from: "/upload/{{ globals.random }}-none/"
+    from: "/upload/trigger-none/"
     interval: PT10S
     action: NONE
     passiveMode: true
-    moveDirectory: "/upload/{{ globals.random }}-move/"
+    moveDirectory: "/upload/trigger-move/"
 
 tasks:
   - id: end
