@@ -13,7 +13,10 @@ public abstract class SmbService {
         FileSystemOptions opts = new FileSystemOptions();
         DefaultFileSystemConfigBuilder.getInstance().setUserAuthenticator(
             opts,
-            new StaticUserAuthenticator("", smbInterface.getUsername(), smbInterface.getPassword())
+            new StaticUserAuthenticator(
+                "",
+                runContext.render(smbInterface.getUsername()),
+                runContext.render(smbInterface.getPassword()))
         );
 
         return opts;
