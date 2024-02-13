@@ -98,6 +98,13 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
     private SslOptions sslOptions;
 
+    @Builder.Default
+    @Schema(
+        title = "If true, the HTTP response body will be automatically encrypted and decrypted in the outputs if encryption is configured",
+        description = "When true, the `encryptedBody` output will be filled, otherwise the `body` output will be filled"
+    )
+    private boolean encryptBody = false;
+
 
     @Override
     public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
@@ -105,24 +112,25 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         Logger logger = runContext.logger();
 
         var request = Request.builder()
-                .uri(this.uri)
-                .method(this.method)
-                .body(this.body)
-                .formData(this.formData)
-                .contentType(this.contentType)
-                .headers(this.headers)
-                .options(this.options)
-                .sslOptions(this.sslOptions)
-                // we allow failed status code as it is the condition that must determine whether we trigger the flow
-                .allowFailed(true)
-                .build();
+            .uri(this.uri)
+            .method(this.method)
+            .body(this.body)
+            .formData(this.formData)
+            .contentType(this.contentType)
+            .headers(this.headers)
+            .options(this.options)
+            .sslOptions(this.sslOptions)
+            // we allow failed status code as it is the condition that must determine whether we trigger the flow
+            .allowFailed(true)
+            .encryptBody(this.encryptBody)
+            .build();
         var output = request.run(runContext);
 
         logger.debug("{} respond with status code '{}'", output.getUri(), output.getCode());
 
         Map<String, Object> responseVariables = Map.of("response", Map.of(
             "statusCode", output.getCode(),
-            "body", output.getBody(),
+            this.encryptBody ? "encryptedBody" : "body", this.encryptBody ? output.getEncryptedBody() : output.getBody(),
             "headers", output.getHeaders()
             )
         );
@@ -130,13 +138,13 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         if (TruthUtils.isTruthy(renderedCondition)) {
             var executionTrigger = ExecutionTrigger.of(this, output);
             var execution = Execution.builder()
-                    .id(runContext.getTriggerExecutionId())
-                    .namespace(context.getNamespace())
-                    .flowId(context.getFlowId())
-                    .flowRevision(context.getFlowRevision())
-                    .state(new State())
-                    .trigger(executionTrigger)
-                    .build();
+                .id(runContext.getTriggerExecutionId())
+                .namespace(context.getNamespace())
+                .flowId(context.getFlowId())
+                .flowRevision(context.getFlowRevision())
+                .state(new State())
+                .trigger(executionTrigger)
+                .build();
             return Optional.of(execution);
         }
 

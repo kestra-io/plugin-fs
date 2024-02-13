@@ -5,6 +5,7 @@ import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.executions.metrics.Counter;
 import io.kestra.core.models.tasks.RunnableTask;
+import io.kestra.core.models.tasks.common.EncryptedString;
 import io.kestra.core.runners.RunContext;
 import io.micronaut.core.type.Argument;
 import io.micronaut.http.HttpRequest;
@@ -17,6 +18,7 @@ import lombok.experimental.SuperBuilder;
 import org.slf4j.Logger;
 
 import java.net.URI;
+import java.security.GeneralSecurityException;
 import java.util.List;
 import java.util.Map;
 
@@ -79,7 +81,14 @@ public class Request extends AbstractHttp implements RunnableTask<Request.Output
     @Schema(
         title = "If true, allow failed response code (response code >=400)"
     )
-    protected boolean allowFailed = false;
+    private boolean allowFailed = false;
+
+    @Builder.Default
+    @Schema(
+        title = "If true, the HTTP response body will be automatically encrypted and decrypted in the outputs if encryption is configured",
+        description = "When true, the `encryptedBody` output will be filled, otherwise the `body` output will be filled"
+    )
+    private boolean encryptBody = false;
 
     @SuppressWarnings("unchecked")
     public Request.Output run(RunContext runContext) throws Exception {
@@ -108,7 +117,7 @@ public class Request extends AbstractHttp implements RunnableTask<Request.Output
         }
     }
 
-    public Request.Output output(RunContext runContext, HttpRequest<String> request, HttpResponse<String> response) {
+    public Request.Output output(RunContext runContext, HttpRequest<String> request, HttpResponse<String> response) throws GeneralSecurityException {
         response
             .getHeaders()
             .contentLength()
@@ -123,7 +132,8 @@ public class Request extends AbstractHttp implements RunnableTask<Request.Output
             .code(response.getStatus().getCode())
             .headers(response.getHeaders().asMap())
             .uri(request.getUri())
-            .body(response.body())
+            .body(encryptBody ? null : response.body())
+            .encryptedBody(encryptBody ? EncryptedString.from(response.body(), runContext) : null)
             .build();
     }
 
@@ -147,9 +157,16 @@ public class Request extends AbstractHttp implements RunnableTask<Request.Output
         private final Map<String, List<String>> headers;
 
         @Schema(
-            title = "The body of the response"
+            title = "The body of the response",
+            description = "Only set of `encryptBody` is set to false, otherwise the `encryptedBody` output will be set instead."
         )
-        private final String body;
+        private Object body;
+
+        @Schema(
+            title = "The encrypted body of the response, ity will be automatically encrypted and decrypted in the outputs",
+            description = "Only set of `encryptBody` is set to true, otherwise the `body` output will be set instead."
+        )
+        private EncryptedString encryptedBody;
 
         @Schema(
             title = "The form data to be send",
