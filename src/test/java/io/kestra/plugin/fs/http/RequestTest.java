@@ -30,13 +30,10 @@ import java.util.Objects;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.*;
 
 @MicronautTest
 class RequestTest {
-    public static final String FILE = "http://www.mocky.io/v2/5ed0ce483500009300ff9f55";
-
     @Inject
     private RunContextFactory runContextFactory;
 
@@ -61,6 +58,7 @@ class RequestTest {
             Request.Output output = task.run(runContext);
 
             assertThat(output.getBody(), is("{ \"hello\": \"world\" }"));
+            assertThat(output.getEncryptedBody(), nullValue());
             assertThat(output.getCode(), is(200));
         }
     }
@@ -124,7 +122,7 @@ class RequestTest {
         Request.Output output = task.run(runContext);
 
         assertThat(output.getUri(), is(URI.create(url)));
-        assertThat(output.getBody(), containsString("self-signed.<br>badssl.com"));
+        assertThat((String) output.getBody(), containsString("self-signed.<br>badssl.com"));
         assertThat(output.getCode(), is(200));
     }
 
@@ -221,6 +219,31 @@ class RequestTest {
             Request.Output output = task.run(runContext);
 
             assertThat(output.getBody(), is("world > " + IOUtils.toString(new FileInputStream(file), Charsets.UTF_8)));
+            assertThat(output.getCode(), is(200));
+        }
+    }
+
+    @Test
+    void encrypted() throws Exception {
+        try (
+            ApplicationContext applicationContext = ApplicationContext.run();
+            EmbeddedServer server = applicationContext.getBean(EmbeddedServer.class).start();
+
+        ) {
+            Request task = Request.builder()
+                .id(RequestTest.class.getSimpleName())
+                .type(RequestTest.class.getName())
+                .uri(server.getURL().toString() + "/hello")
+                .encryptBody(true)
+                .build();
+
+            RunContext runContext = TestsUtils.mockRunContext(this.runContextFactory, task, ImmutableMap.of());
+
+            Request.Output output = task.run(runContext);
+
+            // when encrypted, this must not be the plaintext value
+            assertThat(output.getBody(), nullValue());
+            assertThat(output.getEncryptedBody(), not("{ \"hello\": \"world\" }"));
             assertThat(output.getCode(), is(200));
         }
     }
