@@ -28,16 +28,16 @@ import java.util.Map;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Make an HTTP request to a server",
+    title = "Make an HTTP API request to a specified URL and store the response as output.",
     description = """
-                  This task connects to a HTTP server, sends a request, and stores the response as output.
-                  By default, the maximum length of the response is limited to 10MB but it can be increased to at most 2GB by using the `options.maxContentLength` property.
-                  Note that the response is added as output to the task, to download large content it is advised to use the Download task instead."""
+                  This task makes an API call to a specified URL of an HTTP server and stores the response as output.
+                  By default, the maximum length of the response is limited to 10MB, but it can be increased to at most 2GB by using the `options.maxContentLength` property. 
+                  Note that the response is added as output to the task. If you need to process large API payloads, we recommend using the `Download` task instead."""
 )
 @Plugin(
     examples = {
         @Example(
-            title = "Post request to a webserver",
+            title = "Send an HTTP POST request to a webserver",
             code = {
                 "uri: \"https://server.com/login\"",
                 "headers: ",
@@ -49,7 +49,7 @@ import java.util.Map;
             }
         ),
         @Example(
-            title = "Post a multipart request to a webserver",
+            title = "Send a multipart HTTP POST request to a webserver",
             code = {
                 "uri: \"https://server.com/upload\"",
                 "headers: ",
@@ -61,7 +61,7 @@ import java.util.Map;
             }
         ),
         @Example(
-            title = "Post a multipart request to a webserver while renaming the file sent",
+            title = "Send a multipart HTTP POST request to a webserver and set a custom file name",
             code = {
                 "uri: \"https://server.com/upload\"",
                 "headers: ",
@@ -79,14 +79,14 @@ import java.util.Map;
 public class Request extends AbstractHttp implements RunnableTask<Request.Output> {
     @Builder.Default
     @Schema(
-        title = "If true, allow failed response code (response code >=400)"
+        title = "If true, allow a failed response code (response code >= 400)"
     )
     private boolean allowFailed = false;
 
     @Builder.Default
     @Schema(
-        title = "If true, the HTTP response body will be automatically encrypted and decrypted in the outputs if encryption is configured",
-        description = "When true, the `encryptedBody` output will be filled, otherwise the `body` output will be filled"
+        title = "If true, the HTTP response body will be automatically encrypted and decrypted in the outputs, provided that encryption is configured in your Kestra configuration.",
+        description = "If this property is set to `true`, this task will output the request body using the `encryptedBody` output property; otherwise, the request body will be stored in the `body` output property."
     )
     private boolean encryptBody = false;
 
@@ -111,7 +111,7 @@ public class Request extends AbstractHttp implements RunnableTask<Request.Output
                 response = (HttpResponse<String>) e.getResponse();
             }
 
-            logger.debug("Request '{}' with response code '{}'", request.getUri(), response.getStatus().getCode());
+            logger.debug("Request '{}' with the response code '{}'", request.getUri(), response.getStatus().getCode());
 
             return this.output(runContext, request, response);
         }
@@ -141,7 +141,7 @@ public class Request extends AbstractHttp implements RunnableTask<Request.Output
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
-            title = "The url of the current request"
+            title = "The URL of the current request"
         )
         private final URI uri;
 
@@ -158,19 +158,19 @@ public class Request extends AbstractHttp implements RunnableTask<Request.Output
 
         @Schema(
             title = "The body of the response",
-            description = "Only set of `encryptBody` is set to false, otherwise the `encryptedBody` output will be set instead."
+            description = "Kestra will by default store the task output using this property. However, if the `encryptBody` property is set to `true`, kestra will instead encrypt the output and store it using the `encryptedBody` output property."
         )
         private Object body;
 
         @Schema(
-            title = "The encrypted body of the response, ity will be automatically encrypted and decrypted in the outputs",
-            description = "Only set of `encryptBody` is set to true, otherwise the `body` output will be set instead."
+            title = "The encrypted body of the response",
+            description = "If the `encryptBody` property is set to `true`, kestra will automatically encrypt the output before storing it, and decrypt it when the output is retrieved in a downstream task."
         )
         private EncryptedString encryptedBody;
 
         @Schema(
-            title = "The form data to be send",
-            description = "When sending a file, you can pass a map with a key 'name' for the filename and 'content' for the file content."
+            title = "The form data to be sent in the request body",
+            description = "When sending a file, you can pass a list of maps (i.e. a list of key-value pairs) with a key 'name' and value of the filename, as well as 'content' key with the file's content as value (e.g. passed from flow inputs or outputs from another task)."
         )
         @PluginProperty(dynamic = true)
         protected Map<String, Object> formData;
