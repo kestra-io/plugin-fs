@@ -37,6 +37,25 @@ import java.util.Map;
 @Plugin(
     examples = {
         @Example(
+            title = "Execute a Kestra flow via an HTTP POST request authenticated with basic auth. To pass a `user` input to the API call, we use the `formData` property. When using form data, make sure to set the `contentType` property to `multipart/form-data`.",
+            full = true,
+            code = """
+            id: api_call
+            namespace: dev
+            tasks:
+              - id: basic_auth_api
+                type: io.kestra.plugin.fs.http.Request
+                uri: http://host.docker.internal:8080/api/v1/executions/dev/inputs_demo
+                options:
+                  basicAuthUser: admin
+                  basicAuthPassword: admin
+                method: POST
+                contentType: multipart/form-data
+                formData:
+                  user: John Doe
+            """
+        ),
+        @Example(
             title = "Send an HTTP POST request to a webserver",
             code = {
                 "uri: \"https://server.com/login\"",
