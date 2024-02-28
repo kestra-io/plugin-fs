@@ -42,7 +42,7 @@ public abstract class SftpService {
             }
 
             if (sftpInterface.getProxyType() != null) {
-                switch (sftpInterface.getProxyType()) {
+                switch (runContext.render(sftpInterface.getProxyType())) {
                     case "SOCKS5":
                         instance.setProxyType(options, SftpFileSystemConfigBuilder.PROXY_SOCKS5);
                         break;
