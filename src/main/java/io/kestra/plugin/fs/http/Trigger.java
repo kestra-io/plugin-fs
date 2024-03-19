@@ -157,9 +157,12 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
         logger.debug("{} respond with status code '{}'", output.getUri(), output.getCode());
 
+        Object body = this.encryptBody
+            ? runContext.decrypt(output.getEncryptedBody().getValue())
+            : output.getBody();
         Map<String, Object> responseVariables = Map.of("response", Map.of(
             "statusCode", output.getCode(),
-            this.encryptBody ? "encryptedBody" : "body", this.encryptBody ? output.getEncryptedBody() : output.getBody(),
+            "body", body,
             "headers", output.getHeaders()
             )
         );
