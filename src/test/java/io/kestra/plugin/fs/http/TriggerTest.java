@@ -21,8 +21,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @MicronautTest
@@ -60,18 +58,60 @@ class TriggerTest {
             AtomicReference<Execution> last = new AtomicReference<>();
 
             // wait for execution
-            executionQueue.receive(AbstractFileTriggerTest.class, execution -> {
-                last.set(execution.getLeft());
+            Runnable receive = executionQueue.receive(AbstractFileTriggerTest.class, execution -> {
+                if (execution.getLeft().getFlowId().equals("http-listen")) {
+                    last.set(execution.getLeft());
 
-                queueCount.countDown();
-                assertThat(execution.getLeft().getFlowId(), containsString("http-listen"));
+                    queueCount.countDown();
+                }
             });
 
             worker.run();
             scheduler.run();
-            repositoryLoader.load(Objects.requireNonNull(AbstractFileTriggerTest.class.getClassLoader().getResource("flows")));
+            repositoryLoader.load(Objects.requireNonNull(AbstractFileTriggerTest.class.getClassLoader().getResource("flows/http-listen.yaml")));
 
-            assertTrue(queueCount.await(1, TimeUnit.MINUTES));
+            try {
+                assertTrue(queueCount.await(1, TimeUnit.MINUTES));
+            } finally {
+                receive.run();
+            }
+        }
+    }
+
+    @Test
+    void trigger_EncryptedBody() throws Exception {
+        // mock flow listeners
+        CountDownLatch queueCount = new CountDownLatch(1);
+
+        // scheduler
+        Worker worker = new Worker(applicationContext, 8, null);
+        try (
+                AbstractScheduler scheduler = new DefaultScheduler(
+                        this.applicationContext,
+                        this.flowListenersService,
+                        this.triggerState
+                );
+        ) {
+            AtomicReference<Execution> last = new AtomicReference<>();
+
+            // wait for execution
+            Runnable receive = executionQueue.receive(AbstractFileTriggerTest.class, execution -> {
+                if (execution.getLeft().getFlowId().equals("http-listen-encrypted")) {
+                    last.set(execution.getLeft());
+
+                    queueCount.countDown();
+                }
+            });
+
+            worker.run();
+            scheduler.run();
+            repositoryLoader.load(Objects.requireNonNull(AbstractFileTriggerTest.class.getClassLoader().getResource("flows/http-listen-encrypted.yaml")));
+
+            try {
+                assertTrue(queueCount.await(1, TimeUnit.MINUTES));
+            } finally {
+                receive.run();
+            }
         }
     }
 }
