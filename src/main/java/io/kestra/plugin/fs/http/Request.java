@@ -156,7 +156,7 @@ public class Request extends AbstractHttp implements RunnableTask<Request.Output
             .build();
     }
 
-    @Builder
+    @Builder(toBuilder = true)
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
