@@ -4,15 +4,11 @@ import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
-import io.kestra.core.models.executions.ExecutionTrigger;
-import io.kestra.core.models.flows.State;
-import io.kestra.core.models.triggers.AbstractTrigger;
-import io.kestra.core.models.triggers.PollingTriggerInterface;
-import io.kestra.core.models.triggers.TriggerContext;
-import io.kestra.core.models.triggers.TriggerOutput;
+import io.kestra.core.models.triggers.*;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.fs.vfs.models.File;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.vfs2.FileNotFolderException;
@@ -21,7 +17,6 @@ import org.apache.commons.vfs2.FileType;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 import org.slf4j.Logger;
 
-import jakarta.validation.constraints.NotNull;
 import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
@@ -173,19 +168,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                 );
             }
 
-            ExecutionTrigger executionTrigger = ExecutionTrigger.of(
-                this,
-                Downloads.Output.builder().files(list).build()
-            );
-
-            Execution execution = Execution.builder()
-                .id(runContext.getTriggerExecutionId())
-                .namespace(context.getNamespace())
-                .flowId(context.getFlowId())
-                .flowRevision(context.getFlowRevision())
-                .state(new State())
-                .trigger(executionTrigger)
-                .build();
+            Execution execution = TriggerService.generateExecution(this, conditionContext, context, Downloads.Output.builder().files(list).build());
 
             return Optional.of(execution);
         }
