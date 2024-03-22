@@ -76,7 +76,7 @@ class CommandTest {
         List<LogEntry> logs = new ArrayList<>();
         logQueue.receive(l -> logs.add(l.getLeft()));
 
-        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("Ed25519", "BC");;
+        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("Ed25519");
         KeyPair keyPair = keyPairGenerator.generateKeyPair();
         PrivateKey privateKey = keyPair.getPrivate();
 
