@@ -55,7 +55,7 @@ class SftpTest {
 
         String sftpPath = "upload/" + UUID.randomUUID().toString();
 
-        File file = new File(System.getProperty("user.dir") + "/id_rsa");
+        File file = new File("src/test/resources/ssh/id_rsa");
         byte[] data;
         try (FileInputStream fis = new FileInputStream(file)) {
             data = new byte[(int) file.length()];

@@ -11,8 +11,12 @@ import io.kestra.plugin.fs.ssh.SshInterface.AuthMethod;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
+import java.nio.charset.*;
+
 import org.junit.jupiter.api.Test;
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -76,11 +80,13 @@ class CommandTest {
         List<LogEntry> logs = new ArrayList<>();
         logQueue.receive(l -> logs.add(l.getLeft()));
 
-        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("Ed25519");
-        KeyPair keyPair = keyPairGenerator.generateKeyPair();
-        PrivateKey privateKey = keyPair.getPrivate();
-
-        PKCS8EncodedKeySpec pkcs8EncodedKeySpec = new PKCS8EncodedKeySpec(privateKey.getEncoded());
+        File file = new File("src/test/resources/ssh/id_ed25519");
+        byte[] data;
+        try (FileInputStream fis = new FileInputStream(file)) {
+            data = new byte[(int) file.length()];
+            fis.read(data);
+        }
+        String keyFileContent = new String(data, StandardCharsets.UTF_8);
 
         Command command = Command.builder()
             .id(CommandTest.class.getName())
@@ -88,7 +94,7 @@ class CommandTest {
             .host("localhost")
             .username("foo")
             .authMethod(AuthMethod.PUBLIC_KEY)
-            .privateKey(new String(pkcs8EncodedKeySpec.getEncoded()))
+            .privateKey(keyFileContent)
             .port("2222")
             .commands(new String[] {
                 "echo 0",
