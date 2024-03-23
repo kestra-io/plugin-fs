@@ -13,7 +13,6 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.tasks.PluginUtilsService;
-import io.kestra.plugin.fs.vfs.AbstractVfsInterface;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
@@ -46,22 +45,45 @@ import jakarta.validation.constraints.NotNull;
 @Plugin(
     examples = {
         @Example(
+            title = "Run SSH command using password authentication",
             code = {
                 "host: localhost",
                 "port: 22",
+                "authMethod: PASSWORD",
                 "username: foo",
                 "password: pass",
-                "command: ls",
+                "commands: ['ls']",
+            }
+        ),
+        @Example(
+            title = "Run SSH command using public key authentication",
+            code = {
+                "host: localhost",
+                "port: 22",
+                "authMethod: PUBLIC_KEY",
+                "username: root",
+                "privateKey: secret('SSH_RSA_PRIVATE_KEY')",
+                "commands: ['touch kestra_was_here']"
             }
         )
     }
 )
-public class Command extends Task implements AbstractVfsInterface, RunnableTask<Command.ScriptOutput> {
+public class Command extends Task implements SshInterface, RunnableTask<Command.ScriptOutput> {
     private static final long SLEEP_DELAY_MS = 25L;
 
     private String host;
+
+    // Password Auth method
     private String username;
     private String password;
+
+    // PubKey Auth method
+    private String privateKey;
+    private String privateKeyPassphrase;
+
+    @Builder.Default
+    private AuthMethod authMethod = AuthMethod.PASSWORD;
+
     @Builder.Default
     private String port = "22";
 
@@ -86,10 +108,22 @@ public class Command extends Task implements AbstractVfsInterface, RunnableTask<
 
     @Override
     public Command.ScriptOutput run(RunContext runContext) throws Exception {
+        JSch jsch = null;
         Session session = null;
         ChannelExec channel = null;
         LogThread stdOut = null;
         LogThread stdErr = null;
+
+        if (authMethod == AuthMethod.PASSWORD) {
+            if (password == null) {
+                throw new IllegalArgumentException("Password is necessary for given SSH auth method: " + AuthMethod.PASSWORD);
+            }
+        }
+        else if (authMethod == AuthMethod.PUBLIC_KEY) {
+            if (privateKey == null) {
+                throw new IllegalArgumentException("Private key is necessary for given SSH auth method: " + AuthMethod.PASSWORD);
+            }
+        }
 
         try(
             var outStream = new PipedOutputStream();
@@ -104,8 +138,21 @@ public class Command extends Task implements AbstractVfsInterface, RunnableTask<
                 renderedCommands.add(runContext.render(command));
             }
 
-            session = new JSch().getSession(runContext.render(username), renderedHost, Integer.parseInt(renderedPort));
-            session.setPassword(runContext.render(password));
+            jsch = new JSch();
+            session = jsch.getSession(runContext.render(username), renderedHost, Integer.parseInt(renderedPort));
+
+            if (authMethod == AuthMethod.PASSWORD) {
+                session.setConfig("PreferredAuthentications", "password");
+                session.setPassword(runContext.render(password));
+            } else if (authMethod == AuthMethod.PUBLIC_KEY) {
+                session.setConfig("PreferredAuthentications", "publickey");
+                var privateKeyBytes = privateKey.getBytes();
+                if (privateKeyPassphrase != null) {
+                    jsch.addIdentity("primary", privateKeyBytes, null, privateKeyPassphrase.getBytes());
+                } else {
+                    jsch.addIdentity("primary", privateKeyBytes, null, null);
+                }
+            }
             session.setConfig("StrictHostKeyChecking", strictHostKeyChecking);
             session.connect();
 

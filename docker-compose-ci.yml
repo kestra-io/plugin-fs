@@ -13,7 +13,7 @@ services:
       - "6622:22"
     command: "foo:pass:1001:1001:upload"
     volumes:
-      - ${PWD}/id_rsa.pub:/home/foo/.ssh/authorized_keys
+      - ${PWD}/src/test/resources/ssh/id_rsa.pub:/home/foo/.ssh/authorized_keys
 
   # https://github.com/fauria/docker-vsftpd/issues/41
   ftp:
@@ -38,14 +38,23 @@ services:
       FTP_PWD: guest
 
   ssh:
-    image: panubo/sshd
-    ports:
-      - "2222:22"
+    image: lscr.io/linuxserver/openssh-server:latest
+    container_name: ssh
+    hostname: ssh
     environment:
-      SSH_USERS: foo:48:48
-      SSH_ENABLE_PASSWORD_AUTH: "true"
+      PUID: 48
+      PGID: 48
+      TZ: Etc/UTC
+      LOG_STDOUT: true
+      PASSWORD_ACCESS: true
+      USER_PASSWORD: password
+      USER_NAME: foo
+      PUBLIC_KEY_DIR: /app/ssh
+    ports:
+      - 2222:2222
+    restart: unless-stopped
     volumes:
-      - ${PWD}/src/test/resources/ssh/:/etc/entrypoint.d/
+      - ${PWD}/src/test/resources/ssh/id_ed25519.pub:/app/ssh/id_ed25519.pub
 
   samba:
     image: elswork/samba
