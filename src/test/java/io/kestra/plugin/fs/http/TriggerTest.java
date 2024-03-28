@@ -9,6 +9,7 @@ import io.kestra.core.schedulers.AbstractScheduler;
 import io.kestra.core.schedulers.DefaultScheduler;
 import io.kestra.core.schedulers.SchedulerTriggerStateInterface;
 import io.kestra.core.services.FlowListenersInterface;
+import io.kestra.core.utils.IdUtils;
 import io.kestra.plugin.fs.AbstractFileTriggerTest;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
@@ -47,13 +48,13 @@ class TriggerTest {
         CountDownLatch queueCount = new CountDownLatch(1);
 
         // scheduler
-        Worker worker = new Worker(applicationContext, 8, null);
         try (
                 AbstractScheduler scheduler = new DefaultScheduler(
                         this.applicationContext,
                         this.flowListenersService,
                         this.triggerState
                 );
+                Worker worker = applicationContext.createBean(Worker.class, IdUtils.create(), 8, null);
         ) {
             AtomicReference<Execution> last = new AtomicReference<>();
 
@@ -84,7 +85,7 @@ class TriggerTest {
         CountDownLatch queueCount = new CountDownLatch(1);
 
         // scheduler
-        Worker worker = new Worker(applicationContext, 8, null);
+        Worker worker = applicationContext.createBean(Worker.class, IdUtils.create(), 8, null);
         try (
                 AbstractScheduler scheduler = new DefaultScheduler(
                         this.applicationContext,
