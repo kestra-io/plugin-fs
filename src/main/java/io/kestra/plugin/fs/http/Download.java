@@ -118,7 +118,7 @@ public class Download extends AbstractHttp implements RunnableTask<Download.Outp
                 }
             }
 
-            builder.uri(runContext.putTempFile(tempFile));
+            builder.uri(runContext.storage().putFile(tempFile));
 
             logger.debug("File '{}' downloaded to '{}'", from, builder.uri);
 

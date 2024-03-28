@@ -171,7 +171,7 @@ abstract public class AbstractHttp extends Task implements HttpInterface {
                             File tempFile = runContext.tempFile().toFile();
 
                             try (OutputStream outputStream = new FileOutputStream(tempFile)) {
-                                IOUtils.copyLarge(runContext.uriToInputStream(new URI(render)), outputStream);
+                                IOUtils.copyLarge(runContext.storage().getFile(new URI(render)), outputStream);
                             }
 
                             builder.addPart(key, tempFile);
@@ -186,7 +186,7 @@ abstract public class AbstractHttp extends Task implements HttpInterface {
                         File renamedFile = new File(Files.move(tempFile.toPath(), tempFile.toPath().resolveSibling(name)).toUri());
 
                         try (OutputStream outputStream = new FileOutputStream(renamedFile)) {
-                            IOUtils.copyLarge(runContext.uriToInputStream(new URI(content)), outputStream);
+                            IOUtils.copyLarge(runContext.storage().getFile(new URI(content)), outputStream);
                         }
                         
                         builder.addPart(key, renamedFile);
