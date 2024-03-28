@@ -27,11 +27,7 @@ public abstract class VfsService {
             return username + ":" + password;
         }
 
-        if (username != null) {
-            return username;
-        }
-
-        return null;
+        return username;
     }
 
     public static URI uri(
@@ -140,7 +136,7 @@ public abstract class VfsService {
             local.copyFrom(remote, Selectors.SELECT_SELF);
         }
 
-        URI storageUri = runContext.putTempFile(tempFile);
+        URI storageUri = runContext.storage().putFile(tempFile);
 
         runContext.logger().debug("File '{}' download to '{}'", VfsService.uriWithoutAuth(from), storageUri);
 
@@ -162,7 +158,7 @@ public abstract class VfsService {
 
         // copy from to a temp file
         try (OutputStream outputStream = new FileOutputStream(tempFile)) {
-            IOUtils.copy(runContext.uriToInputStream(from), outputStream);
+            IOUtils.copy(runContext.storage().getFile(from), outputStream);
         }
 
         // upload
