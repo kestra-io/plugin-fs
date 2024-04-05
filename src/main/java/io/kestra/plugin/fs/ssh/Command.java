@@ -13,6 +13,7 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.tasks.PluginUtilsService;
+import io.kestra.core.utils.MapUtils;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
@@ -98,6 +99,15 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
     @Builder.Default
     private String strictHostKeyChecking = "no";
 
+    @Schema(
+        title = "Environment variables to pass to the SSH process."
+    )
+    @PluginProperty(
+        additionalProperties = String.class,
+        dynamic = true
+    )
+    protected Map<String, String> env;
+
     @Builder.Default
     @Schema(
         title = "Use `WARNING` state if any stdErr is sent"
@@ -108,7 +118,7 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
 
     @Override
     public Command.ScriptOutput run(RunContext runContext) throws Exception {
-        JSch jsch = null;
+        JSch jsch;
         Session session = null;
         ChannelExec channel = null;
         LogThread stdOut = null;
@@ -162,6 +172,12 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
             channel.setErrStream(errStream);
             stdOut = threadLogSupplier(runContext).apply(inStream, false);
             stdErr = threadLogSupplier(runContext).apply(inErrStream, true);
+
+            if (this.env != null) {
+                for(var entry : env.entrySet()) {
+                    channel.setEnv(runContext.render(entry.getKey()), runContext.render(entry.getValue()));
+                }
+            }
 
             channel.connect();
             while (channel.isConnected()) {
