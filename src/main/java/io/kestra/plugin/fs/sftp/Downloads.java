@@ -25,7 +25,7 @@ import java.io.IOException;
             title = "Download a list of files and move it to an archive folders",
             code = {
                 "host: localhost",
-                "port: 22",
+                "port: \"22\"",
                 "username: foo",
                 "password: pass",
                 "from: \"/in/\"",

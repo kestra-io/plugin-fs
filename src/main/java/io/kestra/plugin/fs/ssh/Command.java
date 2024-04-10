@@ -49,7 +49,7 @@ import jakarta.validation.constraints.NotNull;
             title = "Run SSH command using password authentication",
             code = {
                 "host: localhost",
-                "port: 22",
+                "port: \"22\"",
                 "authMethod: PASSWORD",
                 "username: foo",
                 "password: pass",
@@ -60,7 +60,7 @@ import jakarta.validation.constraints.NotNull;
             title = "Run SSH command using public key authentication",
             code = {
                 "host: localhost",
-                "port: 22",
+                "port: \"22\"",
                 "authMethod: PUBLIC_KEY",
                 "username: root",
                 "privateKey: secret('SSH_RSA_PRIVATE_KEY')",
