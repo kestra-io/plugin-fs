@@ -25,7 +25,7 @@ import java.io.IOException;
         @Example(
             code = {
                 "host: localhost",
-                "port: 22",
+                "port: \"22\"",
                 "username: foo",
                 "password: pass",
                 "from: \"/upload/dir1/file.txt\"",
