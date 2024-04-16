@@ -156,9 +156,9 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
                 session.setPassword(runContext.render(password));
             } else if (authMethod == AuthMethod.PUBLIC_KEY) {
                 session.setConfig("PreferredAuthentications", "publickey");
-                var privateKeyBytes = privateKey.getBytes();
+                var privateKeyBytes = runContext.render(privateKey).getBytes();
                 if (privateKeyPassphrase != null) {
-                    jsch.addIdentity("primary", privateKeyBytes, null, privateKeyPassphrase.getBytes());
+                    jsch.addIdentity("primary", privateKeyBytes, null, runContext.render(privateKeyPassphrase).getBytes());
                 } else {
                     jsch.addIdentity("primary", privateKeyBytes, null, null);
                 }
