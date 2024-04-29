@@ -63,7 +63,7 @@ import jakarta.validation.constraints.NotNull;
                 "port: \"22\"",
                 "authMethod: PUBLIC_KEY",
                 "username: root",
-                "privateKey: secret('SSH_RSA_PRIVATE_KEY')",
+                "privateKey: "{{ secret('SSH_RSA_PRIVATE_KEY') }}"",
                 "commands: ['touch kestra_was_here']"
             }
         )
