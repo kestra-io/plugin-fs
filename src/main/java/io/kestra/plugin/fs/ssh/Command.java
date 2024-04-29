@@ -57,13 +57,13 @@ import jakarta.validation.constraints.NotNull;
             }
         ),
         @Example(
-            title = "Run SSH command using public key authentication",
+            title = "Run SSH command using public key authentication (must be an OpenSSH private key)",
             code = {
                 "host: localhost",
                 "port: \"22\"",
                 "authMethod: PUBLIC_KEY",
                 "username: root",
-                "privateKey: secret('SSH_RSA_PRIVATE_KEY')",
+                "privateKey: \"{{ secret('SSH_RSA_PRIVATE_KEY') }}\"",
                 "commands: ['touch kestra_was_here']"
             }
         )
