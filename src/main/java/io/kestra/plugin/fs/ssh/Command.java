@@ -57,7 +57,7 @@ import jakarta.validation.constraints.NotNull;
             }
         ),
         @Example(
-            title = "Run SSH command using public key authentication",
+            title = "Run SSH command using public key authentication (must be an OpenSSH private key)",
             code = {
                 "host: localhost",
                 "port: \"22\"",
