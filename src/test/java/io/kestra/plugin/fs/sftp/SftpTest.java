@@ -108,7 +108,7 @@ class SftpTest {
         );
 
         try (OutputStream outputStream = new FileOutputStream(tempFile)) {
-            IOUtils.copy(runContext.uriToInputStream(to), outputStream);
+            IOUtils.copy(runContext.storage().getFile(to), outputStream);
         }
 
         // load transfered file
