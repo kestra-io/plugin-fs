@@ -47,8 +47,8 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
             fsm.init();
 
             String[] renderedFrom;
-            if (this.from instanceof String[] fromURIs) {
-                renderedFrom = Stream.of(fromURIs).map(throwFunction(from -> runContext.render(from))).toArray(String[]::new);
+            if (this.from instanceof List<?> fromURIs) {
+                renderedFrom = fromURIs.stream().map(throwFunction(from -> runContext.render((String) from))).toArray(String[]::new);
             } else {
                 renderedFrom = JacksonMapper.ofJson().readValue(runContext.render((String) this.from), String[].class);
             }

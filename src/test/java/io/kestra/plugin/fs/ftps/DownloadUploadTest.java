@@ -78,7 +78,7 @@ class DownloadUploadTest {
 
         Uploads uploadsTask = Uploads.builder().id(DownloadUploadTest.class.getSimpleName())
                 .type(DownloadUploadTest.class.getName())
-                .from(new String[]{uri1.toString(), uri2.toString()})
+                .from(List.of(uri1.toString(), uri2.toString()))
                 .to(sftpPath)
                 .host("127.0.0.1")
                 .port("6990")
