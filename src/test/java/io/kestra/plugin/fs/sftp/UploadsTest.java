@@ -35,7 +35,7 @@ class UploadsTest {
         Uploads uploads = Uploads.builder()
                 .id(UploadsTest.class.getSimpleName())
                 .type(UploadsTest.class.getName())
-                .from(new String[]{uri1.toString(), uri2.toString()})
+                .from(List.of(uri1.toString(), uri2.toString()))
                 .to("/upload/" + random)
                 .host("localhost")
                 .port("6622")
