@@ -42,6 +42,7 @@ class DownloadsTest {
 
         assertThat(run.getFiles().size(), is(2));
         assertThat(run.getFiles().get(0).getPath().getPath(), endsWith(".txt"));
+        assertThat(run.getOutputFiles().size(), is(2));
 
         assertThat(smbUtils.list(toUploadDir).getFiles().isEmpty(), is(true));
     }
@@ -70,6 +71,7 @@ class DownloadsTest {
 
         assertThat(run.getFiles().size(), is(2));
         assertThat(run.getFiles().get(0).getPath().getPath(), endsWith(".txt"));
+        assertThat(run.getOutputFiles().size(), is(2));
 
         run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
         assertThat(run.getFiles().isEmpty(), is(true));
@@ -80,6 +82,7 @@ class DownloadsTest {
         run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
         assertThat(run.getFiles().size(), is(2));
         assertThat(run.getFiles().get(0).getPath().getPath(), endsWith(".txt"));
+        assertThat(run.getOutputFiles().size(), is(2));
 
         assertThat(smbUtils.list(toUploadDir).getFiles().isEmpty(), is(true));
         assertThat(smbUtils.list(archiveShareDirectory).getFiles().size(), is(2));
@@ -107,6 +110,7 @@ class DownloadsTest {
 
         assertThat(run.getFiles().size(), is(2));
         assertThat(run.getFiles().get(0).getPath().getPath(), endsWith(".txt"));
+        assertThat(run.getOutputFiles().size(), is(2));
 
         assertThat(smbUtils.list(toUploadDir).getFiles().size(), is(2));
     }
