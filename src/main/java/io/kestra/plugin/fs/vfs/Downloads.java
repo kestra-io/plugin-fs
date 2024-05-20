@@ -13,6 +13,8 @@ import org.slf4j.Logger;
 
 import jakarta.validation.constraints.NotNull;
 import java.net.URI;
+import java.util.AbstractMap;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
@@ -105,6 +107,10 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
                 }))
                 .collect(Collectors.toList());
 
+            Map<String, URI> outputFiles = list.stream()
+                .map(file -> new AbstractMap.SimpleEntry<>(file.getName(), file.getPath()))
+                .collect(Collectors.toMap(entry -> entry.getKey(), entry -> entry.getValue()));
+
             if (this.action != null) {
                 VfsService.performAction(
                     runContext,
@@ -119,6 +125,7 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
             return Downloads.Output
                 .builder()
                 .files(list)
+                .outputFiles(outputFiles)
                 .build();
         }
     }
@@ -138,5 +145,10 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
         )
         @PluginProperty(additionalProperties = io.kestra.plugin.fs.vfs.models.File.class)
         private final java.util.List<io.kestra.plugin.fs.vfs.models.File> files;
+
+        @Schema(
+            title = "The downloaded files as a map of from/to URIs."
+        )
+        private final Map<String, URI> outputFiles;
     }
 }
