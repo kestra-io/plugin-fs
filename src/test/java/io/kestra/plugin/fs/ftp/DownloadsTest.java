@@ -48,6 +48,7 @@ class DownloadsTest {
 
         assertThat(run.getFiles().size(), is(2));
         assertThat(run.getFiles().get(0).getPath().getPath(), endsWith(".txt"));
+        assertThat(run.getOutputFiles().size(), is(2));
 
         assertThat(ftpUtils.list(toUploadDir).getFiles().isEmpty(), is(true));
     }
@@ -75,6 +76,7 @@ class DownloadsTest {
 
         assertThat(run.getFiles().size(), is(2));
         assertThat(run.getFiles().get(0).getPath().getPath(), endsWith(".txt"));
+        assertThat(run.getOutputFiles().size(), is(2));
 
         assertThat(ftpUtils.list(toUploadDir).getFiles().size(), is(2));
     }
