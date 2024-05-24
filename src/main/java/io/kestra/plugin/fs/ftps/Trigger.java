@@ -34,11 +34,11 @@ import java.net.Proxy;
                 "",
                 "tasks:",
                 "  - id: for_each_file",
-                "    type: io.kestra.core.tasks.flows.EachSequential",
+                "    type: io.kestra.plugin.core.flow.EachSequential",
                 "    value: \"{{ trigger.files | jq('.path') }}\"",
                 "    tasks:",
                 "      - id: return",
-                "        type: io.kestra.core.tasks.debugs.Return",
+                "        type: io.kestra.plugin.core.debug.Return",
                 "        format: \"{{ taskrun.value }}\"",
                 "",
                 "triggers:",
@@ -63,11 +63,11 @@ import java.net.Proxy;
 
                 tasks:
                   - id: each
-                    type: io.kestra.core.tasks.flows.EachSequential
+                    type: io.kestra.plugin.core.flow.EachSequential
                     value: "{{ trigger.files | jq('.path') }}"
                     tasks:
                       - id: return
-                        type: io.kestra.core.tasks.debugs.Return
+                        type: io.kestra.plugin.core.debug.Return
                         format: "{{ taskrun.value }}"
                     
                 triggers:
