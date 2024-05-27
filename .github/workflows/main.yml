@@ -11,7 +11,13 @@ on:
     branches:
       - master
 
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      skip-test:
+        description: 'Skip test'
+        required: false
+        type: string
+        default: "false"
 
 jobs:
   check:
@@ -25,6 +31,7 @@ jobs:
 
       # Services
       - name: Build the docker-compose stack
+        if: ${{ github.event.inputs.skip-test == 'false' || github.event.inputs.skip-test == '' }}
         run: |
           ssh-keygen -f src/test/resources/ssh/id_rsa -q -N "" -m PEM -P "testPassPhrase"
           ssh-keygen -f src/test/resources/ssh/id_ed25519 -q -n "" -P ""
@@ -55,6 +62,7 @@ jobs:
 
       # Gradle check
       - name: Build with Gradle
+        if: ${{ github.event.inputs.skip-test == 'false' || github.event.inputs.skip-test == '' }}
         run: ./gradlew check
 
       # Publish
