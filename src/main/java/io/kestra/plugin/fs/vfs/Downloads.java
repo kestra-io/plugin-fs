@@ -108,6 +108,7 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
                 .collect(Collectors.toList());
 
             Map<String, URI> outputFiles = list.stream()
+                .filter(file -> file.getFileType() != FileType.FOLDER)
                 .map(file -> new AbstractMap.SimpleEntry<>(file.getName(), file.getPath()))
                 .collect(Collectors.toMap(entry -> entry.getKey(), entry -> entry.getValue()));
 
