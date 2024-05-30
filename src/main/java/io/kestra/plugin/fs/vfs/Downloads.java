@@ -142,7 +142,7 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
-            title = "The bucket of the downloaded file"
+            title = "Metadata of downloaded files."
         )
         @PluginProperty(additionalProperties = io.kestra.plugin.fs.vfs.models.File.class)
         private final java.util.List<io.kestra.plugin.fs.vfs.models.File> files;
