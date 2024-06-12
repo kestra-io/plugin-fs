@@ -8,7 +8,7 @@ import io.kestra.core.queues.QueueInterface;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.ssh.SshInterface.AuthMethod;
-import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
+import io.kestra.core.junit.annotations.KestraTest;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import java.nio.charset.*;
@@ -33,7 +33,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 // WARNING, the 'setpasswd.sh' script must be runnable for the test to pass, if the test fail try launching:
 // chmod go+x src/test/resources/ssh/setpasswd.sh
-@MicronautTest
+@KestraTest
 class CommandTest {
     @Inject
     private RunContextFactory runContextFactory;
