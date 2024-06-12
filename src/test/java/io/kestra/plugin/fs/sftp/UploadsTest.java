@@ -7,7 +7,7 @@ import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.vfs.Uploads.Output;
 import io.kestra.plugin.fs.vfs.models.File;
 import io.micronaut.context.annotation.Value;
-import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
+import io.kestra.core.junit.annotations.KestraTest;
 import jakarta.inject.Inject;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
@@ -18,7 +18,7 @@ import java.util.List;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
-@MicronautTest
+@KestraTest
 class UploadsTest {
     @Inject
     private RunContextFactory runContextFactory;

@@ -17,7 +17,7 @@ import io.kestra.plugin.fs.vfs.Upload;
 import io.kestra.plugin.fs.vfs.models.File;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.annotation.Value;
-import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
+import io.kestra.core.junit.annotations.KestraTest;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import org.junit.jupiter.api.Disabled;
@@ -34,7 +34,7 @@ import static org.hamcrest.Matchers.is;
 
 // FIXME Remove once Worker closing has been reworked (Micronaut 4 PR)
 //  We need to rebuild the context for each tests as currently Workers can't be closed properly (they keep listening to queues they shouldn't)
-@MicronautTest(rebuildContext = true)
+@KestraTest(rebuildContext = true)
 public abstract class AbstractFileTriggerTest {
     @Inject
     private ApplicationContext applicationContext;
