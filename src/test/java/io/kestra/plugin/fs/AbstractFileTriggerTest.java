@@ -8,15 +8,11 @@ import io.kestra.core.repositories.LocalFlowRepositoryLoader;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.runners.Worker;
 import io.kestra.core.schedulers.AbstractScheduler;
-import io.kestra.core.schedulers.DefaultScheduler;
-import io.kestra.core.schedulers.SchedulerTriggerStateInterface;
+import io.kestra.jdbc.runner.JdbcScheduler;
 import io.kestra.core.services.FlowListenersInterface;
 import io.kestra.core.utils.IdUtils;
-import io.kestra.plugin.fs.vfs.List;
-import io.kestra.plugin.fs.vfs.Upload;
 import io.kestra.plugin.fs.vfs.models.File;
 import io.micronaut.context.ApplicationContext;
-import io.micronaut.context.annotation.Value;
 import io.kestra.core.junit.annotations.KestraTest;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
@@ -38,10 +34,6 @@ import static org.hamcrest.Matchers.is;
 public abstract class AbstractFileTriggerTest {
     @Inject
     private ApplicationContext applicationContext;
-
-    @Inject
-    private SchedulerTriggerStateInterface triggerState;
-
 
     @Inject
     private FlowListenersInterface flowListenersService;
@@ -67,17 +59,16 @@ public abstract class AbstractFileTriggerTest {
 
         // scheduler
         try (
-            AbstractScheduler scheduler = new DefaultScheduler(
-            this.applicationContext,
-            this.flowListenersService,
-            this.triggerState
-        );
+            AbstractScheduler scheduler = new JdbcScheduler(
+                this.applicationContext,
+                this.flowListenersService
+            );
             Worker worker = applicationContext.createBean(Worker.class, IdUtils.create(), 8, null);
         ) {
             AtomicReference<Execution> last = new AtomicReference<>();
 
             // wait for execution
-            executionQueue.receive(AbstractFileTriggerTest.class, execution -> {
+            executionQueue.receive(execution -> {
                 if (execution.getLeft().getFlowId().equals(triggeringFlowId())){
                     last.set(execution.getLeft());
 
@@ -118,17 +109,16 @@ public abstract class AbstractFileTriggerTest {
 
         // scheduler
         try (
-            AbstractScheduler scheduler = new DefaultScheduler(
+            AbstractScheduler scheduler = new JdbcScheduler(
             this.applicationContext,
-            this.flowListenersService,
-            this.triggerState
+            this.flowListenersService
         );
             Worker worker = applicationContext.createBean(Worker.class, IdUtils.create(), 8, null);
         ) {
             AtomicReference<Execution> last = new AtomicReference<>();
 
             // wait for execution
-            executionQueue.receive(AbstractFileTriggerTest.class, execution -> {
+            executionQueue.receive(execution -> {
                 if (execution.getLeft().getFlowId().equals(triggeringFlowId() + "-none-action")){
                     last.set(execution.getLeft());
 
@@ -169,17 +159,16 @@ public abstract class AbstractFileTriggerTest {
 
         // scheduler
         try (
-            AbstractScheduler scheduler = new DefaultScheduler(
+            AbstractScheduler scheduler = new JdbcScheduler(
                 this.applicationContext,
-                this.flowListenersService,
-                this.triggerState
+                this.flowListenersService
             );
             Worker worker = applicationContext.createBean(Worker.class, IdUtils.create(), 8, null);
         ) {
             AtomicReference<Execution> last = new AtomicReference<>();
 
             // wait for execution
-            executionQueue.receive(AbstractFileTriggerTest.class, execution -> {
+            executionQueue.receive(execution -> {
                 last.set(execution.getLeft());
 
                 queueCount.countDown();
