@@ -8,6 +8,7 @@ import io.kestra.core.repositories.LocalFlowRepositoryLoader;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.runners.Worker;
 import io.kestra.core.schedulers.AbstractScheduler;
+import io.kestra.core.utils.TestsUtils;
 import io.kestra.jdbc.runner.JdbcScheduler;
 import io.kestra.core.services.FlowListenersInterface;
 import io.kestra.core.utils.IdUtils;
@@ -18,6 +19,7 @@ import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import reactor.core.publisher.Flux;
 
 import java.net.URI;
 import java.util.Objects;
@@ -68,7 +70,7 @@ public abstract class AbstractFileTriggerTest {
             AtomicReference<Execution> last = new AtomicReference<>();
 
             // wait for execution
-            executionQueue.receive(execution -> {
+            Flux<Execution> receive = TestsUtils.receive(executionQueue, execution -> {
                 if (execution.getLeft().getFlowId().equals(triggeringFlowId())){
                     last.set(execution.getLeft());
 
@@ -89,6 +91,7 @@ public abstract class AbstractFileTriggerTest {
 
             boolean await = queueCount.await(10, TimeUnit.SECONDS);
             assertThat(await, is(true));
+            receive.blockLast();
 
             @SuppressWarnings("unchecked")
             java.util.List<File> trigger = (java.util.List<File>) last.get().getTrigger().getVariables().get("files");
@@ -118,7 +121,7 @@ public abstract class AbstractFileTriggerTest {
             AtomicReference<Execution> last = new AtomicReference<>();
 
             // wait for execution
-            executionQueue.receive(execution -> {
+            Flux<Execution> receive = TestsUtils.receive(executionQueue, execution -> {
                 if (execution.getLeft().getFlowId().equals(triggeringFlowId() + "-none-action")){
                     last.set(execution.getLeft());
 
@@ -139,6 +142,7 @@ public abstract class AbstractFileTriggerTest {
 
             boolean await = queueCount.await(10, TimeUnit.SECONDS);
             assertThat(await, is(true));
+            receive.blockLast();
 
             @SuppressWarnings("unchecked")
             java.util.List<File> trigger = (java.util.List<File>) last.get().getTrigger().getVariables().get("files");
@@ -165,12 +169,8 @@ public abstract class AbstractFileTriggerTest {
             );
             Worker worker = applicationContext.createBean(Worker.class, IdUtils.create(), 8, null);
         ) {
-            AtomicReference<Execution> last = new AtomicReference<>();
-
             // wait for execution
-            executionQueue.receive(execution -> {
-                last.set(execution.getLeft());
-
+            Flux<Execution> receive = TestsUtils.receive(executionQueue, execution -> {
                 queueCount.countDown();
                 assertThat(execution.getLeft().getFlowId(), is("sftp-listen"));
             });
@@ -185,10 +185,11 @@ public abstract class AbstractFileTriggerTest {
             String out1 = FriendlyId.createFriendlyId();
             utils().upload("/upload/trigger/" + out1);
 
-            queueCount.await(10, TimeUnit.SECONDS);
+            boolean await = queueCount.await(10, TimeUnit.SECONDS);
+            assertThat(await, is(true));
 
             @SuppressWarnings("unchecked")
-            java.util.List<URI> trigger = (java.util.List<URI>) last.get().getTrigger().getVariables().get("files");
+            java.util.List<URI> trigger = (java.util.List<URI>) receive.blockLast().getTrigger().getVariables().get("files");
 
             assertThat(trigger.size(), is(1));
 
