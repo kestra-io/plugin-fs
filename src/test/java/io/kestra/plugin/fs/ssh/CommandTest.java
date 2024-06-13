@@ -2,7 +2,6 @@ package io.kestra.plugin.fs.ssh;
 
 import com.google.common.collect.ImmutableMap;
 import io.kestra.core.models.executions.LogEntry;
-import io.kestra.core.models.tasks.VoidOutput;
 import io.kestra.core.queues.QueueFactoryInterface;
 import io.kestra.core.queues.QueueInterface;
 import io.kestra.core.runners.RunContextFactory;
@@ -17,19 +16,9 @@ import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.security.KeyFactory;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.PrivateKey;
-import java.security.spec.PKCS8EncodedKeySpec;
-import java.security.spec.RSAPrivateKeySpec;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.junit.jupiter.api.Assertions.*;
 
 // WARNING, the 'setpasswd.sh' script must be runnable for the test to pass, if the test fail try launching:
 // chmod go+x src/test/resources/ssh/setpasswd.sh
@@ -44,9 +33,6 @@ class CommandTest {
 
     @Test
     void run_passwordMethod() throws Exception {
-        List<LogEntry> logs = new ArrayList<>();
-        logQueue.receive(l -> logs.add(l.getLeft()));
-
         Command command = Command.builder()
             .id(CommandTest.class.getName())
             .type(CommandTest.class.getName())
@@ -77,9 +63,6 @@ class CommandTest {
 
     @Test
     void run_pubkeyMethod() throws Exception {
-        List<LogEntry> logs = new ArrayList<>();
-        logQueue.receive(l -> logs.add(l.getLeft()));
-
         File file = new File("src/test/resources/ssh/id_ed25519");
         byte[] data;
         try (FileInputStream fis = new FileInputStream(file)) {
