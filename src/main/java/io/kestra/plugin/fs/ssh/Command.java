@@ -30,7 +30,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.BiFunction;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 
@@ -120,8 +119,8 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
         JSch jsch;
         Session session = null;
         ChannelExec channel = null;
-        LogThread stdOut = null;
-        LogThread stdErr = null;
+        Thread stdOut = null;
+        Thread stdErr = null;
 
         if (authMethod == AuthMethod.PASSWORD) {
             if (password == null) {
@@ -169,8 +168,10 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
             channel.setCommand(String.join("\n", renderedCommands));
             channel.setOutputStream(outStream);
             channel.setErrStream(errStream);
-            stdOut = threadLogSupplier(runContext).apply(inStream, false);
-            stdErr = threadLogSupplier(runContext).apply(inErrStream, true);
+            LogRunnable stdOutRunnable = new LogRunnable(inStream, false, runContext);
+            LogRunnable stdErrRunnable = new LogRunnable(inErrStream, true, runContext);
+            stdOut = Thread.ofVirtual().name("ssh-log-out").start(stdOutRunnable);
+            stdErr = Thread.ofVirtual().name("ssh-log-err").start(stdErrRunnable);
 
             if (this.env != null) {
                 for(var entry : env.entrySet()) {
@@ -193,14 +194,14 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
             }
 
             Map<String, Object> vars = new HashMap<>();
-            vars.putAll(stdOut.outputs);
-            vars.putAll(stdErr.outputs);
+            vars.putAll(stdOutRunnable.outputs);
+            vars.putAll(stdErrRunnable.outputs);
 
             return ScriptOutput
                 .builder()
                 .exitCode(channel.getExitStatus())
-                .stdOutLineCount(stdOut.count.get())
-                .stdErrLineCount(stdErr.count.get())
+                .stdOutLineCount(stdOutRunnable.count.get())
+                .stdErrLineCount(stdErrRunnable.count.get())
                 .warningOnStdErr(this.warningOnStdErr)
                 .vars(vars)
                 .build();
@@ -220,17 +221,7 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
         }
     }
 
-    private BiFunction<InputStream, Boolean, LogThread> threadLogSupplier(RunContext runContext) {
-        return (inputStream, isStdErr) -> {
-            LogThread thread = new LogThread(inputStream, isStdErr, runContext);
-            thread.setName("ssh-log-" + (isStdErr ? "-err" : "-out"));
-            thread.start();
-
-            return thread;
-        };
-    }
-
-    private static class LogThread extends Thread {
+    private static class LogRunnable implements Runnable {
         private final InputStream inputStream;
 
         private final boolean isStdErr;
@@ -241,7 +232,7 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
 
         private volatile Map<String, Object> outputs = new ConcurrentHashMap<>();
 
-        protected LogThread(InputStream inputStream, boolean isStdErr, RunContext runContext) {
+        protected LogRunnable(InputStream inputStream, boolean isStdErr, RunContext runContext) {
             this.inputStream = inputStream;
             this.isStdErr = isStdErr;
             this.runContext = runContext;
