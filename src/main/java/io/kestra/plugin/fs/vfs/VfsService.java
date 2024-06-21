@@ -127,7 +127,7 @@ public abstract class VfsService {
         FileSystemOptions fileSystemOptions,
         URI from
     ) throws Exception {
-        java.io.File tempFile = runContext.tempFile(extension(from)).toFile();
+        java.io.File tempFile = runContext.workingDir().createTempFile(extension(from)).toFile();
 
         try (
             FileObject local = fsm.resolveFile(tempFile.toURI());
@@ -154,7 +154,7 @@ public abstract class VfsService {
         URI to
     ) throws Exception {
         // copy from to a temp files
-        java.io.File tempFile = runContext.tempFile().toFile();
+        java.io.File tempFile = runContext.workingDir().createTempFile().toFile();
 
         // copy from to a temp file
         try (OutputStream outputStream = new FileOutputStream(tempFile)) {

@@ -59,7 +59,7 @@ public abstract class SftpService {
         if (sftpInterface.getKeyfile() != null) {
             instance.setPreferredAuthentications(options, "publickey");
 
-            File sftpKey = runContext.tempFile(
+            File sftpKey = runContext.workingDir().createTempFile(
                 runContext.render(sftpInterface.getKeyfile()).getBytes(StandardCharsets.UTF_8)
             ).toFile();
 
