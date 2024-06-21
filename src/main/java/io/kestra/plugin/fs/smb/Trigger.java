@@ -28,7 +28,7 @@ import java.io.IOException;
             full = true,
             code = {
                 "id: smb_trigger_flow",
-                "namespace: dev",
+                "namespace: company.team",
                 "",
                 "tasks:",
                 "  - id: for_each_file",
@@ -59,7 +59,7 @@ import java.io.IOException;
             full = true,
             code = {
                 "id: smb_trigger_flow",
-                "namespace: dev",
+                "namespace: company.team",
                 "",
                 "tasks:",
                 "  - id: for_each_file",
@@ -96,7 +96,7 @@ import java.io.IOException;
             full = true,
             code = """
                 id: smb_wait_for_csv_in_my_share_my_dir
-                namespace: dev
+                namespace: company.team
 
                 tasks:
                   - id: each
