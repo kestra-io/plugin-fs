@@ -27,7 +27,7 @@ import java.net.Proxy;
             full = true,
             code = {
                 "id: ftp_trigger_flow",
-                "namespace: dev",
+                "namespace: company.team",
                 "",
                 "tasks:",
                 "  - id: for_each_file",
@@ -56,7 +56,7 @@ import java.net.Proxy;
             full = true,
             code = {
                 "id: ftp_trigger_flow",
-                "namespace: dev",
+                "namespace: company.team",
                 "",
                 "tasks:",
                 "  - id: for_each_file",
@@ -91,7 +91,7 @@ import java.net.Proxy;
             full = true,
             code = """
                 id: ftp_wait_for_csv_in_mydir
-                namespace: dev
+                namespace: company.team
 
                 tasks:
                   - id: each
