@@ -54,7 +54,7 @@ public class TriggerTest extends AbstractFileTriggerTest {
         String out = FriendlyId.createFriendlyId();
         Upload.Output upload = utils().upload("/upload/trigger/" + out + ".yml");
 
-        Map.Entry<ConditionContext, TriggerContext> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+        var context = TestsUtils.mockTrigger(runContextFactory, trigger);
         Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
 
         assertThat(execution.isPresent(), is(true));
