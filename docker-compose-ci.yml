@@ -1,5 +1,3 @@
-version: "3.6"
-
 volumes:
   samba-data:
     driver: local
