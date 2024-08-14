@@ -31,7 +31,8 @@ public abstract class Delete extends AbstractVfsTask implements RunnableTask<Del
     private final Boolean errorOnMissing = false;
 
     public Output run(RunContext runContext) throws Exception {
-        try (StandardFileSystemManager fsm = new StandardFileSystemManager()) {
+        try (StandardFileSystemManager fsm = new KestraStandardFileSystemManager(runContext)) {
+            fsm.setConfiguration(StandardFileSystemManager.class.getResource(KestraStandardFileSystemManager.CONFIG_RESOURCE));
             fsm.init();
 
             return VfsService.delete(
