@@ -96,7 +96,8 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
         // connection options
         FileSystemOptions fileSystemOptions = this.fsOptions(runContext);
 
-        try (StandardFileSystemManager fsm = new StandardFileSystemManager()) {
+        try (StandardFileSystemManager fsm = new KestraStandardFileSystemManager(runContext)) {
+            fsm.setConfiguration(StandardFileSystemManager.class.getResource(KestraStandardFileSystemManager.CONFIG_RESOURCE));
             fsm.init();
 
             List.Output run;
