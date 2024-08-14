@@ -59,7 +59,8 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
     public Output run(RunContext runContext) throws Exception {
         Logger logger = runContext.logger();
 
-        try (StandardFileSystemManager fsm = new StandardFileSystemManager()) {
+        try (StandardFileSystemManager fsm = new KestraStandardFileSystemManager(runContext)) {
+            fsm.setConfiguration(StandardFileSystemManager.class.getResource(KestraStandardFileSystemManager.CONFIG_RESOURCE));
             fsm.init();
 
             // path
