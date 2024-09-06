@@ -32,11 +32,11 @@ import java.net.Proxy;
                 "tasks:",
                 "  - id: for_each_file",
                 "    type: io.kestra.plugin.core.flow.EachSequential",
-                "    value: \"{{ trigger.files | jq('.path') }}\"",
+                "    value: \"{{ trigger.files }}\"",
                 "    tasks:",
                 "      - id: return",
                 "        type: io.kestra.plugin.core.debug.Return",
-                "        format: \"{{ taskrun.value }}\"",
+                "        format: \"{{ taskrun.value | jq('.path') }}\"",
                 "",
                 "triggers:",
                 "  - id: watch",
@@ -61,18 +61,18 @@ import java.net.Proxy;
                 "tasks:",
                 "  - id: for_each_file",
                 "    type: io.kestra.plugin.core.flow.EachSequential",
-                "    value: \"{{ trigger.files | jq('.name') }}\"",
+                "    value: \"{{ trigger.files }}\"",
                 "    tasks:",
                 "      - id: return",
                 "        type: io.kestra.plugin.core.debug.Return",
-                "        format: \"{{ taskrun.value }}\"",
+                "        format: \"{{ taskrun.value | jq('.name') }}\"",
                 "      - id: delete",
                 "        type: io.kestra.plugin.fs.ftp.Delete",
                 "        host: localhost",
                 "        port: 21",
                 "        username: foo",
                 "        password: bar",
-                "        uri: \"/in/{{ taskrun.value }}\"",
+                "        uri: \"/in/{{ taskrun.value | jq('.name') }}\"",
                 "",
                 "triggers:",
                 "  - id: watch",
@@ -90,17 +90,17 @@ import java.net.Proxy;
             title = "Wait for one or more files in a given FTP server's directory and process each of these files sequentially. In this example, we restrict the trigger to only wait for CSV files in the `mydir` directory.",
             full = true,
             code = """
-                id: ftp_wait_for_csv_in_mydir
+                id: ftp_wait_for_csv_in_mydirs
                 namespace: company.team
 
                 tasks:
                   - id: each
                     type: io.kestra.plugin.core.flow.EachSequential
-                    value: "{{ trigger.files | jq('.path') }}"
+                    value: "{{ trigger.files }}"
                     tasks:
                       - id: return
                         type: io.kestra.plugin.core.debug.Return
-                        format: "{{ taskrun.value }}"
+                        format: "{{ taskrun.value | jq('.path') }}"
                     
                 triggers:
                   - id: watch
