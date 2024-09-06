@@ -25,66 +25,66 @@ import java.net.Proxy;
         @Example(
             title = "Wait for one or more files in a given FTP server's directory and process each of these files sequentially.",
             full = true,
-            code = {
-                "id: ftp_trigger_flow",
-                "namespace: company.team",
-                "",
-                "tasks:",
-                "  - id: for_each_file",
-                "    type: io.kestra.plugin.core.flow.EachSequential",
-                "    value: \"{{ trigger.files }}\"",
-                "    tasks:",
-                "      - id: return",
-                "        type: io.kestra.plugin.core.debug.Return",
-                "        format: \"{{ taskrun.value | jq('.path') }}\"",
-                "",
-                "triggers:",
-                "  - id: watch",
-                "    type: io.kestra.plugin.fs.ftp.Trigger",
-                "    host: localhost",
-                "    port: 21",
-                "    username: foo",
-                "    password: bar",
-                "    from: \"/in/\"",
-                "    interval: PT10S",
-                "    action: MOVE",
-                "    moveDirectory: \"/archive/\"",
-            }
+            code = """
+                id: ftp_trigger_flow
+                namespace: company.team
+                
+                tasks:
+                  - id: for_each_file
+                    type: io.kestra.plugin.core.flow.EachSequential
+                    value: "{{ trigger.files }}"
+                    tasks:
+                      - id: return
+                        type: io.kestra.plugin.core.debug.Return
+                        format: "{{ taskrun.value | jq('.path') }}"
+                
+                triggers:
+                  - id: watch
+                    type: io.kestra.plugin.fs.ftp.Trigger
+                    host: localhost
+                    port: 21
+                    username: foo
+                    password: bar
+                    from: "/in/"
+                    interval: PT10S
+                    action: MOVE
+                    moveDirectory: "/archive/"
+                """
         ),
         @Example(
             title = "Wait for one or more files in a given FTP server's directory and process each of these files sequentially. Delete files manually after processing to prevent infinite triggering.",
             full = true,
-            code = {
-                "id: ftp_trigger_flow",
-                "namespace: company.team",
-                "",
-                "tasks:",
-                "  - id: for_each_file",
-                "    type: io.kestra.plugin.core.flow.EachSequential",
-                "    value: \"{{ trigger.files }}\"",
-                "    tasks:",
-                "      - id: return",
-                "        type: io.kestra.plugin.core.debug.Return",
-                "        format: \"{{ taskrun.value | jq('.name') }}\"",
-                "      - id: delete",
-                "        type: io.kestra.plugin.fs.ftp.Delete",
-                "        host: localhost",
-                "        port: 21",
-                "        username: foo",
-                "        password: bar",
-                "        uri: \"/in/{{ taskrun.value | jq('.name') }}\"",
-                "",
-                "triggers:",
-                "  - id: watch",
-                "    type: io.kestra.plugin.fs.ftp.Trigger",
-                "    host: localhost",
-                "    port: 21",
-                "    username: foo",
-                "    password: bar",
-                "    from: \"/in/\"",
-                "    interval: PT10S",
-                "    action: NONE",
-            }
+            code = """
+                id: ftp_trigger_flow
+                namespace: company.team
+                
+                tasks:
+                  - id: for_each_file
+                    type: io.kestra.plugin.core.flow.EachSequential
+                    value: "{{ trigger.files }}"
+                    tasks:
+                      - id: return
+                        type: io.kestra.plugin.core.debug.Return
+                        format: "{{ taskrun.value | jq('.name') }}"
+                      - id: delete
+                        type: io.kestra.plugin.fs.ftp.Delete
+                        host: localhost
+                        port: 21
+                        username: foo
+                        password: bar
+                        uri: "/in/{{ taskrun.value | jq('.name') }}"
+                
+                triggers:
+                  - id: watch
+                    type: io.kestra.plugin.fs.ftp.Trigger
+                    host: localhost
+                    port: 21
+                    username: foo
+                    password: bar
+                    from: "/in/"
+                    interval: PT10S
+                    action: NONE
+                """
         ),
         @Example(
             title = "Wait for one or more files in a given FTP server's directory and process each of these files sequentially. In this example, we restrict the trigger to only wait for CSV files in the `mydir` directory.",
@@ -113,7 +113,8 @@ import java.net.Proxy;
                     regExp: ".*.csv"
                     action: MOVE
                     moveDirectory: "archive/"
-                    interval: PTS"""
+                    interval: PTS
+                """
         )        
     }
 )

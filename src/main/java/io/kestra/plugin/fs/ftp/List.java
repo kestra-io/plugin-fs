@@ -23,14 +23,21 @@ import java.net.Proxy;
 @Plugin(
     examples = {
         @Example(
-            code = {
-                "host: localhost",
-                "port: 21",
-                "username: foo",
-                "password: pass",
-                "from: \"/upload/dir1/\"",
-                "regExp: \".*\\/dir1\\/.*\\.(yaml|yml)\"",
-            }
+            full = true,
+            code = """
+                id: fs_ftp_list
+                namespace: company.team
+
+                tasks:
+                  - id: list
+                    type: io.kestra.plugin.fs.ftp.List
+                    host: localhost
+                    port: 21
+                    username: foo
+                    password: pass
+                    from: "/upload/dir1/"
+                    regExp: ".*\/dir1\/.*\.(yaml|yml)"
+                """
         )
     }
 )

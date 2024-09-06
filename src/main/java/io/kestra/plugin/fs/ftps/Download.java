@@ -26,13 +26,20 @@ import java.net.Proxy;
 @Plugin(
     examples = {
         @Example(
-            code = {
-                "host: localhost",
-                "port: 990",
-                "username: foo",
-                "password: pass",
-                "from: \"/in/file.txt\"",
-            }
+            full = true,
+            code = """
+                id: fs_ftps_download
+                namespace: company.team
+
+                tasks:
+                  - id: download
+                    type: io.kestra.plugin.fs.ftps.Download
+                    host: localhost
+                    port: 990
+                    username: foo
+                    password: pass
+                    from: "/in/file.txt"
+                """
         )
     }
 )

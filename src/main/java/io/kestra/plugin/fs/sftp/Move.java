@@ -23,14 +23,21 @@ import java.io.IOException;
 @Plugin(
     examples = {
         @Example(
-            code = {
-                "host: localhost",
-                "port: \"22\"",
-                "username: foo",
-                "password: pass",
-                "from: \"/upload/dir1/file.txt\"",
-                "to: \"/upload/dir2/file.txt\"",
-            }
+            full = true,
+            code = """
+                id: fs_sftp_move
+                namespace: company.team
+
+                tasks:
+                  - id: move
+                    type: io.kestra.plugin.fs.sftp.Move
+                    host: localhost
+                    port: "22"
+                    username: foo
+                    password: pass
+                    from: "/upload/dir1/file.txt"
+                    to: "/upload/dir2/file.txt"
+                """
         )
     }
 )

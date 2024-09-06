@@ -28,31 +28,31 @@ import java.net.Proxy;
         @Example(
             title = "Wait for one or more files in a given FTPS server's directory and process each of these files sequentially.",
             full = true,
-            code = {
-                "id: ftps_trigger_flow",
-                "namespace: company.team",
-                "",
-                "tasks:",
-                "  - id: for_each_file",
-                "    type: io.kestra.plugin.core.flow.EachSequential",
-                "    value: \"{{ trigger.files }}\"",
-                "    tasks:",
-                "      - id: return",
-                "        type: io.kestra.plugin.core.debug.Return",
-                "        format: \"{{ taskrun.value | jq('.path') }}\"",
-                "",
-                "triggers:",
-                "  - id: watch",
-                "    type: io.kestra.plugin.fs.ftps.Trigger",
-                "    host: localhost",
-                "    port: 990",
-                "    username: foo",
-                "    password: bar",
-                "    from: \"/in/\"",
-                "    interval: PT10S",
-                "    action: MOVE",
-                "    moveDirectory: \"/archive/\"",
-            }
+            code = """
+                id: ftps_trigger_flow
+                namespace: company.team
+                
+                tasks:
+                  - id: for_each_file
+                    type: io.kestra.plugin.core.flow.EachSequential
+                    value: "{{ trigger.files }}"
+                    tasks:
+                      - id: return
+                        type: io.kestra.plugin.core.debug.Return
+                        format: "{{ taskrun.value | jq('.path') }}"
+                
+                triggers:
+                  - id: watch
+                    type: io.kestra.plugin.fs.ftps.Trigger
+                    host: localhost
+                    port: 990
+                    username: foo
+                    password: bar
+                    from: "/in/"
+                    interval: PT10S
+                    action: MOVE
+                    moveDirectory: "/archive/"
+                """
         ),
         @Example(
             title = "Wait for one or more files in a given FTPS server's directory and process each of these files sequentially. In this example, we restrict the trigger to only wait for CSV files in the `mydir` directory.",
@@ -81,7 +81,8 @@ import java.net.Proxy;
                     regExp: ".*.csv"
                     action: MOVE
                     moveDirectory: "archive/"
-                    interval: PTS"""
+                    interval: PTS
+                """
         ) 
     }
 )

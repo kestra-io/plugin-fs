@@ -24,16 +24,23 @@ import java.net.Proxy;
     examples = {
         @Example(
             title = "Download a list of files and move it to an archive folders",
-            code = {
-                "host: localhost",
-                "port: 21",
-                "username: foo",
-                "password: pass",
-                "from: \"/in/\"",
-                "interval: PT10S",
-                "action: MOVE",
-                "moveDirectory: \"/archive/\"",
-            }
+            full = true,
+            code = """
+                id: fs_ftp_downloads
+                namespace: company.team
+
+                tasks:
+                  - id: downloads
+                    type: io.kestra.plugin.fs.ftp.Downloads
+                    host: localhost
+                    port: 21
+                    username: foo
+                    password: pass
+                    from: "/in/"
+                    interval: PT10S
+                    action: MOVE
+                    moveDirectory: "/archive/"
+                """
         )
     }
 )
