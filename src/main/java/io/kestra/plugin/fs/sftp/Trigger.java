@@ -31,11 +31,11 @@ import java.io.IOException;
                 "tasks:",
                 "  - id: for_each_file",
                 "    type: io.kestra.plugin.core.flow.EachSequential",
-                "    value: \"{{ trigger.files | jq('.path') }}\"",
+                "    value: \"{{ trigger.files }}\"",
                 "    tasks:",
                 "      - id: return",
                 "        type: io.kestra.plugin.core.debug.Return",
-                "        format: \"{{ taskrun.value }}\"",
+                "        format: \"{{ taskrun.value | jq('.path') }}\"",
                 "",
                 "triggers:",
                 "  - id: watch",
@@ -95,11 +95,11 @@ import java.io.IOException;
                 tasks:
                   - id: each
                     type: io.kestra.plugin.core.flow.EachSequential
-                    value: "{{ trigger.files | jq('.path') }}"
+                    value: "{{ trigger.files }}"
                     tasks:
                       - id: return
                         type: io.kestra.plugin.core.debug.Return
-                        format: "{{ taskrun.value }}"
+                        format: "{{ taskrun.value | jq('.path') }}"
                     
                 triggers:
                   - id: watch
