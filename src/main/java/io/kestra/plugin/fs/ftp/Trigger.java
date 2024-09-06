@@ -90,7 +90,7 @@ import java.net.Proxy;
             title = "Wait for one or more files in a given FTP server's directory and process each of these files sequentially. In this example, we restrict the trigger to only wait for CSV files in the `mydir` directory.",
             full = true,
             code = """
-                id: ftp_wait_for_csv_in_mydirs
+                id: ftp_wait_for_csv_in_mydir
                 namespace: company.team
 
                 tasks:
