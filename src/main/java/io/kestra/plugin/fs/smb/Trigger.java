@@ -26,68 +26,68 @@ import java.io.IOException;
                 Wait for one or more files in a given SMB server's directory and process each of these files sequentially.
                 Then move them to another share which is used as an archive.""",
             full = true,
-            code = {
-                "id: smb_trigger_flow",
-                "namespace: company.team",
-                "",
-                "tasks:",
-                "  - id: for_each_file",
-                "    type: io.kestra.plugin.core.flow.EachSequential",
-                "    value: \"{{ trigger.files }}\"",
-                "    tasks:",
-                "      - id: return",
-                "        type: io.kestra.plugin.core.debug.Return",
-                "        format: \"{{ taskrun.value | jq('.path') }}\"",
-                "",
-                "triggers:",
-                "  - id: watch",
-                "    type: io.kestra.plugin.fs.smb.Trigger",
-                "    host: localhost",
-                "    port: 445",
-                "    username: foo",
-                "    password: bar",
-                "    from: \"/my_share/in/\"",
-                "    interval: PT10S",
-                "    action: MOVE",
-                "    moveDirectory: \"/archive_share/\"",
-            }
+            code = """
+                id: smb_trigger_flow
+                namespace: company.team
+                
+                tasks:
+                  - id: for_each_file
+                    type: io.kestra.plugin.core.flow.EachSequential
+                    value: "{{ trigger.files }}"
+                    tasks:
+                      - id: return
+                        type: io.kestra.plugin.core.debug.Return
+                        format: "{{ taskrun.value | jq('.path') }}"
+                
+                triggers:
+                  - id: watch
+                    type: io.kestra.plugin.fs.smb.Trigger
+                    host: localhost
+                    port: 445
+                    username: foo
+                    password: bar
+                    from: "/my_share/in/"
+                    interval: PT10S
+                    action: MOVE
+                    moveDirectory: "/archive_share/"
+                """
         ),
         @Example(
             title = """
                 Wait for one or more files in a given SMB server's directory and process each of these files sequentially.
                 Then move them to another share which is used as an archive.""",
             full = true,
-            code = {
-                "id: smb_trigger_flow",
-                "namespace: company.team",
-                "",
-                "tasks:",
-                "  - id: for_each_file",
-                "    type: io.kestra.plugin.core.flow.EachSequential",
-                "    value: \"{{ trigger.files }}\"",
-                "    tasks:",
-                "      - id: return",
-                "        type: io.kestra.plugin.core.debug.Return",
-                "        format: \"{{ taskrun.value | jq('.path') }}\"",
-                "      - id: delete",
-                "        type: io.kestra.plugin.fs.smb.Delete",
-                "        host: localhost",
-                "        port: 445",
-                "        username: foo",
-                "        password: bar",
-                "        uri: \"/my_share/in/{{ taskrun.value | jq('.path') }}\"",
-                "",
-                "triggers:",
-                "  - id: watch",
-                "    type: io.kestra.plugin.fs.smb.Trigger",
-                "    host: localhost",
-                "    port: 445",
-                "    username: foo",
-                "    password: bar",
-                "    from: \"/my_share/in/\"",
-                "    interval: PT10S",
-                "    action: NONE"
-            }
+            code = """
+                id: smb_trigger_flow
+                namespace: company.team
+                
+                tasks:
+                  - id: for_each_file
+                    type: io.kestra.plugin.core.flow.EachSequential
+                    value: "{{ trigger.files }}"
+                    tasks:
+                      - id: return
+                        type: io.kestra.plugin.core.debug.Return
+                        format: "{{ taskrun.value | jq('.path') }}"
+                      - id: delete
+                        type: io.kestra.plugin.fs.smb.Delete
+                        host: localhost
+                        port: 445
+                        username: foo
+                        password: bar
+                        uri: "/my_share/in/{{ taskrun.value | jq('.path') }}"
+                
+                triggers:
+                  - id: watch
+                    type: io.kestra.plugin.fs.smb.Trigger
+                    host: localhost
+                    port: 445
+                    username: foo
+                    password: bar
+                    from: "/my_share/in/"
+                    interval: PT10S
+                    action: NONE
+                """
         ),
         @Example(
             title = """
@@ -118,7 +118,8 @@ import java.io.IOException;
                     regExp: ".*.csv"
                     action: MOVE
                     moveDirectory: "my_share/archivedir"
-                    interval: PTS"""
+                    interval: PTS
+                """
         )
     }
 )

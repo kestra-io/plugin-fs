@@ -27,14 +27,21 @@ import java.net.Proxy;
 @Plugin(
     examples = {
         @Example(
-            code = {
-                "host: localhost",
-                "port: 990",
-                "username: foo",
-                "password: pass",
-                "from: \"/upload/dir1/file.txt\"",
-                "to: \"/upload/dir2/file.txt\"",
-            }
+            full = true,
+            code = """
+                id: fs_ftps_move
+                namespace: company.team
+
+                tasks:
+                  - id: move
+                    type: io.kestra.plugin.fs.ftps.Move
+                    host: localhost
+                    port: 990
+                    username: foo
+                    password: pass
+                    from: "/upload/dir1/file.txt"
+                    to: "/upload/dir2/file.txt"
+                """
         )
     }
 )

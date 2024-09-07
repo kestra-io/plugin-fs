@@ -24,66 +24,66 @@ import java.io.IOException;
         @Example(
             title = "Wait for one or more files in a given SFTP server's directory and process each of these files sequentially.",
             full = true,
-            code = {
-                "id: sftp_trigger_flow",
-                "namespace: company.team",
-                "",
-                "tasks:",
-                "  - id: for_each_file",
-                "    type: io.kestra.plugin.core.flow.EachSequential",
-                "    value: \"{{ trigger.files }}\"",
-                "    tasks:",
-                "      - id: return",
-                "        type: io.kestra.plugin.core.debug.Return",
-                "        format: \"{{ taskrun.value | jq('.path') }}\"",
-                "",
-                "triggers:",
-                "  - id: watch",
-                "    type: io.kestra.plugin.fs.sftp.Trigger",
-                "    host: localhost",
-                "    port: 6622",
-                "    username: foo",
-                "    password: bar",
-                "    from: \"/in/\"",
-                "    interval: PT10S",
-                "    action: MOVE",
-                "    moveDirectory: \"/archive/\"",
-            }
+            code = """
+                id: sftp_trigger_flow
+                namespace: company.team
+                
+                tasks:
+                  - id: for_each_file
+                    type: io.kestra.plugin.core.flow.EachSequential
+                    value: "{{ trigger.files }}"
+                    tasks:
+                      - id: return
+                        type: io.kestra.plugin.core.debug.Return
+                        format: "{{ taskrun.value | jq('.path') }}"
+                
+                triggers:
+                  - id: watch
+                    type: io.kestra.plugin.fs.sftp.Trigger
+                    host: localhost
+                    port: 6622
+                    username: foo
+                    password: bar
+                    from: "/in/"
+                    interval: PT10S
+                    action: MOVE
+                    moveDirectory: "/archive/"
+                """
         ),
         @Example(
             title = "Wait for one or more files in a given SFTP server's directory and process each of these files sequentially. Delete files manually after processing to prevent infinite triggering.",
             full = true,
-            code = {
-                "id: sftp_trigger_flow",
-                "namespace: company.team",
-                "",
-                "tasks:",
-                "  - id: for_each_file",
-                "    type: io.kestra.plugin.core.flow.EachSequential",
-                "    value: \"{{ trigger.files | jq('.path') }}\"",
-                "    tasks:",
-                "      - id: return",
-                "        type: io.kestra.plugin.core.debug.Return",
-                "        format: \"{{ taskrun.value }}\"",
-                "      - id: delete",
-                "        type: io.kestra.plugin.fs.sftp.Delete",
-                "        host: localhost",
-                "        port: 6622",
-                "        username: foo",
-                "        password: bar",
-                "        uri: \"/in/{{ taskrun.value }}\"",
-                "",
-                "triggers:",
-                "  - id: watch",
-                "    type: io.kestra.plugin.fs.sftp.Trigger",
-                "    host: localhost",
-                "    port: 6622",
-                "    username: foo",
-                "    password: bar",
-                "    from: \"/in/\"",
-                "    interval: PT10S",
-                "    action: NONE",
-            }
+            code = """
+                id: sftp_trigger_flow
+                namespace: company.team
+                
+                tasks:
+                  - id: for_each_file
+                    type: io.kestra.plugin.core.flow.EachSequential
+                    value: "{{ trigger.files | jq('.path') }}"
+                    tasks:
+                      - id: return
+                        type: io.kestra.plugin.core.debug.Return
+                        format: "{{ taskrun.value }}"
+                      - id: delete
+                        type: io.kestra.plugin.fs.sftp.Delete
+                        host: localhost
+                        port: 6622
+                        username: foo
+                        password: bar
+                        uri: "/in/{{ taskrun.value }}"
+                
+                triggers:
+                  - id: watch
+                    type: io.kestra.plugin.fs.sftp.Trigger
+                    host: localhost
+                    port: 6622
+                    username: foo
+                    password: bar
+                    from: "/in/"
+                    interval: PT10S
+                    action: NONE
+                """
         ),
         @Example(
             title = "Wait for one or more files in a given SFTP server's directory and process each of these files sequentially. In this example, we restrict the trigger to only wait for CSV files in the `mydir` directory.",
@@ -112,7 +112,8 @@ import java.io.IOException;
                     regExp: ".*.csv"
                     action: MOVE
                     moveDirectory: "archive/"
-                    interval: PTS"""
+                    interval: PTS
+                """
         )          
     }
 )

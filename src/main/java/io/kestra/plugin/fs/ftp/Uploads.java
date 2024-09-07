@@ -23,16 +23,29 @@ import java.net.Proxy;
 @Plugin(
         examples = {
                 @Example(
-                        code = {
-                                "host: localhost",
-                                "port: 21",
-                                "username: foo",
-                                "password: pass",
-                                "from:",
-                                "  - \"{{ outputs.taskid1.uri }}\"",
-                                "  - \"{{ outputs.taskid2.uri }}\"",
-                                "to: \"/upload/dir2\"",
-                        }
+                        full = true,
+                        code = """
+                            id: fs_ftp_uploads
+                            namespace: company.team
+            
+                            inputs:
+                              - id: file1
+                                type: FILE
+                              - id: file2
+                                type: FILE
+
+                            tasks:
+                              - id: uploads
+                                type: io.kestra.plugin.fs.ftp.Uploads
+                                host: localhost
+                                port: 21
+                                username: foo
+                                password: pass
+                                from:
+                                  - "{{ inputs.file1 }}"
+                                  - "{{ inputs.file2 }}"
+                                to: "/upload/dir2"
+                            """
                 )
         }
 )
