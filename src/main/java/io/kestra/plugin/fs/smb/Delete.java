@@ -22,13 +22,20 @@ import java.io.IOException;
 @Plugin(
     examples = {
         @Example(
-            code = {
-                "host: localhost",
-                "port: 445",
-                "username: foo",
-                "password: pass",
-                "uri: \"/my_share/dir1/file.txt\"",
-            }
+            full = true,
+            code = """
+                id: fs_smb_delete
+                namespace: company.team
+
+                tasks:
+                  - id: delete
+                    type: io.kestra.plugin.fs.smb.Delete
+                    host: localhost
+                    port: 445
+                    username: foo
+                    password: pass
+                    uri: "/my_share/dir1/file.txt"
+                """
         )
     }
 )

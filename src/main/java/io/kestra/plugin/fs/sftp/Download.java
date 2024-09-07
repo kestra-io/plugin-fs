@@ -22,13 +22,20 @@ import java.io.IOException;
 @Plugin(
     examples = {
         @Example(
-            code = {
-                "host: localhost",
-                "port: \"22\"",
-                "username: foo",
-                "password: pass",
-                "from: \"/in/file.txt\"",
-            }
+            full = true,
+            code = """
+                id: fs_sftp_download
+                namespace: company.team
+
+                tasks:
+                  - id: download
+                    type: io.kestra.plugin.fs.sftp.Download
+                    host: localhost
+                    port: "22"
+                    username: foo
+                    password: pass
+                    from: "/in/file.txt"
+                """
         )
     }
 )

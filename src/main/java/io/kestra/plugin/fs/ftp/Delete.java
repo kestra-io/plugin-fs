@@ -23,13 +23,20 @@ import java.net.Proxy;
 @Plugin(
     examples = {
         @Example(
-            code = {
-                "host: localhost",
-                "port: 21",
-                "username: foo",
-                "password: pass",
-                "uri: \"/upload/dir1/file.txt\"",
-            }
+            full = true,
+            code = """
+                id: fs_ftp_delete
+                namespace: company.team
+
+                tasks:
+                  - id: delete
+                    type: io.kestra.plugin.fs.ftp.Delete
+                    host: localhost
+                    port: 21
+                    username: foo
+                    password: pass
+                    uri: "/upload/dir1/file.txt"
+                """
         )
     }
 )

@@ -23,16 +23,23 @@ import java.io.IOException;
     examples = {
         @Example(
             title = "Download files from `my_share` and move them to an `archive_share`",
-            code = {
-                "host: localhost",
-                "port: 445",
-                "username: foo",
-                "password: pass",
-                "from: \"/my_share/\"",
-                "interval: PT10S",
-                "action: MOVE",
-                "moveDirectory: \"/archive_share/\"",
-            }
+            full = true,
+            code = """
+                id: fs_smb_downloads
+                namespace: company.team
+
+                tasks:
+                  - id: downloads
+                    type: io.kestra.plugin.fs.smb.Downloads
+                    host: localhost
+                    port: 445
+                    username: foo
+                    password: pass
+                    from: "/my_share/"
+                    interval: PT10S
+                    action: MOVE
+                    moveDirectory: "/archive_share/"
+                """
         )
     }
 )

@@ -23,16 +23,23 @@ import java.io.IOException;
     examples = {
         @Example(
             title = "Download a list of files and move it to an archive folders",
-            code = {
-                "host: localhost",
-                "port: \"22\"",
-                "username: foo",
-                "password: pass",
-                "from: \"/in/\"",
-                "interval: PT10S",
-                "action: MOVE",
-                "moveDirectory: \"/archive/\"",
-            }
+            full = true,
+            code = """
+                id: fs_sftp_downloads
+                namespace: company.team
+
+                tasks:
+                  - id: downloads
+                    type: io.kestra.plugin.fs.sftp.Downloads
+                    host: localhost
+                    port: "22"
+                    username: foo
+                    password: pass
+                    from: "/in/"
+                    interval: PT10S
+                    action: MOVE
+                    moveDirectory: "/archive/"
+                """
         )
     }
 )

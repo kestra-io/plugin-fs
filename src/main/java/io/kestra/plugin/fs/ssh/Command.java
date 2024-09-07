@@ -45,25 +45,39 @@ import jakarta.validation.constraints.NotNull;
     examples = {
         @Example(
             title = "Run SSH command using password authentication",
-            code = {
-                "host: localhost",
-                "port: \"22\"",
-                "authMethod: PASSWORD",
-                "username: foo",
-                "password: pass",
-                "commands: ['ls']",
-            }
+            full = true,
+            code = """
+                id: fs_ssh_command
+                namespace: company.team
+
+                tasks:
+                  - id: command
+                    type: io.kestra.plugin.fs.ssh.Command
+                    host: localhost
+                    port: "22"
+                    authMethod: PASSWORD
+                    username: foo
+                    password: pass
+                    commands: ['ls']
+                """
         ),
         @Example(
             title = "Run SSH command using public key authentication (must be an OpenSSH private key)",
-            code = {
-                "host: localhost",
-                "port: \"22\"",
-                "authMethod: PUBLIC_KEY",
-                "username: root",
-                "privateKey: \"{{ secret('SSH_RSA_PRIVATE_KEY') }}\"",
-                "commands: ['touch kestra_was_here']"
-            }
+            full = true,
+            code = """
+                id: fs_ssh_command
+                namespace: company.team
+
+                tasks:
+                  - id: command
+                    type: io.kestra.plugin.fs.ssh.Command
+                    host: localhost
+                    port: "22"
+                    authMethod: PUBLIC_KEY
+                    username: root
+                    privateKey: "{{ secret('SSH_RSA_PRIVATE_KEY') }}"
+                    commands: ['touch kestra_was_here']
+                """
         )
     }
 )

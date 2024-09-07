@@ -22,14 +22,21 @@ import java.io.IOException;
 @Plugin(
     examples = {
         @Example(
-            code = {
-                "host: localhost",
-                "port: 445",
-                "username: foo",
-                "password: pass",
-                "from: \"/my_share/dir1/\"",
-                "regExp: \".*\\/dir1\\/.*\\.(yaml|yml)\"",
-            }
+            full = true,
+            code = """
+                id: fs_smb_list
+                namespace: company.team
+
+                tasks:
+                  - id: list
+                    type: io.kestra.plugin.fs.smb.List
+                    host: localhost
+                    port: 445
+                    username: foo
+                    password: pass
+                    from: "/my_share/dir1/"
+                    regExp: ".*\/dir1\/.*\.(yaml|yml)"
+                """
         )
     }
 )
