@@ -35,7 +35,7 @@ import java.io.IOException;
                     username: foo
                     password: pass
                     from: "/upload/dir1/"
-                    regExp: ".*\/dir1\/.*\.(yaml|yml)"
+                    regExp: ".*\\/dir1\\/.*.(yaml|yml)"
                 """
         )
     }
