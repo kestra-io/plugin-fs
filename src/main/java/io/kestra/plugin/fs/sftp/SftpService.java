@@ -75,6 +75,10 @@ public abstract class SftpService {
             instance.setPreferredAuthentications(options, "password");
         }
 
+        if (sftpInterface.getKeyExchangeAlgorithm() != null) {
+            instance.setKeyExchangeAlgorithm(options, sftpInterface.getKeyExchangeAlgorithm());
+        }
+
         return options;
     }
 }

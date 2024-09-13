@@ -53,6 +53,7 @@ public class Move extends io.kestra.plugin.fs.vfs.Move implements SftpInterface 
     protected Boolean rootDir = true;
     @Builder.Default
     protected String port = "22";
+    protected String keyExchangeAlgorithm;
 
     @Override
     protected FileSystemOptions fsOptions(RunContext runContext) throws IllegalVariableEvaluationException, IOException {
