@@ -48,6 +48,7 @@ public class Downloads extends io.kestra.plugin.fs.vfs.Downloads implements Sftp
     protected Boolean rootDir = true;
     @Builder.Default
     protected String port = "22";
+    protected String keyExchangeAlgorithm;
 
     @Override
     protected FileSystemOptions fsOptions(RunContext runContext) throws IllegalVariableEvaluationException, IOException {

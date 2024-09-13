@@ -45,6 +45,7 @@ public class List extends io.kestra.plugin.fs.vfs.List implements SftpInterface 
     protected Boolean rootDir = true;
     @Builder.Default
     protected String port = "22";
+    protected String keyExchangeAlgorithm;
 
     @Override
     protected FileSystemOptions fsOptions(RunContext runContext) throws IllegalVariableEvaluationException, IOException {

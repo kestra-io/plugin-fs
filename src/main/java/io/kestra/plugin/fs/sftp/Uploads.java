@@ -47,6 +47,7 @@ public class Uploads extends io.kestra.plugin.fs.vfs.Uploads implements SftpInte
     private Boolean rootDir = true;
     @Builder.Default
     private String port = "22";
+    protected String keyExchangeAlgorithm;
 
     @Override
     protected FileSystemOptions fsOptions(RunContext runContext) throws IllegalVariableEvaluationException, IOException {
