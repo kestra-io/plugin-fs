@@ -2,6 +2,8 @@ package io.kestra.plugin.fs.sftp;
 
 import io.kestra.core.models.annotations.PluginProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
+import lombok.Builder;
 
 public interface SftpInterface {
     @Schema(
@@ -52,4 +54,10 @@ public interface SftpInterface {
     )
     @PluginProperty(dynamic = true)
     Boolean getRootDir();
+
+    @Schema(
+        title = "Configures Key exchange algorithm explicitly e. g diffie-hellman-group14-sha1, diffie-hellman-group-exchange-sha256, diffie-hellman-group-exchange-sha1, diffie-hellman-group1-sha1."
+    )
+    @PluginProperty
+    String getKeyExchangeAlgorithm();
 }
