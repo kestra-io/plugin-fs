@@ -118,7 +118,7 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
         additionalProperties = String.class,
         dynamic = true
     )
-    protected Map<String, String> env;
+    private Map<String, String> env;
 
     @Builder.Default
     @Schema(
@@ -126,7 +126,15 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
     )
     @PluginProperty
     @NotNull
-    protected Boolean warningOnStdErr = true;
+    private Boolean warningOnStdErr = true;
+
+    @Builder.Default
+    @Schema(
+        title = "Enable the disabled by default RSA/SHA1 algorithm"
+    )
+    @PluginProperty
+    @NotNull
+    private Boolean enableSshRsa1 = false;
 
     @Override
     public Command.ScriptOutput run(RunContext runContext) throws Exception {
@@ -162,6 +170,13 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
 
             jsch = new JSch();
             session = jsch.getSession(runContext.render(username), renderedHost, Integer.parseInt(renderedPort));
+
+            // enable disabled by default weak RSA/SHA1 algorithm
+            if (Boolean.TRUE.equals(enableSshRsa1)) {
+                runContext.logger().info("RSA/SHA1 is enabled, be advise that SHA1 is no longer considered secure by the general cryptographic community.");
+                session.setConfig("server_host_key", session.getConfig("server_host_key") + ",ssh-rsa");
+                session.setConfig("PubkeyAcceptedAlgorithms", session.getConfig("PubkeyAcceptedAlgorithms") + ",ssh-rsa");
+            }
 
             if (authMethod == AuthMethod.PASSWORD) {
                 session.setConfig("PreferredAuthentications", "password");
