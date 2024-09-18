@@ -88,4 +88,30 @@ class MoveTest {
 
         assertThat(run.getTo().getPath(), containsString(to));
     }
+
+    @Test
+    void moveFileWithSpaceToDirectoryWithSpace() throws Exception {
+        //Add space in filename
+        String from = "upload/" + IdUtils.create() + "/" + IdUtils.create() + " space .yaml";
+        String to = "upload/" + IdUtils.create() + "-move/" + IdUtils.create() + "/" + IdUtils.create() + " space2 /";
+
+        ftpUtils.upload(from);
+
+        Move task = Move.builder()
+                .id(MoveTest.class.getSimpleName())
+                .type(Move.class.getName())
+                .from(from)
+                .to(to)
+                .host("localhost")
+                .port("6621")
+                .username("guest")
+                .password("guest")
+                .build();
+
+        Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+
+        assertThat(run.getTo().getPath(), containsString(" "));
+        assertThat(run.getFrom().getPath(), containsString(" "));
+        assertThat(run.getTo().getPath(), containsString(to));
+    }
 }
