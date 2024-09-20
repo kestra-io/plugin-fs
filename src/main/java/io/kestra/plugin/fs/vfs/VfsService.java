@@ -9,6 +9,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.vfs2.*;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 import org.apache.commons.vfs2.provider.AbstractFileObject;
+import org.apache.commons.vfs2.util.URIUtils;
 
 import java.io.FileOutputStream;
 import java.io.OutputStream;
@@ -210,7 +211,7 @@ public abstract class VfsService {
     ) throws Exception {
         // user pass a destination without filename, we add it
         if (!isDirectory(from) && isDirectory(to)) {
-            to = to.resolve(StringUtils.stripEnd(to.getPath(), "/") + "/" + FilenameUtils.getName(from.getPath()));
+            to = to.resolve(URIUtils.encodePath(StringUtils.stripEnd(to.getPath(), "/") + "/" + FilenameUtils.getName(from.getPath())));
         }
 
         try (
@@ -222,7 +223,7 @@ public abstract class VfsService {
             }
 
             if (!remote.exists()) {
-                URI pathToCreate = to.resolve("/" + FilenameUtils.getPath(to.getPath()));
+                URI pathToCreate = to.resolve("/" + URIUtils.encodePath(FilenameUtils.getPath(to.getPath())));
 
                 try (FileObject directory = fsm.resolveFile(to.toString(), fileSystemOptions)) {
                     if (!directory.exists()) {

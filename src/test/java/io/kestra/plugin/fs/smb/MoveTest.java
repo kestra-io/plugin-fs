@@ -99,6 +99,44 @@ class MoveTest {
     }
 
     @Test
+    void moveFileWithSpaceToDirectoryWithSpace() throws Exception {
+        String from = SmbUtils.SHARE_NAME + "/" + IdUtils.create() + "/" + IdUtils.create() + " space .yaml";
+        String to = SmbUtils.SHARE_NAME + "/" + IdUtils.create() + "-move/" + IdUtils.create() + "/ space " + IdUtils.create() + "space2/";
+
+        smbUtils.upload(from);
+
+        Move task = Move.builder()
+                .id(MoveTest.class.getSimpleName())
+                .type(Move.class.getName())
+                .from(from)
+                .to(to)
+                .host("localhost")
+                .username("alice")
+                .password("alipass")
+                .build();
+
+        Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+
+        assertThat(run.getTo().getPath(), endsWith(to + FilenameUtils.getName(from)));
+
+        Download fetchFrom = Download.builder()
+                .id(DeleteTest.class.getSimpleName())
+                .type(DeleteTest.class.getName())
+                .from(from)
+                .host("localhost")
+                .port("445")
+                .username("alice")
+                .password("alipass")
+                .build();
+        Assertions.assertThrows(FileSystemException.class, () -> fetchFrom.run(TestsUtils.mockRunContext(runContextFactory, fetchFrom, ImmutableMap.of())));
+
+        Download fetchTo = fetchFrom.toBuilder()
+                .from(to + "/" + FilenameUtils.getName(from))
+                .build();
+        Assertions.assertDoesNotThrow(() -> fetchTo.run(TestsUtils.mockRunContext(runContextFactory, fetchTo, ImmutableMap.of())));
+    }
+
+    @Test
     void moveDirectory() throws Exception {
         String from = SmbUtils.SHARE_NAME + "/" + IdUtils.create() + "/" + IdUtils.create() + ".yaml";
         String to = SmbUtils.SHARE_NAME + "/" + IdUtils.create() + "-move/" + IdUtils.create() + "/";
