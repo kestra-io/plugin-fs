@@ -7,3 +7,8 @@ kestra:
     type: local
     local:
       base-path: /tmp/unittest
+  plugins:
+    configurations:
+      - type: io.kestra.plugin.fs.ssh.Command
+        values:
+          allow-open-ssh-config: true

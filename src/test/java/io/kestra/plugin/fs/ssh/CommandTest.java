@@ -12,6 +12,7 @@ import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import java.nio.charset.*;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
@@ -26,10 +27,6 @@ import static org.hamcrest.Matchers.is;
 class CommandTest {
     @Inject
     private RunContextFactory runContextFactory;
-
-    @Inject
-    @Named(QueueFactoryInterface.WORKERTASKLOG_NAMED)
-    private QueueInterface<LogEntry> logQueue;
 
     @Test
     void run_passwordMethod() throws Exception {
@@ -97,6 +94,35 @@ class CommandTest {
         assertThat(run.getStdErrLineCount(), is(2));
         assertThat(run.getVars().get("out"), is("1"));
         assertThat(run.getVars().get("err"), is("2"));
+    }
 
+    @Test
+    @Disabled("Cannot work on CI")
+    void run_openSSHMethod() throws Exception {
+        Command command = Command.builder()
+            .id(CommandTest.class.getName())
+            .type(CommandTest.class.getName())
+            .host("localhost")
+            .password("password")
+            .authMethod(AuthMethod.OPEN_SSH)
+            .port("2222")
+            .commands(new String[] {
+                "echo 0",
+                "echo 1",
+                ">&2 echo 2",
+                "echo '::{\"outputs\":{\"out\":\"1\"}}::'",
+                ">&2 echo '::{\"outputs\":{\"err\":\"2\"}}::'",
+            })
+            .build();
+
+        Command.ScriptOutput run = command.run(TestsUtils.mockRunContext(runContextFactory, command, ImmutableMap.of()));
+
+        Thread.sleep(500);
+
+        assertThat(run.getExitCode(), is(0));
+        assertThat(run.getStdOutLineCount(), is(3));
+        assertThat(run.getStdErrLineCount(), is(2));
+        assertThat(run.getVars().get("out"), is("1"));
+        assertThat(run.getVars().get("err"), is("2"));
     }
 }
