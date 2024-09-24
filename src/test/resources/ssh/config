@@ -1,0 +1,5 @@
+Host localhost
+  HostName localhost
+  User foo
+  IdentityFile ./id_ed25519
+  IdentitiesOnly yes

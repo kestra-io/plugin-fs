@@ -1,9 +1,7 @@
 package io.kestra.plugin.fs.ssh;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.jcraft.jsch.ChannelExec;
-import com.jcraft.jsch.JSch;
-import com.jcraft.jsch.Session;
+import com.jcraft.jsch.*;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -78,6 +76,22 @@ import jakarta.validation.constraints.NotNull;
                     privateKey: "{{ secret('SSH_RSA_PRIVATE_KEY') }}"
                     commands: ['touch kestra_was_here']
                 """
+        ),
+        @Example(
+            title = "Run SSH command using the local OpenSSH configuration",
+            full = true,
+            code = """
+                id: ssh
+                namespace: company.team
+                tasks:
+                  - id: ssh
+                    type: io.kestra.plugin.fs.ssh.Command
+                    authMethod: OPEN_SSH
+                    useOpenSSHConfig: true
+                    host: localhost
+                    password: pass.
+                    commands:
+                      - echo "Hello World\""""
         )
     }
 )
@@ -93,6 +107,10 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
     // PubKey Auth method
     private String privateKey;
     private String privateKeyPassphrase;
+
+    // OpenSSH config
+    @Builder.Default
+    private String openSSHConfigDir = "~/.ssh/config";
 
     @Builder.Default
     private AuthMethod authMethod = AuthMethod.PASSWORD;
@@ -148,10 +166,13 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
             if (password == null) {
                 throw new IllegalArgumentException("Password is necessary for given SSH auth method: " + AuthMethod.PASSWORD);
             }
-        }
-        else if (authMethod == AuthMethod.PUBLIC_KEY) {
+        } else if (authMethod == AuthMethod.PUBLIC_KEY) {
             if (privateKey == null) {
                 throw new IllegalArgumentException("Private key is necessary for given SSH auth method: " + AuthMethod.PASSWORD);
+            }
+        } else if(authMethod == AuthMethod.OPEN_SSH) {
+            if (runContext.pluginConfiguration(ALLOW_OPEN_SSH_CONFIG).isEmpty() || !Boolean.TRUE.equals(runContext.<Boolean>pluginConfiguration(ALLOW_OPEN_SSH_CONFIG).get())) {
+                throw new IllegalArgumentException("You need to allow access to the host OpenSSH configuration via the plugin configuration `" + ALLOW_OPEN_SSH_CONFIG + "`");
             }
         }
 
@@ -189,7 +210,12 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
                 } else {
                     jsch.addIdentity("primary", privateKeyBytes, null, null);
                 }
+            } else if (authMethod == AuthMethod.OPEN_SSH) {
+                ConfigRepository configRepository = OpenSSHConfig.parseFile(runContext.render(openSSHConfigDir));
+                jsch.setConfigRepository(configRepository);
+                session.setPassword(runContext.render(password));
             }
+
             session.setConfig("StrictHostKeyChecking", strictHostKeyChecking);
             session.connect();
 
