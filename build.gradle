@@ -53,7 +53,7 @@ dependencies {
     api group: 'com.github.new-proimage', name: 'vfs-jcifs-smb', version: '0.9.3'
     api group: 'com.github.mwiede', name: 'jsch', version: '0.2.21'
     api 'commons-net:commons-net:3.11.1'
-    api group: 'org.codelibs', name: 'jcifs', version: '2.1.38'
+    api group: 'org.codelibs', name: 'jcifs', version: '2.1.39'
 
 }
 
