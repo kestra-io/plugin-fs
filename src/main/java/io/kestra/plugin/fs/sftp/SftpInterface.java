@@ -50,7 +50,7 @@ public interface SftpInterface {
     String getProxyType();
 
     @Schema(
-        title = "Is path is relative to root dir"
+        title = "Is the path relative to the users home directory"
     )
     @PluginProperty(dynamic = true)
     Boolean getRootDir();
