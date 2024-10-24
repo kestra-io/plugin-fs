@@ -25,7 +25,7 @@ public interface FtpInterface {
     Proxy.Type getProxyType();
 
     @Schema(
-        title = "Is path is relative to root dir"
+        title = "Is the path relative to the users home directory"
     )
     @PluginProperty(dynamic = false)
     Boolean getRootDir();
