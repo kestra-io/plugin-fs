@@ -32,7 +32,7 @@ import java.io.IOException;
                   - id: move
                     type: io.kestra.plugin.fs.smb.Move
                     host: localhost
-                    port: 445
+                    port: "445"
                     username: foo
                     password: pass
                     from: "/my_share/dir1/file.txt"

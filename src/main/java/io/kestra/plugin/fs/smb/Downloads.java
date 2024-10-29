@@ -32,7 +32,7 @@ import java.io.IOException;
                   - id: downloads
                     type: io.kestra.plugin.fs.smb.Downloads
                     host: localhost
-                    port: 445
+                    port: "445"
                     username: foo
                     password: pass
                     from: "/my_share/"

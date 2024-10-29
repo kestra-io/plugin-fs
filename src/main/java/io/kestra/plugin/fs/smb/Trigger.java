@@ -43,7 +43,7 @@ import java.io.IOException;
                   - id: watch
                     type: io.kestra.plugin.fs.smb.Trigger
                     host: localhost
-                    port: 445
+                    port: "445"
                     username: foo
                     password: bar
                     from: "/my_share/in/"
@@ -72,7 +72,7 @@ import java.io.IOException;
                       - id: delete
                         type: io.kestra.plugin.fs.smb.Delete
                         host: localhost
-                        port: 445
+                        port: "445"
                         username: foo
                         password: bar
                         uri: "/my_share/in/{{ taskrun.value | jq('.path') }}"
@@ -81,7 +81,7 @@ import java.io.IOException;
                   - id: watch
                     type: io.kestra.plugin.fs.smb.Trigger
                     host: localhost
-                    port: 445
+                    port: "445"
                     username: foo
                     password: bar
                     from: "/my_share/in/"
