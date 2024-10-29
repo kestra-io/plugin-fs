@@ -35,7 +35,7 @@ import java.io.IOException;
                   - id: upload
                     type: io.kestra.plugin.fs.smb.Upload
                     host: localhost
-                    port: 445
+                    port: "445"
                     username: foo
                     password: pass
                     from: "{{ inputs.file }}"

@@ -31,7 +31,7 @@ import java.io.IOException;
                   - id: list
                     type: io.kestra.plugin.fs.smb.List
                     host: localhost
-                    port: 445
+                    port: "445"
                     username: foo
                     password: pass
                     from: "/my_share/dir1/"

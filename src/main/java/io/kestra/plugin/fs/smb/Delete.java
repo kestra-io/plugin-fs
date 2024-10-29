@@ -31,7 +31,7 @@ import java.io.IOException;
                   - id: delete
                     type: io.kestra.plugin.fs.smb.Delete
                     host: localhost
-                    port: 445
+                    port: "445"
                     username: foo
                     password: pass
                     uri: "/my_share/dir1/file.txt"

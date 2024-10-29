@@ -5,7 +5,7 @@ triggers:
   - id: watch
     type: io.kestra.plugin.fs.smb.Trigger
     host: localhost
-    port: 445
+    port: "445"
     username: alice
     password: alipass
     from: "/upload/trigger-none/"
