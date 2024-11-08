@@ -1,14 +1,11 @@
 package io.kestra.plugin.fs.sftp;
 
 import com.devskiller.friendly_id.FriendlyId;
-import com.google.common.collect.ImmutableMap;
-import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
-import io.kestra.core.models.triggers.TriggerContext;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.AbstractFileTriggerTest;
 import io.kestra.plugin.fs.AbstractUtils;
-import io.kestra.plugin.fs.vfs.List;
 import io.kestra.plugin.fs.vfs.Upload;
 import io.kestra.plugin.fs.vfs.models.File;
 import jakarta.inject.Inject;
@@ -42,13 +39,13 @@ public class TriggerTest extends AbstractFileTriggerTest {
         Trigger trigger = Trigger.builder()
             .id(AbstractFileTriggerTest.class.getSimpleName())
             .type(Trigger.class.getName())
-            .host("localhost")
-            .port("6622")
-            .username("foo")
-            .password("pass")
-            .from("/upload/trigger/")
-            .action(Downloads.Action.MOVE)
-            .moveDirectory("/upload/trigger-move/")
+            .host(Property.of("localhost"))
+            .port(Property.of("6622"))
+            .username(Property.of("foo"))
+            .password(Property.of("pass"))
+            .from(Property.of("/upload/trigger/"))
+            .action(Property.of(Downloads.Action.MOVE))
+            .moveDirectory(Property.of("/upload/trigger-move/"))
             .build();
 
         String out = FriendlyId.createFriendlyId();
@@ -67,27 +64,27 @@ public class TriggerTest extends AbstractFileTriggerTest {
             Download task = Download.builder()
                 .id(AbstractFileTriggerTest.class.getSimpleName())
                 .type(Download.class.getName())
-                .host("localhost")
-                .port("6622")
-                .username("foo")
-                .password("pass")
-                .from(upload.getTo().toString())
+                .host(Property.of("localhost"))
+                .port(Property.of("6622"))
+            .username(Property.of("foo"))
+            .password(Property.of("pass"))
+                .from(Property.of(upload.getTo().toString()))
                 .build();
 
-            task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+            task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
         });
 
         Download task = Download.builder()
             .id(AbstractFileTriggerTest.class.getSimpleName())
             .type(Download.class.getName())
-            .host("localhost")
-            .port("6622")
-            .username("foo")
-            .password("pass")
-            .from("/upload/trigger" + "-move/" + out + ".yml")
+            .host(Property.of("localhost"))
+            .port(Property.of("6622"))
+            .username(Property.of("foo"))
+            .password(Property.of("pass"))
+            .from(Property.of("/upload/trigger" + "-move/" + out + ".yml"))
             .build();
 
-        io.kestra.plugin.fs.vfs.Download.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+        io.kestra.plugin.fs.vfs.Download.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
         assertThat(run.getTo().toString(), containsString("kestra://"));
     }
 }

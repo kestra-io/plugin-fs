@@ -1,14 +1,14 @@
 package io.kestra.plugin.fs.ftps;
 
 import com.google.common.base.Charsets;
-import com.google.common.collect.ImmutableMap;
+import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.ftp.FtpUtils;
 import io.kestra.plugin.fs.vfs.models.File;
-import io.kestra.core.junit.annotations.KestraTest;
 import jakarta.inject.Inject;
 import org.apache.commons.io.IOUtils;
 import org.hamcrest.Matchers;
@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 
 import java.net.URI;
 import java.util.List;
+import java.util.Map;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.endsWith;
@@ -41,27 +42,27 @@ class DownloadUploadTest {
         var upload = Upload.builder()
             .id(DownloadUploadTest.class.getSimpleName())
             .type(DownloadUploadTest.class.getName())
-            .from(uri.toString())
-            .to(to)
-            .host("127.0.0.1")
-            .port("6990")
-            .username("guest")
-            .password("guest")
+            .from(Property.of(uri.toString()))
+            .to(Property.of(to))
+            .host(Property.of("127.0.0.1"))
+            .port(Property.of("6990"))
+            .username(Property.of("guest"))
+            .password(Property.of("guest"))
             .build();
 
-        var uploadRun = upload.run(TestsUtils.mockRunContext(runContextFactory, upload, ImmutableMap.of()));
+        var uploadRun = upload.run(TestsUtils.mockRunContext(runContextFactory, upload, Map.of()));
 
         var download = Download.builder()
             .id(DownloadUploadTest.class.getSimpleName())
             .type(DownloadUploadTest.class.getName())
-            .from(uploadRun.getTo().getPath())
-            .host("127.0.0.1")
-            .port("6990")
-            .username("guest")
-            .password("guest")
+            .from(Property.of(uploadRun.getTo().getPath()))
+            .host(Property.of("127.0.0.1"))
+            .port(Property.of("6990"))
+            .username(Property.of("guest"))
+            .password(Property.of("guest"))
             .build();
 
-        var downloadRun = download.run(TestsUtils.mockRunContext(runContextFactory, download, ImmutableMap.of()));
+        var downloadRun = download.run(TestsUtils.mockRunContext(runContextFactory, download, Map.of()));
 
         assertThat(IOUtils.toString(this.storageInterface.get(null, downloadRun.getTo()), Charsets.UTF_8), is(IOUtils.toString(this.storageInterface.get(null, uri), Charsets.UTF_8)));
         assertThat(downloadRun.getFrom().getPath(), endsWith(".yaml"));
@@ -79,26 +80,26 @@ class DownloadUploadTest {
         Uploads uploadsTask = Uploads.builder().id(DownloadUploadTest.class.getSimpleName())
                 .type(DownloadUploadTest.class.getName())
                 .from(List.of(uri1.toString(), uri2.toString()))
-                .to(sftpPath)
-                .host("127.0.0.1")
-                .port("6990")
-                .username("guest")
-                .password("guest")
+                .to(Property.of(sftpPath))
+                .host(Property.of("127.0.0.1"))
+                .port(Property.of("6990"))
+                .username(Property.of("guest"))
+                .password(Property.of("guest"))
                 .build();
-        Uploads.Output uploadsRun = uploadsTask.run(TestsUtils.mockRunContext(runContextFactory, uploadsTask, ImmutableMap.of()));
+        Uploads.Output uploadsRun = uploadsTask.run(TestsUtils.mockRunContext(runContextFactory, uploadsTask, Map.of()));
 
         io.kestra.plugin.fs.ftps.Downloads downloadsTask = io.kestra.plugin.fs.ftps.Downloads.builder()
                 .id(DownloadUploadTest.class.getSimpleName())
                 .type(DownloadUploadTest.class.getName())
-                .from(sftpPath)
-                .action(io.kestra.plugin.fs.ftp.Downloads.Action.DELETE)
-                .host("127.0.0.1")
-                .port("6990")
-                .username("guest")
-                .password("guest")
+                .from(Property.of(sftpPath))
+                .action(Property.of(io.kestra.plugin.fs.ftp.Downloads.Action.DELETE))
+                .host(Property.of("127.0.0.1"))
+                .port(Property.of("6990"))
+                .username(Property.of("guest"))
+                .password(Property.of("guest"))
                 .build();
 
-        Downloads.Output downloadsRun = downloadsTask.run(TestsUtils.mockRunContext(runContextFactory, downloadsTask, ImmutableMap.of()));
+        Downloads.Output downloadsRun = downloadsTask.run(TestsUtils.mockRunContext(runContextFactory, downloadsTask, Map.of()));
 
         assertThat(uploadsRun.getFiles().size(), is(2));
         assertThat(downloadsRun.getFiles().size(), is(2));

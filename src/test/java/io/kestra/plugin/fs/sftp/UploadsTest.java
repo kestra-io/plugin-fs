@@ -1,19 +1,19 @@
 package io.kestra.plugin.fs.sftp;
 
-import com.google.common.collect.ImmutableMap;
+import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.vfs.Uploads.Output;
 import io.kestra.plugin.fs.vfs.models.File;
-import io.micronaut.context.annotation.Value;
-import io.kestra.core.junit.annotations.KestraTest;
 import jakarta.inject.Inject;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
 import java.util.List;
+import java.util.Map;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -33,29 +33,29 @@ class UploadsTest {
         URI uri1 = sftpUtils.uploadToStorage();
         URI uri2 = sftpUtils.uploadToStorage();
         Uploads uploads = Uploads.builder()
-                .id(UploadsTest.class.getSimpleName())
-                .type(UploadsTest.class.getName())
-                .from(List.of(uri1.toString(), uri2.toString()))
-                .to("/upload/" + random)
-                .host("localhost")
-                .port("6622")
-                .username("foo")
-                .password("pass")
-                .build();
-        Output uploadsRun = uploads.run(TestsUtils.mockRunContext(runContextFactory, uploads, ImmutableMap.of()));
+            .id(UploadsTest.class.getSimpleName())
+            .type(UploadsTest.class.getName())
+            .from(List.of(uri1.toString(), uri2.toString()))
+            .to(Property.of("/upload/" + random))
+            .host(Property.of("localhost"))
+            .port(Property.of("6622"))
+            .username(Property.of("foo"))
+            .password(Property.of("pass"))
+            .build();
+        Output uploadsRun = uploads.run(TestsUtils.mockRunContext(runContextFactory, uploads, Map.of()));
 
         Downloads task = Downloads.builder()
-                .id(UploadsTest.class.getSimpleName())
-                .type(UploadsTest.class.getName())
-                .from("/upload/" + random + "/")
-                .action(Downloads.Action.DELETE)
-                .host("localhost")
-                .port("6622")
-                .username("foo")
-                .password("pass")
-                .build();
+            .id(UploadsTest.class.getSimpleName())
+            .type(UploadsTest.class.getName())
+            .from(Property.of("/upload/" + random + "/"))
+            .action(Property.of(Downloads.Action.DELETE))
+            .host(Property.of("localhost"))
+            .port(Property.of("6622"))
+            .username(Property.of("foo"))
+            .password(Property.of("pass"))
+            .build();
 
-        Downloads.Output downloadsRun = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+        Downloads.Output downloadsRun = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(uploadsRun.getFiles().size(), is(2));
         assertThat(downloadsRun.getFiles().size(), is(2));

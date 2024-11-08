@@ -1,15 +1,14 @@
 package io.kestra.plugin.fs.vfs;
 
-import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.fs.vfs.models.File;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
-
-import jakarta.validation.constraints.NotNull;
 
 @SuperBuilder
 @ToString
@@ -20,21 +19,19 @@ public abstract class List extends AbstractVfsTask implements RunnableTask<List.
     @Schema(
         title = "The fully-qualified URIs that point to path"
     )
-    @PluginProperty(dynamic = true)
     @NotNull
-    protected String from;
+    protected Property<String> from;
 
     @Schema(
         title = "A regexp to filter on full path"
     )
-    @PluginProperty(dynamic = true)
-    private String regExp;
+    private Property<String> regExp;
 
     @Schema(
         title = "List file recursively"
     )
     @Builder.Default
-    private boolean recursive = false;
+    private Property<Boolean> recursive = Property.of(false);
 
     public Output run(RunContext runContext) throws Exception {
         try (StandardFileSystemManager fsm = new KestraStandardFileSystemManager(runContext)) {
@@ -45,9 +42,9 @@ public abstract class List extends AbstractVfsTask implements RunnableTask<List.
                 runContext,
                 fsm,
                 this.fsOptions(runContext),
-                this.uri(runContext, this.from),
-                runContext.render(this.regExp),
-                this.recursive
+                this.uri(runContext, runContext.render(this.from).as(String.class).orElseThrow()),
+                runContext.render(this.regExp).as(String.class).orElse(null),
+                runContext.render(this.recursive).as(Boolean.class).orElse(false)
             );
         }
     }

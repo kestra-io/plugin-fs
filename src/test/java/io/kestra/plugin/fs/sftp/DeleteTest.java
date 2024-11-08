@@ -1,13 +1,14 @@
 package io.kestra.plugin.fs.sftp;
 
-import com.google.common.collect.ImmutableMap;
 import io.kestra.core.junit.annotations.KestraTest;
-import org.junit.jupiter.api.Test;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
-
 import jakarta.inject.Inject;
+import org.junit.jupiter.api.Test;
+
+import java.util.Map;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
@@ -30,14 +31,14 @@ class DeleteTest {
         Delete task = Delete.builder()
             .id(DeleteTest.class.getSimpleName())
             .type(DeleteTest.class.getName())
-            .uri(from)
-            .host("localhost")
-            .port("6622")
-            .username("foo")
-            .password("pass")
+            .uri(Property.of(from))
+            .host(Property.of("localhost"))
+            .port(Property.of("6622"))
+            .username(Property.of("foo"))
+            .password(Property.of("pass"))
             .build();
 
-        Delete.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+        Delete.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(run.getUri().getPath(), containsString(from));
         assertThat(run.isDeleted(), is(true));

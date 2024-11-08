@@ -1,16 +1,15 @@
 package io.kestra.plugin.fs.vfs;
 
-import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 
 import java.net.URI;
-
-import jakarta.validation.constraints.NotNull;
 
 @SuperBuilder
 @ToString
@@ -21,9 +20,8 @@ public abstract class Move extends AbstractVfsTask implements RunnableTask<Move.
     @Schema(
         title = "The file or directory to move from remote server."
     )
-    @PluginProperty(dynamic = true)
     @NotNull
-    private String from;
+    private Property<String> from;
 
     @Schema(
         title = "The path to move the file or directory to on the remote server.",
@@ -31,9 +29,8 @@ public abstract class Move extends AbstractVfsTask implements RunnableTask<Move.
             "If end with a `/`, the destination is considered as a directory and filename will be happen\n" +
             "If the destFile exists, it is deleted first."
     )
-    @PluginProperty(dynamic = true)
     @NotNull
-    private String to;
+    private Property<String> to;
 
     public Output run(RunContext runContext) throws Exception {
         try (StandardFileSystemManager fsm = new KestraStandardFileSystemManager(runContext)) {
@@ -44,8 +41,8 @@ public abstract class Move extends AbstractVfsTask implements RunnableTask<Move.
                 runContext,
                 fsm,
                 this.fsOptions(runContext),
-                this.uri(runContext, this.from),
-                this.uri(runContext, this.to)
+                this.uri(runContext, runContext.render(this.from).as(String.class).orElseThrow()),
+                this.uri(runContext, runContext.render(this.to).as(String.class).orElseThrow())
             );
         }
     }

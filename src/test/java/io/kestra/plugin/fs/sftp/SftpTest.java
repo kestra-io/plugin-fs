@@ -1,11 +1,12 @@
 package io.kestra.plugin.fs.sftp;
 
 import com.devskiller.friendly_id.FriendlyId;
+import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.storages.StorageInterface;
 import io.kestra.plugin.fs.vfs.Download.Output;
-import io.kestra.core.junit.annotations.KestraTest;
 import jakarta.inject.Inject;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
@@ -53,7 +54,7 @@ class SftpTest {
         );
         RunContext runContext = runContextFactory.of();
 
-        String sftpPath = "upload/" + UUID.randomUUID().toString();
+        String sftpPath = "upload/" + UUID.randomUUID();
 
         File file = new File("src/test/resources/ssh/id_rsa");
         byte[] data;
@@ -65,18 +66,18 @@ class SftpTest {
 
         // Upload task
         var uploadTask = Upload.builder()
-            .from(source.toString())
-            .to(sftpPath)
-            .host("localhost")
-            .port("6622")
-            .username("foo");
+            .from(Property.of(source.toString()))
+            .to(Property.of(sftpPath))
+            .host(Property.of("localhost"))
+            .port(Property.of("6622"))
+            .username(Property.of("foo"));
 
         if (keyAuth) {
             uploadTask = uploadTask
-                .keyfile(keyFileContent)
-                .passphrase("testPassPhrase");
+                .keyfile(Property.of(keyFileContent))
+                .passphrase(Property.of("testPassPhrase"));
         } else {
-            uploadTask.password("pass");
+            uploadTask.password(Property.of("pass"));
         }
 
         Upload taskUpload = uploadTask.build();
@@ -84,17 +85,17 @@ class SftpTest {
 
         // Download task
         var downloadTask = Download.builder()
-            .from(sftpPath)
-            .host("localhost")
-            .port("6622")
-            .username("foo");
+            .from(Property.of(sftpPath))
+            .host(Property.of("localhost"))
+            .port(Property.of("6622"))
+            .username(Property.of("foo"));
 
         if (keyAuth) {
             downloadTask = downloadTask
-                .keyfile(keyFileContent)
-                .passphrase("testPassPhrase");
+                .keyfile(Property.of(keyFileContent))
+                .passphrase(Property.of("testPassPhrase"));
         } else {
-            downloadTask = downloadTask.password("pass");
+            downloadTask = downloadTask.password(Property.of("pass"));
         }
 
         Download taskDownload = downloadTask.build();

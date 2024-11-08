@@ -1,22 +1,18 @@
 package io.kestra.plugin.fs.ssh;
 
-import com.google.common.collect.ImmutableMap;
-import io.kestra.core.models.executions.LogEntry;
-import io.kestra.core.queues.QueueFactoryInterface;
-import io.kestra.core.queues.QueueInterface;
+import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.ssh.SshInterface.AuthMethod;
-import io.kestra.core.junit.annotations.KestraTest;
 import jakarta.inject.Inject;
-import jakarta.inject.Named;
-import java.nio.charset.*;
-
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -33,11 +29,11 @@ class CommandTest {
         Command command = Command.builder()
             .id(CommandTest.class.getName())
             .type(CommandTest.class.getName())
-            .host("localhost")
-            .username("foo")
-            .authMethod(AuthMethod.PASSWORD)
-            .password("password")
-            .port("2222")
+            .host(Property.of("localhost"))
+            .username(Property.of("foo"))
+            .authMethod(Property.of(AuthMethod.PASSWORD))
+            .password(Property.of("password"))
+            .port(Property.of("2222"))
             .commands(new String[] {
                 "echo 0",
                 "echo 1",
@@ -47,7 +43,7 @@ class CommandTest {
             })
             .build();
 
-        Command.ScriptOutput run = command.run(TestsUtils.mockRunContext(runContextFactory, command, ImmutableMap.of()));
+        Command.ScriptOutput run = command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));
 
         Thread.sleep(500);
 
@@ -71,11 +67,11 @@ class CommandTest {
         Command command = Command.builder()
             .id(CommandTest.class.getName())
             .type(CommandTest.class.getName())
-            .host("localhost")
-            .username("foo")
-            .authMethod(AuthMethod.PUBLIC_KEY)
-            .privateKey(keyFileContent)
-            .port("2222")
+            .host(Property.of("localhost"))
+            .username(Property.of("foo"))
+            .authMethod(Property.of(AuthMethod.PUBLIC_KEY))
+            .privateKey(Property.of(keyFileContent))
+            .port(Property.of("2222"))
             .commands(new String[] {
                 "echo 0",
                 "echo 1",
@@ -85,7 +81,7 @@ class CommandTest {
             })
             .build();
 
-        Command.ScriptOutput run = command.run(TestsUtils.mockRunContext(runContextFactory, command, ImmutableMap.of()));
+        Command.ScriptOutput run = command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));
 
         Thread.sleep(500);
 
@@ -102,10 +98,10 @@ class CommandTest {
         Command command = Command.builder()
             .id(CommandTest.class.getName())
             .type(CommandTest.class.getName())
-            .host("localhost")
-            .password("password")
-            .authMethod(AuthMethod.OPEN_SSH)
-            .port("2222")
+            .host(Property.of("localhost"))
+            .password(Property.of("password"))
+            .authMethod(Property.of(AuthMethod.OPEN_SSH))
+            .port(Property.of("2222"))
             .commands(new String[] {
                 "echo 0",
                 "echo 1",
@@ -115,7 +111,7 @@ class CommandTest {
             })
             .build();
 
-        Command.ScriptOutput run = command.run(TestsUtils.mockRunContext(runContextFactory, command, ImmutableMap.of()));
+        Command.ScriptOutput run = command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));
 
         Thread.sleep(500);
 

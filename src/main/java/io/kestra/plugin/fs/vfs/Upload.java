@@ -1,16 +1,15 @@
 package io.kestra.plugin.fs.vfs;
 
-import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 
 import java.net.URI;
-
-import jakarta.validation.constraints.NotNull;
 
 @SuperBuilder
 @ToString
@@ -21,26 +20,24 @@ public abstract class Upload extends AbstractVfsTask implements RunnableTask<Upl
     @Schema(
         title = "The file to copy, must be an internal storage URI"
     )
-    @PluginProperty(dynamic = true)
     @NotNull
-    private String from;
+    private Property<String> from;
 
     @Schema(
         title = "The destination path, if not set it will use the name of the file denoted by the `from` property"
     )
-    @PluginProperty(dynamic = true)
-    private String to;
+    private Property<String> to;
 
     public Upload.Output run(RunContext runContext) throws Exception {
         try (StandardFileSystemManager fsm = new KestraStandardFileSystemManager(runContext)) {
             fsm.setConfiguration(StandardFileSystemManager.class.getResource(KestraStandardFileSystemManager.CONFIG_RESOURCE));
             fsm.init();
 
-            var renderedFrom = runContext.render(this.from);
+            var renderedFrom = runContext.render(this.from).as(String.class).orElseThrow();
             if (!renderedFrom.startsWith("kestra://")) {
                 throw new IllegalArgumentException("'from' must be a Kestra's internal storage URI");
             }
-            var renderedTo = this.to != null ? runContext.render(this.to) : renderedFrom.substring(renderedFrom.lastIndexOf('/'));
+            var renderedTo = runContext.render(this.to).as(String.class).orElse(renderedFrom.substring(renderedFrom.lastIndexOf('/')));
             return VfsService.upload(
                 runContext,
                 fsm,

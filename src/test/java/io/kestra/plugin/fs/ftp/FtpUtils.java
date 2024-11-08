@@ -1,6 +1,6 @@
 package io.kestra.plugin.fs.ftp;
 
-import com.google.common.collect.ImmutableMap;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.AbstractUtils;
@@ -9,6 +9,7 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import java.net.URI;
+import java.util.Map;
 
 @Singleton
 public class FtpUtils extends AbstractUtils {
@@ -19,15 +20,15 @@ public class FtpUtils extends AbstractUtils {
         var task = Upload.builder()
             .id(FtpUtils.class.getSimpleName())
             .type(FtpUtils.class.getName())
-            .from(source.toString())
-            .to(to)
-            .host("localhost")
-            .port("6621")
-            .username("guest")
-            .password("guest")
+            .from(Property.of(source.toString()))
+            .to(Property.of(to))
+            .host(Property.of("localhost"))
+            .port(Property.of("6621"))
+            .username(Property.of("guest"))
+            .password(Property.of("guest"))
             .build();
 
-        return task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+        return task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
     }
 
     @Override
@@ -35,11 +36,11 @@ public class FtpUtils extends AbstractUtils {
         return io.kestra.plugin.fs.ftp.List.builder()
             .id(TriggerTest.class.getSimpleName())
             .type(TriggerTest.class.getName())
-            .from(dir)
-            .host("localhost")
-            .port("6621")
-            .username("guest")
-            .password("guest")
+            .from(Property.of(dir))
+            .host(Property.of("localhost"))
+            .port(Property.of("6621"))
+            .username(Property.of("guest"))
+            .password(Property.of("guest"))
             .build()
             .run(this.runContextFactory.of());
     }
@@ -49,13 +50,13 @@ public class FtpUtils extends AbstractUtils {
         var task = io.kestra.plugin.fs.ftp.Delete.builder()
             .id(FtpUtils.class.getSimpleName())
             .type(FtpUtils.class.getName())
-            .uri(file)
-            .host("localhost")
-            .port("6621")
-            .username("guest")
-            .password("guest")
+            .uri(Property.of(file))
+            .host(Property.of("localhost"))
+            .port(Property.of("6621"))
+            .username(Property.of("guest"))
+            .password(Property.of("guest"))
             .build();
 
-        return task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+        return task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
     }
 }

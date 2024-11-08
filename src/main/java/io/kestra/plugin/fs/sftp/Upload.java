@@ -3,6 +3,7 @@ package io.kestra.plugin.fs.sftp;
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
@@ -45,18 +46,18 @@ import java.io.IOException;
     }
 )
 public class Upload extends io.kestra.plugin.fs.vfs.Upload implements SftpInterface {
-    protected String keyfile;
-    protected String passphrase;
-    protected String proxyHost;
-    protected String proxyPort;
-    protected String proxyUser;
-    protected String proxyPassword;
-    protected String proxyType;
+    protected Property<String> keyfile;
+    protected Property<String> passphrase;
+    protected Property<String> proxyHost;
+    protected Property<String> proxyPort;
+    protected Property<String> proxyUser;
+    protected Property<String> proxyPassword;
+    protected Property<String> proxyType;
     @Builder.Default
-    protected Boolean rootDir = true;
+    protected Property<Boolean> rootDir = Property.of(true);
     @Builder.Default
-    protected String port = "22";
-    protected String keyExchangeAlgorithm;
+    protected Property<String> port = Property.of("22");
+    protected Property<String> keyExchangeAlgorithm;
 
     @Override
     protected FileSystemOptions fsOptions(RunContext runContext) throws IllegalVariableEvaluationException, IOException {

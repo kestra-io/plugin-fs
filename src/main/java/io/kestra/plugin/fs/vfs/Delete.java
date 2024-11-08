@@ -1,15 +1,15 @@
 package io.kestra.plugin.fs.vfs;
 
-import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 
 import java.net.URI;
-import jakarta.validation.constraints.NotNull;
 
 @SuperBuilder(toBuilder = true)
 @ToString
@@ -19,16 +19,14 @@ import jakarta.validation.constraints.NotNull;
 public abstract class Delete extends AbstractVfsTask implements RunnableTask<Delete.Output> {
     @Schema(
         title = "The file to delete")
-    @PluginProperty(dynamic = true)
     @NotNull
-    private String uri;
+    private Property<String> uri;
 
     @Schema(
         title = "raise an error if the file is not found"
     )
     @Builder.Default
-    @PluginProperty
-    private final Boolean errorOnMissing = false;
+    private final Property<Boolean> errorOnMissing = Property.of(false);
 
     public Output run(RunContext runContext) throws Exception {
         try (StandardFileSystemManager fsm = new KestraStandardFileSystemManager(runContext)) {
@@ -39,8 +37,8 @@ public abstract class Delete extends AbstractVfsTask implements RunnableTask<Del
                 runContext,
                 fsm,
                 this.fsOptions(runContext),
-                this.uri(runContext, this.uri),
-                this.errorOnMissing
+                this.uri(runContext, runContext.render(this.uri).as(String.class).orElseThrow()),
+                runContext.render(this.errorOnMissing).as(Boolean.class).orElse(false)
             );
         }
     }
