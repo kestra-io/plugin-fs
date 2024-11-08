@@ -19,16 +19,16 @@ public abstract class FtpService {
     public static FileSystemOptions fsOptions(FtpFileSystemConfigBuilder instance, RunContext runContext, FtpInterface ftpInterface) throws IllegalVariableEvaluationException {
         FileSystemOptions options = new FileSystemOptions();
 
-        instance.setUserDirIsRoot(options, ftpInterface.getRootDir());
+        instance.setUserDirIsRoot(options, runContext.render(ftpInterface.getRootDir()).as(Boolean.class).orElse(false));
 
         if (ftpInterface.getProxyType() != null && ftpInterface.getProxyHost() != null) {
             instance.setProxy(
                 options,
                 new Proxy(
-                    ftpInterface.getProxyType(),
+                    runContext.render(ftpInterface.getProxyType()).as(Proxy.Type.class).orElseThrow(),
                     new InetSocketAddress(
-                        runContext.render(ftpInterface.getProxyHost()),
-                        Integer.parseInt(runContext.render(ftpInterface.getProxyPort()))
+                        runContext.render(ftpInterface.getProxyHost()).as(String.class).orElseThrow(),
+                        Integer.parseInt(runContext.render(ftpInterface.getProxyPort()).as(String.class).orElseThrow())
                     )
                 )
             );
@@ -36,11 +36,11 @@ public abstract class FtpService {
         }
 
         if (ftpInterface.getPassiveMode() != null) {
-            instance.setPassiveMode(options, ftpInterface.getPassiveMode());
+            instance.setPassiveMode(options, runContext.render(ftpInterface.getPassiveMode()).as(Boolean.class).orElseThrow());
         }
 
         if (ftpInterface.getRemoteIpVerification() != null) {
-            instance.setRemoteVerification(options, ftpInterface.getRemoteIpVerification());
+            instance.setRemoteVerification(options, runContext.render(ftpInterface.getRemoteIpVerification()).as(Boolean.class).orElseThrow());
         }
 
         return options;

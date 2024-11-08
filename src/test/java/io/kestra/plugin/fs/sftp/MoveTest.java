@@ -1,13 +1,15 @@
 package io.kestra.plugin.fs.sftp;
 
-import com.google.common.collect.ImmutableMap;
+import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
-import io.kestra.core.junit.annotations.KestraTest;
 import jakarta.inject.Inject;
 import org.apache.commons.io.FilenameUtils;
 import org.junit.jupiter.api.Test;
+
+import java.util.Map;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
@@ -30,15 +32,15 @@ class MoveTest {
         Move task = Move.builder()
             .id(MoveTest.class.getSimpleName())
             .type(MoveTest.class.getName())
-            .from(from)
-            .to(to)
-            .host("localhost")
-            .port("6622")
-            .username("foo")
-            .password("pass")
+            .from(Property.of(from))
+            .to(Property.of(to))
+            .host(Property.of("localhost"))
+            .port(Property.of("6622"))
+            .username(Property.of("foo"))
+            .password(Property.of("pass"))
             .build();
 
-        Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+        Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(run.getTo().getPath(), containsString(to));
     }
@@ -53,15 +55,15 @@ class MoveTest {
         Move task = Move.builder()
             .id(MoveTest.class.getSimpleName())
             .type(Move.class.getName())
-            .from(from)
-            .to(to)
-            .host("localhost")
-            .port("6622")
-            .username("foo")
-            .password("pass")
+            .from(Property.of(from))
+            .to(Property.of(to))
+            .host(Property.of("localhost"))
+            .port(Property.of("6622"))
+            .username(Property.of("foo"))
+            .password(Property.of("pass"))
             .build();
 
-        Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+        Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(run.getTo().getPath(), containsString(to));
     }
@@ -74,17 +76,17 @@ class MoveTest {
         sftpUtils.upload(from);
 
         Move task = Move.builder()
-                .id(MoveTest.class.getSimpleName())
-                .type(Move.class.getName())
-                .from(from)
-                .to(to)
-                .host("localhost")
-                .port("6622")
-                .username("foo")
-                .password("pass")
-                .build();
+            .id(MoveTest.class.getSimpleName())
+            .type(Move.class.getName())
+            .from(Property.of(from))
+            .to(Property.of(to))
+            .host(Property.of("localhost"))
+            .port(Property.of("6622"))
+            .username(Property.of("foo"))
+            .password(Property.of("pass"))
+            .build();
 
-        Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+        Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(run.getTo().getPath(), containsString(" "));
         assertThat(run.getFrom().getPath(), containsString(" "));
@@ -94,22 +96,22 @@ class MoveTest {
     @Test
     void moveDirectory() throws Exception {
         String from = "upload/" + IdUtils.create() + "/" + IdUtils.create() + ".yaml";
-        String to = "upload/" + IdUtils.create() + "-move/"  + IdUtils.create() + "/";
+        String to = "upload/" + IdUtils.create() + "-move/" + IdUtils.create() + "/";
 
         sftpUtils.upload(from);
 
         Move task = Move.builder()
             .id(MoveTest.class.getSimpleName())
             .type(Move.class.getName())
-            .from(FilenameUtils.getPath(from))
-            .to(to)
-            .host("localhost")
-            .port("6622")
-            .username("foo")
-            .password("pass")
+            .from(Property.of(FilenameUtils.getPath(from)))
+            .to(Property.of(to))
+            .host(Property.of("localhost"))
+            .port(Property.of("6622"))
+            .username(Property.of("foo"))
+            .password(Property.of("pass"))
             .build();
 
-        Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+        Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(run.getTo().getPath(), containsString(to));
     }

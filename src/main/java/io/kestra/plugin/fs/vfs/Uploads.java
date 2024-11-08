@@ -1,10 +1,12 @@
 package io.kestra.plugin.fs.vfs;
 
 import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
@@ -12,9 +14,6 @@ import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Stream;
-
-import jakarta.validation.constraints.NotNull;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -38,9 +37,8 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
     @Schema(
             title = "The destination directory"
     )
-    @PluginProperty(dynamic = true)
     @NotNull
-    private String to;
+    private Property<String> to;
 
     public Output run(RunContext runContext) throws Exception {
         try (StandardFileSystemManager fsm = new KestraStandardFileSystemManager(runContext)) {
@@ -53,11 +51,11 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
             } else {
                 renderedFrom = JacksonMapper.ofJson().readValue(runContext.render((String) this.from), String[].class);
             }
-            List<Upload.Output> outputs = Arrays.stream(renderedFrom).map(throwFunction((fromURI) -> {
+            List<Upload.Output> outputs = Arrays.stream(renderedFrom).map(throwFunction(fromURI -> {
                 if (!fromURI.startsWith("kestra://")) {
                     throw new IllegalArgumentException("'from' must be a list of Kestra's internal storage URI");
                 }
-                String renderedTo = runContext.render(this.to);
+                String renderedTo = runContext.render(this.to).as(String.class).orElseThrow();
                 return VfsService.upload(
                     runContext,
                     fsm,

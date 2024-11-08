@@ -1,21 +1,21 @@
 package io.kestra.plugin.fs.ftp;
 
-import com.google.common.collect.ImmutableMap;
+import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.vfs.models.File;
-import io.micronaut.context.annotation.Value;
-import io.kestra.core.junit.annotations.KestraTest;
 import jakarta.inject.Inject;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
 import java.util.List;
+import java.util.Map;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.is;
 
 @KestraTest
 class UploadsTest {
@@ -35,41 +35,41 @@ class UploadsTest {
         Uploads uploadsTask = Uploads.builder().id(UploadsTest.class.getSimpleName())
                 .type(UploadsTest.class.getName())
                 .from(List.of(uri1.toString(), uri2.toString()))
-                .to("/upload/" + random + "/")
-                .host("localhost")
-                .port("6621")
-                .username("guest")
-                .password("guest")
+                .to(Property.of("/upload/" + random + "/"))
+                .host(Property.of("localhost"))
+                .port(Property.of("6621"))
+                .username(Property.of("guest"))
+                .password(Property.of("guest"))
                 .build();
-        Uploads.Output uploadsRun = uploadsTask.run(TestsUtils.mockRunContext(runContextFactory, uploadsTask, ImmutableMap.of()));
+        Uploads.Output uploadsRun = uploadsTask.run(TestsUtils.mockRunContext(runContextFactory, uploadsTask, Map.of()));
 
         URI uri3 = ftpUtils.uploadToStorage();
         URI uri4 = ftpUtils.uploadToStorage();
         uploadsTask = Uploads.builder().id(UploadsTest.class.getSimpleName())
                 .type(UploadsTest.class.getName())
                 .from("{{ inputs.uris }}")
-                .to("/upload/" + random + "/")
-                .host("localhost")
-                .port("6621")
-                .username("guest")
-                .password("guest")
+                .to(Property.of("/upload/" + random + "/"))
+                .host(Property.of("localhost"))
+                .port(Property.of("6621"))
+                .username(Property.of("guest"))
+                .password(Property.of("guest"))
                 .build();
         Uploads.Output uploadsRunTemplate = uploadsTask.run(TestsUtils.mockRunContext(runContextFactory, uploadsTask,
-                ImmutableMap.of("uris", "[\""+uri3.toString()+"\",\""+uri4.toString()+"\"]"))
+                Map.of("uris", "[\""+uri3.toString()+"\",\""+uri4.toString()+"\"]"))
         );
 
         Downloads downloadsTask = Downloads.builder()
                 .id(UploadsTest.class.getSimpleName())
                 .type(UploadsTest.class.getName())
-                .from("/upload/" + random + "/")
-                .action(Downloads.Action.DELETE)
-                .host("localhost")
-                .port("6621")
-                .username("guest")
-                .password("guest")
+                .from(Property.of("/upload/" + random + "/"))
+                .action(Property.of(Downloads.Action.DELETE))
+                .host(Property.of("localhost"))
+                .port(Property.of("6621"))
+                .username(Property.of("guest"))
+                .password(Property.of("guest"))
                 .build();
 
-        Downloads.Output downloadsRun = downloadsTask.run(TestsUtils.mockRunContext(runContextFactory, downloadsTask, ImmutableMap.of()));
+        Downloads.Output downloadsRun = downloadsTask.run(TestsUtils.mockRunContext(runContextFactory, downloadsTask, Map.of()));
 
         assertThat(uploadsRun.getFiles().size(), is(2));
         assertThat(uploadsRunTemplate.getFiles().size(), is(2));

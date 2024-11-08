@@ -1,15 +1,17 @@
 package io.kestra.plugin.fs.smb;
 
-import com.google.common.collect.ImmutableMap;
+import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
-import io.kestra.core.junit.annotations.KestraTest;
 import jakarta.inject.Inject;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.vfs2.FileSystemException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+
+import java.util.Map;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.endsWith;
@@ -32,32 +34,32 @@ class MoveTest {
         Move task = Move.builder()
             .id(MoveTest.class.getSimpleName())
             .type(MoveTest.class.getName())
-            .from(from)
-            .to(to)
-            .host("localhost")
-            .username("alice")
-            .password("alipass")
+            .from(Property.of(from))
+            .to(Property.of(to))
+            .host(Property.of("localhost"))
+            .username(Property.of("alice"))
+            .password(Property.of("alipass"))
             .build();
 
-        Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+        Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(run.getTo().getPath(), endsWith(to));
 
         Download fetchFrom = Download.builder()
             .id(DeleteTest.class.getSimpleName())
             .type(DeleteTest.class.getName())
-            .from(from)
-            .host("localhost")
-            .port("445")
-            .username("alice")
-            .password("alipass")
+            .from(Property.of(from))
+            .host(Property.of("localhost"))
+            .port(Property.of("445"))
+            .username(Property.of("alice"))
+            .password(Property.of("alipass"))
             .build();
-        Assertions.assertThrows(FileSystemException.class, () -> fetchFrom.run(TestsUtils.mockRunContext(runContextFactory, fetchFrom, ImmutableMap.of())));
+        Assertions.assertThrows(FileSystemException.class, () -> fetchFrom.run(TestsUtils.mockRunContext(runContextFactory, fetchFrom, Map.of())));
 
         Download fetchTo = fetchFrom.toBuilder()
-            .from(to)
+            .from(Property.of(to))
             .build();
-        Assertions.assertDoesNotThrow(() -> fetchTo.run(TestsUtils.mockRunContext(runContextFactory, fetchTo, ImmutableMap.of())));
+        Assertions.assertDoesNotThrow(() -> fetchTo.run(TestsUtils.mockRunContext(runContextFactory, fetchTo, Map.of())));
     }
 
     @Test
@@ -70,32 +72,32 @@ class MoveTest {
         Move task = Move.builder()
             .id(MoveTest.class.getSimpleName())
             .type(Move.class.getName())
-            .from(from)
-            .to(to)
-            .host("localhost")
-            .username("alice")
-            .password("alipass")
+            .from(Property.of(from))
+            .to(Property.of(to))
+            .host(Property.of("localhost"))
+            .username(Property.of("alice"))
+            .password(Property.of("alipass"))
             .build();
 
-        Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+        Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(run.getTo().getPath(), endsWith(to + FilenameUtils.getName(from)));
 
         Download fetchFrom = Download.builder()
             .id(DeleteTest.class.getSimpleName())
             .type(DeleteTest.class.getName())
-            .from(from)
-            .host("localhost")
-            .port("445")
-            .username("alice")
-            .password("alipass")
+            .from(Property.of(from))
+            .host(Property.of("localhost"))
+            .port(Property.of("445"))
+            .username(Property.of("alice"))
+            .password(Property.of("alipass"))
             .build();
-        Assertions.assertThrows(FileSystemException.class, () -> fetchFrom.run(TestsUtils.mockRunContext(runContextFactory, fetchFrom, ImmutableMap.of())));
+        Assertions.assertThrows(FileSystemException.class, () -> fetchFrom.run(TestsUtils.mockRunContext(runContextFactory, fetchFrom, Map.of())));
 
         Download fetchTo = fetchFrom.toBuilder()
-            .from(to + "/" + FilenameUtils.getName(from))
+            .from(Property.of(to + "/" + FilenameUtils.getName(from)))
             .build();
-        Assertions.assertDoesNotThrow(() -> fetchTo.run(TestsUtils.mockRunContext(runContextFactory, fetchTo, ImmutableMap.of())));
+        Assertions.assertDoesNotThrow(() -> fetchTo.run(TestsUtils.mockRunContext(runContextFactory, fetchTo, Map.of())));
     }
 
     @Test
@@ -108,32 +110,32 @@ class MoveTest {
         Move task = Move.builder()
                 .id(MoveTest.class.getSimpleName())
                 .type(Move.class.getName())
-                .from(from)
-                .to(to)
-                .host("localhost")
-                .username("alice")
-                .password("alipass")
+                .from(Property.of(from))
+                .to(Property.of(to))
+                .host(Property.of("localhost"))
+                .username(Property.of("alice"))
+                .password(Property.of("alipass"))
                 .build();
 
-        Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+        Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(run.getTo().getPath(), endsWith(to + FilenameUtils.getName(from)));
 
         Download fetchFrom = Download.builder()
                 .id(DeleteTest.class.getSimpleName())
                 .type(DeleteTest.class.getName())
-                .from(from)
-                .host("localhost")
-                .port("445")
-                .username("alice")
-                .password("alipass")
+                .from(Property.of(from))
+                .host(Property.of("localhost"))
+                .port(Property.of("445"))
+                .username(Property.of("alice"))
+                .password(Property.of("alipass"))
                 .build();
-        Assertions.assertThrows(FileSystemException.class, () -> fetchFrom.run(TestsUtils.mockRunContext(runContextFactory, fetchFrom, ImmutableMap.of())));
+        Assertions.assertThrows(FileSystemException.class, () -> fetchFrom.run(TestsUtils.mockRunContext(runContextFactory, fetchFrom, Map.of())));
 
         Download fetchTo = fetchFrom.toBuilder()
-                .from(to + "/" + FilenameUtils.getName(from))
+                .from(Property.of(to + "/" + FilenameUtils.getName(from)))
                 .build();
-        Assertions.assertDoesNotThrow(() -> fetchTo.run(TestsUtils.mockRunContext(runContextFactory, fetchTo, ImmutableMap.of())));
+        Assertions.assertDoesNotThrow(() -> fetchTo.run(TestsUtils.mockRunContext(runContextFactory, fetchTo, Map.of())));
     }
 
     @Test
@@ -146,31 +148,31 @@ class MoveTest {
         Move task = Move.builder()
             .id(MoveTest.class.getSimpleName())
             .type(Move.class.getName())
-            .from(FilenameUtils.getPath(from))
-            .to(to)
-            .host("localhost")
-            .username("alice")
-            .password("alipass")
+            .from(Property.of(FilenameUtils.getPath(from)))
+            .to(Property.of(to))
+            .host(Property.of("localhost"))
+            .username(Property.of("alice"))
+            .password(Property.of("alipass"))
             .build();
 
-        Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+        Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(run.getTo().getPath(), endsWith(to));
 
         Download fetchFrom = Download.builder()
             .id(DeleteTest.class.getSimpleName())
             .type(DeleteTest.class.getName())
-            .from(from)
-            .host("localhost")
-            .port("445")
-            .username("alice")
-            .password("alipass")
+            .from(Property.of(from))
+            .host(Property.of("localhost"))
+            .port(Property.of("445"))
+            .username(Property.of("alice"))
+            .password(Property.of("alipass"))
             .build();
-        Assertions.assertThrows(FileSystemException.class, () -> fetchFrom.run(TestsUtils.mockRunContext(runContextFactory, fetchFrom, ImmutableMap.of())));
+        Assertions.assertThrows(FileSystemException.class, () -> fetchFrom.run(TestsUtils.mockRunContext(runContextFactory, fetchFrom, Map.of())));
 
         Download fetchTo = fetchFrom.toBuilder()
-            .from(to + "/" + FilenameUtils.getName(from))
+            .from(Property.of(to + "/" + FilenameUtils.getName(from)))
             .build();
-        Assertions.assertDoesNotThrow(() -> fetchTo.run(TestsUtils.mockRunContext(runContextFactory, fetchTo, ImmutableMap.of())));
+        Assertions.assertDoesNotThrow(() -> fetchTo.run(TestsUtils.mockRunContext(runContextFactory, fetchTo, Map.of())));
     }
 }

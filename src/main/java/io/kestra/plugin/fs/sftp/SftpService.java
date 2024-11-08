@@ -18,7 +18,7 @@ public abstract class SftpService {
         FileSystemOptions options = new FileSystemOptions();
 
         instance.setStrictHostKeyChecking(options, "no");
-        instance.setUserDirIsRoot(options, sftpInterface.getRootDir());
+        instance.setUserDirIsRoot(options, runContext.render(sftpInterface.getRootDir()).as(Boolean.class).orElse(false));
 
         instance.setSessionTimeout(options, Duration.ofSeconds(10));
         // see https://issues.apache.org/jira/browse/VFS-766
@@ -26,23 +26,23 @@ public abstract class SftpService {
 
         if (sftpInterface.getProxyType() != null && sftpInterface.getProxyHost() != null) {
             if (sftpInterface.getProxyHost() != null) {
-                instance.setProxyHost(options, runContext.render(sftpInterface.getProxyHost()));
+                instance.setProxyHost(options, runContext.render(sftpInterface.getProxyHost()).as(String.class).orElseThrow());
             }
 
             if (sftpInterface.getProxyPassword() != null) {
-                instance.setProxyPassword(options, runContext.render(sftpInterface.getProxyPassword()));
+                instance.setProxyPassword(options, runContext.render(sftpInterface.getProxyPassword()).as(String.class).orElseThrow());
             }
 
             if (sftpInterface.getProxyPort() != null) {
-                instance.setProxyPort(options, Integer.parseInt(runContext.render(sftpInterface.getProxyPort())));
+                instance.setProxyPort(options, Integer.parseInt(runContext.render(sftpInterface.getProxyPort()).as(String.class).orElseThrow()));
             }
 
             if (sftpInterface.getProxyUser() != null) {
-                instance.setProxyUser(options, runContext.render(sftpInterface.getProxyUser()));
+                instance.setProxyUser(options, runContext.render(sftpInterface.getProxyUser()).as(String.class).orElseThrow());
             }
 
             if (sftpInterface.getProxyType() != null) {
-                switch (runContext.render(sftpInterface.getProxyType())) {
+                switch (runContext.render(sftpInterface.getProxyType()).as(String.class).orElseThrow()) {
                     case "SOCKS5":
                         instance.setProxyType(options, SftpFileSystemConfigBuilder.PROXY_SOCKS5);
                         break;
@@ -60,12 +60,14 @@ public abstract class SftpService {
             instance.setPreferredAuthentications(options, "publickey");
 
             File sftpKey = runContext.workingDir().createTempFile(
-                runContext.render(sftpInterface.getKeyfile()).getBytes(StandardCharsets.UTF_8)
+                runContext.render(sftpInterface.getKeyfile()).as(String.class).orElseThrow()
+                    .getBytes(StandardCharsets.UTF_8)
             ).toFile();
 
             IdentityInfo identityInfo;
             if (sftpInterface.getPassphrase() != null) {
-                identityInfo = new IdentityInfo(sftpKey, runContext.render(sftpInterface.getPassphrase()).getBytes());
+                identityInfo = new IdentityInfo(sftpKey, runContext.render(sftpInterface.getPassphrase()).as(String.class).orElseThrow()
+                    .getBytes());
             } else {
                 identityInfo = new IdentityInfo(sftpKey);
             }
@@ -76,7 +78,7 @@ public abstract class SftpService {
         }
 
         if (sftpInterface.getKeyExchangeAlgorithm() != null) {
-            instance.setKeyExchangeAlgorithm(options, sftpInterface.getKeyExchangeAlgorithm());
+            instance.setKeyExchangeAlgorithm(options, runContext.render(sftpInterface.getKeyExchangeAlgorithm()).as(String.class).orElseThrow());
         }
 
         return options;

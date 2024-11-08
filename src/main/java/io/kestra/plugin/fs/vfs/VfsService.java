@@ -164,7 +164,7 @@ public abstract class VfsService {
 
         // upload
         try (FileObject local = fsm.resolveFile(tempFile.toURI());
-             FileObject remote = fsm.resolveFile(to.toString(), fileSystemOptions);
+             FileObject remote = fsm.resolveFile(to.toString(), fileSystemOptions)
         ) {
             remote.copyFrom(local, Selectors.SELECT_SELF);
         }
@@ -216,7 +216,7 @@ public abstract class VfsService {
 
         try (
             FileObject local = fsm.resolveFile(from.toString(), fileSystemOptions);
-            FileObject remote = fsm.resolveFile(to.toString(), fileSystemOptions);
+            FileObject remote = fsm.resolveFile(to.toString(), fileSystemOptions)
         ) {
             if (!local.exists()) {
                 throw new NoSuchElementException("Unable to find file '" + VfsService.uriWithoutAuth(from) + "'");

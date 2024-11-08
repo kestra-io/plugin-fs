@@ -3,6 +3,7 @@ package io.kestra.plugin.fs.smb;
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
@@ -45,7 +46,7 @@ import java.io.IOException;
 )
 public class Downloads extends io.kestra.plugin.fs.vfs.Downloads implements SmbInterface {
     @Builder.Default
-    protected String port = "445";
+    protected Property<String> port = Property.of("445");
 
     @Override
     protected FileSystemOptions fsOptions(RunContext runContext) throws IllegalVariableEvaluationException, IOException {

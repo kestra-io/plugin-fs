@@ -1,15 +1,15 @@
 package io.kestra.plugin.fs.sftp;
 
 import com.devskiller.friendly_id.FriendlyId;
-import com.google.common.collect.ImmutableMap;
-import io.kestra.core.utils.IdUtils;
-import io.micronaut.context.annotation.Value;
 import io.kestra.core.junit.annotations.KestraTest;
-import org.junit.jupiter.api.Test;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
-
 import jakarta.inject.Inject;
+import org.junit.jupiter.api.Test;
+
+import java.util.Map;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.endsWith;
@@ -36,18 +36,18 @@ class DownloadsTest {
         Downloads task = Downloads.builder()
             .id(DownloadsTest.class.getSimpleName())
             .type(DownloadsTest.class.getName())
-            .from(toUploadDir + "/")
-            .action(Downloads.Action.DELETE)
-            .host("localhost")
-            .port("6622")
-            .username("foo")
-            .password("pass")
+            .from(Property.of(toUploadDir + "/"))
+            .action(Property.of(Downloads.Action.DELETE))
+            .host(Property.of("localhost"))
+            .port(Property.of("6622"))
+            .username(Property.of("foo"))
+            .password(Property.of("pass"))
             .build();
 
-        Downloads.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+        Downloads.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(run.getFiles().size(), is(2));
-        assertThat(run.getFiles().get(0).getPath().getPath(), endsWith(".txt"));
+        assertThat(run.getFiles().getFirst().getPath().getPath(), endsWith(".txt"));
         assertThat(run.getOutputFiles().size(), is(2));
 
         assertThat(sftpUtils.list(toUploadDir).getFiles().isEmpty(), is(true));
@@ -64,18 +64,18 @@ class DownloadsTest {
         Downloads task = Downloads.builder()
             .id(DownloadsTest.class.getSimpleName())
             .type(DownloadsTest.class.getName())
-            .from(toUploadDir + "/")
-            .action(Downloads.Action.NONE)
-            .host("localhost")
-            .port("6622")
-            .username("foo")
-            .password("pass")
+            .from(Property.of(toUploadDir + "/"))
+            .action(Property.of(Downloads.Action.NONE))
+            .host(Property.of("localhost"))
+            .port(Property.of("6622"))
+            .username(Property.of("foo"))
+            .password(Property.of("pass"))
             .build();
 
-        Downloads.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+        Downloads.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(run.getFiles().size(), is(2));
-        assertThat(run.getFiles().get(0).getPath().getPath(), endsWith(".txt"));
+        assertThat(run.getFiles().getFirst().getPath().getPath(), endsWith(".txt"));
         assertThat(run.getOutputFiles().size(), is(2));
 
         assertThat(sftpUtils.list(toUploadDir).getFiles().size(), is(2));

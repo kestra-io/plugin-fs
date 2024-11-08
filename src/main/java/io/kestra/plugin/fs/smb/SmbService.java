@@ -15,8 +15,8 @@ public abstract class SmbService {
             opts,
             new StaticUserAuthenticator(
                 "",
-                runContext.render(smbInterface.getUsername()),
-                runContext.render(smbInterface.getPassword()))
+                runContext.render(smbInterface.getUsername()).as(String.class).orElse(null),
+                runContext.render(smbInterface.getPassword()).as(String.class).orElse(null))
         );
 
         return opts;
