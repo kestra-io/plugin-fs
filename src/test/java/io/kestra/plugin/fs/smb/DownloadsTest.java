@@ -1,12 +1,14 @@
 package io.kestra.plugin.fs.smb;
 
-import com.google.common.collect.ImmutableMap;
+import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
-import io.kestra.core.junit.annotations.KestraTest;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
+
+import java.util.Map;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.endsWith;
@@ -30,18 +32,18 @@ class DownloadsTest {
         Downloads task = Downloads.builder()
             .id(DownloadsTest.class.getSimpleName())
             .type(DownloadsTest.class.getName())
-            .from(toUploadDir)
-            .action(Downloads.Action.DELETE)
-            .host("localhost")
-            .port("445")
-            .username("alice")
-            .password("alipass")
+            .from(Property.of(toUploadDir))
+            .action(Property.of(Downloads.Action.DELETE))
+            .host(Property.of("localhost"))
+            .port(Property.of("445"))
+            .username(Property.of("alice"))
+            .password(Property.of("alipass"))
             .build();
 
-        Downloads.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+        Downloads.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(run.getFiles().size(), is(2));
-        assertThat(run.getFiles().get(0).getPath().getPath(), endsWith(".txt"));
+        assertThat(run.getFiles().getFirst().getPath().getPath(), endsWith(".txt"));
         assertThat(run.getOutputFiles().size(), is(2));
 
         assertThat(smbUtils.list(toUploadDir).getFiles().isEmpty(), is(true));
@@ -58,30 +60,30 @@ class DownloadsTest {
         Downloads task = Downloads.builder()
             .id(DownloadsTest.class.getSimpleName())
             .type(DownloadsTest.class.getName())
-            .from(toUploadDir)
-            .moveDirectory(archiveShareDirectory + "/")
-            .action(Downloads.Action.MOVE)
-            .host("localhost")
-            .port("445")
-            .username("alice")
-            .password("alipass")
+            .from(Property.of(toUploadDir))
+            .moveDirectory(Property.of(archiveShareDirectory + "/"))
+            .action(Property.of(Downloads.Action.MOVE))
+            .host(Property.of("localhost"))
+            .port(Property.of("445"))
+            .username(Property.of("alice"))
+            .password(Property.of("alipass"))
             .build();
 
-        Downloads.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+        Downloads.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(run.getFiles().size(), is(2));
-        assertThat(run.getFiles().get(0).getPath().getPath(), endsWith(".txt"));
+        assertThat(run.getFiles().getFirst().getPath().getPath(), endsWith(".txt"));
         assertThat(run.getOutputFiles().size(), is(2));
 
-        run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+        run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
         assertThat(run.getFiles().isEmpty(), is(true));
 
         task = task.toBuilder()
-            .from(archiveShareDirectory)
+            .from(Property.of(archiveShareDirectory))
             .build();
-        run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+        run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
         assertThat(run.getFiles().size(), is(2));
-        assertThat(run.getFiles().get(0).getPath().getPath(), endsWith(".txt"));
+        assertThat(run.getFiles().getFirst().getPath().getPath(), endsWith(".txt"));
         assertThat(run.getOutputFiles().size(), is(2));
 
         assertThat(smbUtils.list(toUploadDir).getFiles().isEmpty(), is(true));
@@ -98,18 +100,18 @@ class DownloadsTest {
         Downloads task = Downloads.builder()
             .id(DownloadsTest.class.getSimpleName())
             .type(DownloadsTest.class.getName())
-            .from(toUploadDir)
-            .action(Downloads.Action.NONE)
-            .host("localhost")
-            .port("445")
-            .username("alice")
-            .password("alipass")
+            .from(Property.of(toUploadDir))
+            .action(Property.of(Downloads.Action.NONE))
+            .host(Property.of("localhost"))
+            .port(Property.of("445"))
+            .username(Property.of("alice"))
+            .password(Property.of("alipass"))
             .build();
 
-        Downloads.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+        Downloads.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(run.getFiles().size(), is(2));
-        assertThat(run.getFiles().get(0).getPath().getPath(), endsWith(".txt"));
+        assertThat(run.getFiles().getFirst().getPath().getPath(), endsWith(".txt"));
         assertThat(run.getOutputFiles().size(), is(2));
 
         assertThat(smbUtils.list(toUploadDir).getFiles().size(), is(2));

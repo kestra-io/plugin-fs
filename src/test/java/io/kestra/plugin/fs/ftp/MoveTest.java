@@ -1,13 +1,15 @@
 package io.kestra.plugin.fs.ftp;
 
-import com.google.common.collect.ImmutableMap;
+import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
-import io.kestra.core.junit.annotations.KestraTest;
 import jakarta.inject.Inject;
 import org.apache.commons.io.FilenameUtils;
 import org.junit.jupiter.api.Test;
+
+import java.util.Map;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
@@ -30,15 +32,15 @@ class MoveTest {
         Move task = Move.builder()
             .id(MoveTest.class.getSimpleName())
             .type(MoveTest.class.getName())
-            .from(from)
-            .to(to)
-            .host("localhost")
-            .port("6621")
-            .username("guest")
-            .password("guest")
+            .from(Property.of(from))
+            .to(Property.of(to))
+            .host(Property.of("localhost"))
+            .port(Property.of("6621"))
+            .username(Property.of("guest"))
+            .password(Property.of("guest"))
             .build();
 
-        Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+        Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(run.getTo().getPath(), containsString(to));
     }
@@ -53,15 +55,15 @@ class MoveTest {
         Move task = Move.builder()
             .id(MoveTest.class.getSimpleName())
             .type(Move.class.getName())
-            .from(from)
-            .to(to)
-            .host("localhost")
-            .port("6621")
-            .username("guest")
-            .password("guest")
+            .from(Property.of(from))
+            .to(Property.of(to))
+            .host(Property.of("localhost"))
+            .port(Property.of("6621"))
+            .username(Property.of("guest"))
+            .password(Property.of("guest"))
             .build();
 
-        Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+        Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(run.getTo().getPath(), containsString(to));
     }
@@ -76,15 +78,15 @@ class MoveTest {
         Move task = Move.builder()
             .id(MoveTest.class.getSimpleName())
             .type(Move.class.getName())
-            .from(FilenameUtils.getPath(from))
-            .to(to)
-            .host("localhost")
-            .port("6621")
-            .username("guest")
-            .password("guest")
+            .from(Property.of(FilenameUtils.getPath(from)))
+            .to(Property.of(to))
+            .host(Property.of("localhost"))
+            .port(Property.of("6621"))
+            .username(Property.of("guest"))
+            .password(Property.of("guest"))
             .build();
 
-        Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+        Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(run.getTo().getPath(), containsString(to));
     }
@@ -100,15 +102,15 @@ class MoveTest {
         Move task = Move.builder()
                 .id(MoveTest.class.getSimpleName())
                 .type(Move.class.getName())
-                .from(from)
-                .to(to)
-                .host("localhost")
-                .port("6621")
-                .username("guest")
-                .password("guest")
+                .from(Property.of(from))
+                .to(Property.of(to))
+                .host(Property.of("localhost"))
+                .port(Property.of("6621"))
+                .username(Property.of("guest"))
+                .password(Property.of("guest"))
                 .build();
 
-        Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+        Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(run.getTo().getPath(), containsString(" "));
         assertThat(run.getFrom().getPath(), containsString(" "));

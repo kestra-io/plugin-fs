@@ -1,9 +1,9 @@
 package io.kestra.plugin.fs.vfs;
 
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
-import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.triggers.*;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.fs.vfs.models.File;
@@ -19,9 +19,9 @@ import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.time.Duration;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -37,61 +37,47 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
     @Builder.Default
     private final Duration interval = Duration.ofSeconds(60);
 
-    protected String host;
-    protected String username;
-    protected String password;
+    protected Property<String> host;
+    protected Property<String> username;
+    protected Property<String> password;
 
     @Schema(
         title = "The directory to list"
     )
-    @PluginProperty(dynamic = true)
     @NotNull
-    private String from;
+    private Property<String> from;
 
     @Schema(
         title = "The action to perform on the retrieved files. If using 'NONE' make sure to handle the files inside your flow to avoid infinite triggering."
     )
-    @PluginProperty(dynamic = true)
     @NotNull
-    private Downloads.Action action;
+    private Property<Downloads.Action> action;
 
     @Schema(
         title = "The destination directory in case off `MOVE` "
     )
-    @PluginProperty(dynamic = true)
-    private String moveDirectory;
+    private Property<String> moveDirectory;
 
     @Schema(
         title = "A regexp to filter on full path"
     )
-    @PluginProperty(dynamic = true)
-    private String regExp;
+    private Property<String> regExp;
 
     @Schema(
         title = "List file recursively"
     )
     @Builder.Default
-    private boolean recursive = false;
+    private Property<Boolean> recursive = Property.of(false);
 
-    abstract public String getPort();
+    protected abstract FileSystemOptions fsOptions(RunContext runContext) throws IllegalVariableEvaluationException, IOException;
 
-    abstract protected FileSystemOptions fsOptions(RunContext runContext) throws IllegalVariableEvaluationException, IOException;
-
-    abstract protected String scheme();
+    protected abstract String scheme();
 
     @Override
     public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
         RunContext runContext = conditionContext.getRunContext();
         Logger logger = runContext.logger();
-        URI from = VfsService.uri(
-            runContext,
-            this.scheme(),
-            this.host,
-            this.getPort(),
-            this.username,
-            this.password,
-            this.from
-        );
+        URI from = createUri(runContext);
 
         // connection options
         FileSystemOptions fileSystemOptions = this.fsOptions(runContext);
@@ -107,8 +93,8 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                     fsm,
                     fileSystemOptions,
                     from,
-                    runContext.render(this.regExp),
-                    this.recursive
+                    runContext.render(this.regExp).as(String.class).orElse(null),
+                    runContext.render(this.recursive).as(Boolean.class).orElse(false)
                 );
             } catch (FileNotFolderException fileNotFolderException) {
                 logger.debug("From path doesn't exist '{}'", String.join(", ", fileNotFolderException.getInfo()));
@@ -123,7 +109,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                 .getFiles()
                 .stream()
                 .filter(file -> file.getFileType() == FileType.FILE)
-                .collect(Collectors.toList());
+                .toList();
 
 
             java.util.List<File> list = files
@@ -136,10 +122,10 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                         VfsService.uri(
                             runContext,
                             this.scheme(),
-                            this.host,
-                            this.getPort(),
-                            this.username,
-                            this.password,
+                            runContext.render(this.host).as(String.class).orElse(null),
+                            runContext.render(this.getPort()).as(String.class).orElse(null),
+                            runContext.render(this.username).as(String.class).orElse(null),
+                            runContext.render(this.password).as(String.class).orElse(null),
                             file.getServerPath().getPath()
                         )
                     );
@@ -148,7 +134,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
 
                     return file.withPath(download.getTo());
                 }))
-                .collect(Collectors.toList());
+                .toList();
 
             if (this.action != null) {
                 VfsService.performAction(
@@ -156,15 +142,15 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                     fsm,
                     fileSystemOptions,
                     files,
-                    this.action,
+                    runContext.render(this.action).as(Downloads.Action.class).orElse(null),
                     VfsService.uri(
                         runContext,
                         this.scheme(),
-                        this.host,
-                        this.getPort(),
-                        this.username,
-                        this.password,
-                        this.moveDirectory
+                        runContext.render(this.host).as(String.class).orElse(null),
+                        runContext.render(this.getPort()).as(String.class).orElse(null),
+                        runContext.render(this.username).as(String.class).orElse(null),
+                        runContext.render(this.password).as(String.class).orElse(null),
+                        runContext.render(this.moveDirectory).as(String.class).orElse(null)
                     )
                 );
             }
@@ -173,5 +159,17 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
 
             return Optional.of(execution);
         }
+    }
+
+    private URI createUri(RunContext runContext) throws IllegalVariableEvaluationException, URISyntaxException {
+        return VfsService.uri(
+            runContext,
+            this.scheme(),
+            runContext.render(this.host).as(String.class).orElse(null),
+            runContext.render(this.getPort()).as(String.class).orElse(null),
+            runContext.render(this.username).as(String.class).orElse(null),
+            runContext.render(this.password).as(String.class).orElse(null),
+            runContext.render(this.from).as(String.class).orElseThrow()
+        );
     }
 }

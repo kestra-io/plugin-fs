@@ -3,6 +3,7 @@ package io.kestra.plugin.fs.ftps;
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.fs.ftp.FtpInterface;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -48,23 +49,23 @@ import java.net.Proxy;
     }
 )
 public class Downloads extends io.kestra.plugin.fs.vfs.Downloads implements FtpInterface, FtpsInterface {
-    protected String proxyHost;
-    protected String proxyPort;
-    protected Proxy.Type proxyType;
+    protected Property<String> proxyHost;
+    protected Property<String> proxyPort;
+    protected Property<Proxy.Type> proxyType;
     @Builder.Default
-    protected Boolean rootDir = true;
+    protected Property<Boolean> rootDir = Property.of(true);
     @Builder.Default
-    protected String port = "990";
+    protected Property<String> port = Property.of("990");
     @Builder.Default
-    protected Boolean passiveMode = true;
+    protected Property<Boolean> passiveMode = Property.of(true);
     @Builder.Default
-    protected Boolean remoteIpVerification = true;
+    protected Property<Boolean> remoteIpVerification = Property.of(true);
 
     @Builder.Default
-    protected FtpsMode mode = FtpsMode.EXPLICIT;
+    protected Property<FtpsMode> mode = Property.of(FtpsMode.EXPLICIT);
     @Builder.Default
-    protected FtpsDataChannelProtectionLevel dataChannelProtectionLevel = FtpsDataChannelProtectionLevel.P;
-    protected Boolean insecureTrustAllCertificates;
+    protected Property<FtpsDataChannelProtectionLevel> dataChannelProtectionLevel = Property.of(FtpsDataChannelProtectionLevel.P);
+    protected Property<Boolean> insecureTrustAllCertificates;
 
     @Override
     protected FileSystemOptions fsOptions(RunContext runContext) throws IllegalVariableEvaluationException, IOException {

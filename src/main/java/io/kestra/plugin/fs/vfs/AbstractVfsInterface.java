@@ -1,33 +1,28 @@
 package io.kestra.plugin.fs.vfs;
 
-import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.property.Property;
 import io.swagger.v3.oas.annotations.media.Schema;
-
 import jakarta.validation.constraints.NotNull;
 
 public interface AbstractVfsInterface {
     @Schema(
         title = "Hostname of the remote server"
     )
-    @PluginProperty(dynamic = true)
     @NotNull
-    String getHost();
+    Property<String> getHost();
 
     @Schema(
         title = "Port of the remote server"
     )
-    @PluginProperty(dynamic = true)
-    String getPort();
+    Property<String> getPort();
 
     @Schema(
         title = "Username on the remote server"
     )
-    @PluginProperty(dynamic = true)
-    String getUsername();
+    Property<String> getUsername();
 
     @Schema(
         title = "Password on the remote server"
     )
-    @PluginProperty(dynamic = true)
-    String getPassword();
+    Property<String> getPassword();
 }

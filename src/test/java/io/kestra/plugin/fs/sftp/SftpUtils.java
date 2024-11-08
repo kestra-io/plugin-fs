@@ -1,6 +1,6 @@
 package io.kestra.plugin.fs.sftp;
 
-import com.google.common.collect.ImmutableMap;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.AbstractUtils;
@@ -9,6 +9,7 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import java.net.URI;
+import java.util.Map;
 
 @Singleton
 class SftpUtils extends AbstractUtils {
@@ -19,16 +20,16 @@ class SftpUtils extends AbstractUtils {
         var task = Upload.builder()
             .id(SftpUtils.class.getSimpleName())
             .type(Upload.class.getName())
-            .from(source.toString())
-            .to(to)
-            .host("localhost")
-            .port("6622")
-            .username("foo")
-            .password("pass")
-            .rootDir(true)
+            .from(Property.of(source.toString()))
+            .to(Property.of(to))
+            .host(Property.of("localhost"))
+            .port(Property.of("6622"))
+            .username(Property.of("foo"))
+            .password(Property.of("pass"))
+            .rootDir(Property.of(true))
             .build();
 
-        return task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+        return task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
     }
 
     @Override
@@ -36,11 +37,11 @@ class SftpUtils extends AbstractUtils {
         return io.kestra.plugin.fs.sftp.List.builder()
             .id(TriggerTest.class.getSimpleName())
             .type(TriggerTest.class.getName())
-            .from(dir)
-            .host("localhost")
-            .port("6622")
-            .username("foo")
-            .password("pass")
+            .from(Property.of(dir))
+            .host(Property.of("localhost"))
+            .port(Property.of("6622"))
+            .username(Property.of("foo"))
+            .password(Property.of("pass"))
             .build()
             .run(this.runContextFactory.of());
     }
@@ -50,14 +51,14 @@ class SftpUtils extends AbstractUtils {
         var task = io.kestra.plugin.fs.sftp.Delete.builder()
             .id(SftpUtils.class.getSimpleName())
             .type(Upload.class.getName())
-            .uri(file)
-            .host("localhost")
-            .port("6622")
-            .username("foo")
-            .password("pass")
-            .rootDir(true)
+            .uri(Property.of(file))
+            .host(Property.of("localhost"))
+            .port(Property.of("6622"))
+            .username(Property.of("foo"))
+            .password(Property.of("pass"))
+            .rootDir(Property.of(true))
             .build();
 
-        return task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+        return task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
     }
 }

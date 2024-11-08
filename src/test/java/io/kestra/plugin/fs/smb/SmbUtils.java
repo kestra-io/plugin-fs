@@ -1,6 +1,6 @@
 package io.kestra.plugin.fs.smb;
 
-import com.google.common.collect.ImmutableMap;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.AbstractUtils;
@@ -10,6 +10,7 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
 import java.net.URI;
+import java.util.Map;
 
 @Singleton
 public class SmbUtils extends AbstractUtils {
@@ -23,14 +24,14 @@ public class SmbUtils extends AbstractUtils {
         var task = Upload.builder()
             .id(SmbUtils.class.getSimpleName())
             .type(SmbUtils.class.getName())
-            .from(source.toString())
-            .to(to)
-            .host("localhost")
-            .username("alice")
-            .password("alipass")
+            .from(Property.of(source.toString()))
+            .to(Property.of(to))
+            .host(Property.of("localhost"))
+            .username(Property.of("alice"))
+            .password(Property.of("alipass"))
             .build();
 
-        return task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+        return task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
     }
 
     @Override
@@ -38,11 +39,11 @@ public class SmbUtils extends AbstractUtils {
         return io.kestra.plugin.fs.smb.List.builder()
             .id(TriggerTest.class.getSimpleName())
             .type(TriggerTest.class.getName())
-            .from(dir)
-            .host("localhost")
-            .port("445")
-            .username("alice")
-            .password("alipass")
+            .from(Property.of(dir))
+            .host(Property.of("localhost"))
+            .port(Property.of("445"))
+            .username(Property.of("alice"))
+            .password(Property.of("alipass"))
             .build()
             .run(this.runContextFactory.of());
     }
@@ -52,12 +53,12 @@ public class SmbUtils extends AbstractUtils {
         var task = io.kestra.plugin.fs.smb.Delete.builder()
             .id(SmbUtils.class.getSimpleName())
             .type(SmbUtils.class.getName())
-            .uri(file)
-            .host("localhost")
-            .username("alice")
-            .password("alipass")
+            .uri(Property.of(file))
+            .host(Property.of("localhost"))
+            .username(Property.of("alice"))
+            .password(Property.of("alipass"))
             .build();
 
-        return task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+        return task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
     }
 }

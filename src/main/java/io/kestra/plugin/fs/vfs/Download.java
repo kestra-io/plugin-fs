@@ -1,15 +1,15 @@
 package io.kestra.plugin.fs.vfs;
 
-import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 
 import java.net.URI;
-import jakarta.validation.constraints.NotNull;
 
 @SuperBuilder
 @ToString
@@ -20,9 +20,8 @@ public abstract class Download extends AbstractVfsTask implements RunnableTask<D
     @Schema(
         title = "The fully-qualified URIs that point to destination path"
     )
-    @PluginProperty(dynamic = true)
     @NotNull
-    protected String from;
+    protected Property<String> from;
 
     public Output run(RunContext runContext) throws Exception {
         try (StandardFileSystemManager fsm = new KestraStandardFileSystemManager(runContext)) {
@@ -33,7 +32,7 @@ public abstract class Download extends AbstractVfsTask implements RunnableTask<D
                 runContext,
                 fsm,
                 this.fsOptions(runContext),
-                this.uri(runContext, this.from)
+                this.uri(runContext, runContext.render(this.from).as(String.class).orElseThrow())
             );
         }
     }

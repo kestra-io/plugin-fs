@@ -1,16 +1,18 @@
 package io.kestra.plugin.fs.smb;
 
-import com.google.common.collect.ImmutableMap;
+import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.sftp.Delete;
-import io.kestra.core.junit.annotations.KestraTest;
 import jakarta.inject.Inject;
 import org.apache.commons.vfs2.FileSystemException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+
+import java.util.Map;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -32,35 +34,35 @@ class DeleteTest {
         Download fetch = Download.builder()
             .id(DeleteTest.class.getSimpleName())
             .type(DeleteTest.class.getName())
-            .from(from)
-            .host("localhost")
-            .port("445")
-            .username("alice")
-            .password("alipass")
+            .from(Property.of(from))
+            .host(Property.of("localhost"))
+            .port(Property.of("445"))
+            .username(Property.of("alice"))
+            .password(Property.of("alipass"))
             .build();
 
-        RunContext runContext = TestsUtils.mockRunContext(runContextFactory, fetch, ImmutableMap.of());
+        RunContext runContext = TestsUtils.mockRunContext(runContextFactory, fetch, Map.of());
         Assertions.assertDoesNotThrow(() -> fetch.run(runContext));
 
         io.kestra.plugin.fs.smb.Delete task;
         task = io.kestra.plugin.fs.smb.Delete.builder()
             .id(DeleteTest.class.getSimpleName())
             .type(DeleteTest.class.getName())
-            .uri(from)
-            .host("localhost")
-            .port("445")
-            .username("alice")
-            .password("alipass")
+            .uri(Property.of(from))
+            .host(Property.of("localhost"))
+            .port(Property.of("445"))
+            .username(Property.of("alice"))
+            .password(Property.of("alipass"))
             .build();
 
-        Delete.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, ImmutableMap.of()));
+        Delete.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(run.getUri().getPath(), endsWith(from));
         assertThat(run.isDeleted(), is(true));
 
         FileSystemException fileSystemException = Assertions.assertThrows(
             FileSystemException.class,
-            () -> fetch.run(TestsUtils.mockRunContext(runContextFactory, fetch, ImmutableMap.of()))
+            () -> fetch.run(TestsUtils.mockRunContext(runContextFactory, fetch, Map.of()))
         );
         assertThat(fileSystemException.getMessage(), containsString("because it does not exist"));
     }

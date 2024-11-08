@@ -6,30 +6,23 @@ import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.flows.State;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.Output;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.models.tasks.runners.PluginUtilsService;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.Builder;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import lombok.*;
 import lombok.experimental.SuperBuilder;
 
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.PipedInputStream;
-import java.io.PipedOutputStream;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
-import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
 
 @SuperBuilder
 @ToString
@@ -98,25 +91,25 @@ import jakarta.validation.constraints.NotNull;
 public class Command extends Task implements SshInterface, RunnableTask<Command.ScriptOutput> {
     private static final long SLEEP_DELAY_MS = 25L;
 
-    private String host;
+    private Property<String> host;
 
     // Password Auth method
-    private String username;
-    private String password;
+    private Property<String> username;
+    private Property<String> password;
 
     // PubKey Auth method
-    private String privateKey;
-    private String privateKeyPassphrase;
+    private Property<String> privateKey;
+    private Property<String> privateKeyPassphrase;
 
     // OpenSSH config
     @Builder.Default
-    private String openSSHConfigDir = "~/.ssh/config";
+    private Property<String> openSSHConfigDir = Property.of("~/.ssh/config");
 
     @Builder.Default
-    private AuthMethod authMethod = AuthMethod.PASSWORD;
+    private Property<AuthMethod> authMethod = Property.of(AuthMethod.PASSWORD);
 
     @Builder.Default
-    private String port = "22";
+    private Property<String> port = Property.of("22");
 
     @Schema(title = "The list of commands to run on the remote server")
     @PluginProperty(dynamic = true)
@@ -125,34 +118,27 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
     private String[] commands;
 
     @Schema(title = "Whether to check if the host public key could be found among known host, one of 'yes', 'no', 'ask'")
-    @PluginProperty
     @Builder.Default
-    private String strictHostKeyChecking = "no";
+    private Property<String> strictHostKeyChecking = Property.of("no");
 
     @Schema(
         title = "Environment variables to pass to the SSH process."
     )
-    @PluginProperty(
-        additionalProperties = String.class,
-        dynamic = true
-    )
-    private Map<String, String> env;
+    private Property<Map<String, String>> env;
 
     @Builder.Default
     @Schema(
         title = "Use `WARNING` state if any stdErr is sent"
     )
-    @PluginProperty
     @NotNull
-    private Boolean warningOnStdErr = true;
+    private Property<Boolean> warningOnStdErr = Property.of(true);
 
     @Builder.Default
     @Schema(
         title = "Enable the disabled by default RSA/SHA1 algorithm"
     )
-    @PluginProperty
     @NotNull
-    private Boolean enableSshRsa1 = false;
+    private Property<Boolean> enableSshRsa1 = Property.of(false);
 
     @Override
     public Command.ScriptOutput run(RunContext runContext) throws Exception {
@@ -162,18 +148,19 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
         Thread stdOut = null;
         Thread stdErr = null;
 
-        if (authMethod == AuthMethod.PASSWORD) {
-            if (password == null) {
+        final AuthMethod renderedAuthMethod = runContext.render(this.authMethod).as(AuthMethod.class).orElseThrow();
+        if (AuthMethod.PASSWORD.equals(renderedAuthMethod) && runContext.render(this.password).as(String.class).isEmpty()) {
                 throw new IllegalArgumentException("Password is necessary for given SSH auth method: " + AuthMethod.PASSWORD);
-            }
-        } else if (authMethod == AuthMethod.PUBLIC_KEY) {
-            if (privateKey == null) {
-                throw new IllegalArgumentException("Private key is necessary for given SSH auth method: " + AuthMethod.PASSWORD);
-            }
-        } else if(authMethod == AuthMethod.OPEN_SSH) {
-            if (runContext.pluginConfiguration(ALLOW_OPEN_SSH_CONFIG).isEmpty() || !Boolean.TRUE.equals(runContext.<Boolean>pluginConfiguration(ALLOW_OPEN_SSH_CONFIG).get())) {
+        }
+
+        if (AuthMethod.PUBLIC_KEY.equals(renderedAuthMethod) && runContext.render(this.privateKey).as(String.class).isEmpty()) {
+                throw new IllegalArgumentException("Private key is necessary for given SSH auth method: " + AuthMethod.PUBLIC_KEY);
+        }
+
+        if(AuthMethod.OPEN_SSH.equals(renderedAuthMethod) &&
+            (runContext.pluginConfiguration(ALLOW_OPEN_SSH_CONFIG).isEmpty() ||
+                Boolean.FALSE.equals(runContext.<Boolean>pluginConfiguration(ALLOW_OPEN_SSH_CONFIG).get()))) {
                 throw new IllegalArgumentException("You need to allow access to the host OpenSSH configuration via the plugin configuration `" + ALLOW_OPEN_SSH_CONFIG + "`");
-            }
         }
 
         try(
@@ -182,41 +169,45 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
             var errStream = new PipedOutputStream();
             var inErrStream = new PipedInputStream(errStream)
         ) {
-            var renderedHost = runContext.render(host);
-            var renderedPort = runContext.render(port);
+            var renderedHost = runContext.render(host).as(String.class).orElseThrow();
+            var renderedPort = runContext.render(port).as(String.class).orElse("22");
             List<String> renderedCommands = new ArrayList<>(commands.length);
             for(String command: commands) {
                 renderedCommands.add(runContext.render(command));
             }
 
             jsch = new JSch();
-            session = jsch.getSession(runContext.render(username), renderedHost, Integer.parseInt(renderedPort));
+            session = jsch.getSession(
+                runContext.render(username).as(String.class).orElse(null),
+                renderedHost, Integer.parseInt(renderedPort)
+            );
 
             // enable disabled by default weak RSA/SHA1 algorithm
-            if (Boolean.TRUE.equals(enableSshRsa1)) {
+            if (Boolean.TRUE.equals(runContext.render(enableSshRsa1).as(Boolean.class).orElseThrow())) {
                 runContext.logger().info("RSA/SHA1 is enabled, be advise that SHA1 is no longer considered secure by the general cryptographic community.");
                 session.setConfig("server_host_key", session.getConfig("server_host_key") + ",ssh-rsa");
                 session.setConfig("PubkeyAcceptedAlgorithms", session.getConfig("PubkeyAcceptedAlgorithms") + ",ssh-rsa");
             }
 
-            if (authMethod == AuthMethod.PASSWORD) {
-                session.setConfig("PreferredAuthentications", "password");
-                session.setPassword(runContext.render(password));
-            } else if (authMethod == AuthMethod.PUBLIC_KEY) {
-                session.setConfig("PreferredAuthentications", "publickey");
-                var privateKeyBytes = runContext.render(privateKey).getBytes();
-                if (privateKeyPassphrase != null) {
-                    jsch.addIdentity("primary", privateKeyBytes, null, runContext.render(privateKeyPassphrase).getBytes());
-                } else {
-                    jsch.addIdentity("primary", privateKeyBytes, null, null);
-                }
-            } else if (authMethod == AuthMethod.OPEN_SSH) {
-                ConfigRepository configRepository = OpenSSHConfig.parseFile(runContext.render(openSSHConfigDir));
-                jsch.setConfigRepository(configRepository);
-                session.setPassword(runContext.render(password));
+            switch (renderedAuthMethod) {
+                case PASSWORD:
+                    session.setConfig("PreferredAuthentications", "password");
+                    session.setPassword(runContext.render(this.password).as(String.class).orElseThrow());
+                    break;
+                case PUBLIC_KEY:
+                    session.setConfig("PreferredAuthentications", "publickey");
+                    var privateKeyBytes = runContext.render(this.privateKey).as(String.class).orElseThrow().getBytes();
+                    var passphrase = runContext.render(this.privateKeyPassphrase).as(String.class);
+                    jsch.addIdentity("primary", privateKeyBytes, null, passphrase.map(String::getBytes).orElse(null));
+                    break;
+                case OPEN_SSH:
+                    ConfigRepository configRepository = OpenSSHConfig.parseFile(runContext.render(openSSHConfigDir).as(String.class).orElseThrow());
+                    jsch.setConfigRepository(configRepository);
+                    session.setPassword(runContext.render(password).as(String.class).orElseThrow());
+                    break;
             }
 
-            session.setConfig("StrictHostKeyChecking", strictHostKeyChecking);
+            session.setConfig("StrictHostKeyChecking", runContext.render(strictHostKeyChecking).as(String.class).orElse(null));
             session.connect();
 
             channel = (ChannelExec) session.openChannel("exec");
@@ -228,10 +219,9 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
             stdOut = Thread.ofVirtual().name("ssh-log-out").start(stdOutRunnable);
             stdErr = Thread.ofVirtual().name("ssh-log-err").start(stdErrRunnable);
 
-            if (this.env != null) {
-                for(var entry : env.entrySet()) {
-                    channel.setEnv(runContext.render(entry.getKey()), runContext.render(entry.getValue()));
-                }
+            final Map<String, String> renderedEnv = runContext.render(this.env).asMap(String.class, String.class);
+            for(var entry : renderedEnv.entrySet()) {
+                channel.setEnv(runContext.render(entry.getKey()), runContext.render(entry.getValue()));
             }
 
             channel.connect();
@@ -257,7 +247,7 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
                 .exitCode(channel.getExitStatus())
                 .stdOutLineCount(stdOutRunnable.count.get())
                 .stdErrLineCount(stdErrRunnable.count.get())
-                .warningOnStdErr(this.warningOnStdErr)
+                .warningOnStdErr(runContext.render(this.warningOnStdErr).as(Boolean.class).orElse(true))
                 .vars(vars)
                 .build();
         } finally {
@@ -283,9 +273,9 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
 
         private final RunContext runContext;
 
-        private volatile AtomicInteger count = new AtomicInteger(0);
+        private final AtomicInteger count = new AtomicInteger(0);
 
-        private volatile Map<String, Object> outputs = new ConcurrentHashMap<>();
+        private final Map<String, Object> outputs = new ConcurrentHashMap<>();
 
         protected LogRunnable(InputStream inputStream, boolean isStdErr, RunContext runContext) {
             this.inputStream = inputStream;
