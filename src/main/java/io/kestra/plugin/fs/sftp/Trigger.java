@@ -31,8 +31,8 @@ import java.io.IOException;
                 
                 tasks:
                   - id: for_each_file
-                    type: io.kestra.plugin.core.flow.EachSequential
-                    value: "{{ trigger.files }}"
+                    type: io.kestra.plugin.core.flow.ForEach
+                    values: "{{ trigger.files }}"
                     tasks:
                       - id: return
                         type: io.kestra.plugin.core.debug.Return
@@ -60,8 +60,8 @@ import java.io.IOException;
                 
                 tasks:
                   - id: for_each_file
-                    type: io.kestra.plugin.core.flow.EachSequential
-                    value: "{{ trigger.files | jq('.path') }}"
+                    type: io.kestra.plugin.core.flow.ForEach
+                    values: "{{ trigger.files | jq('.path') }}"
                     tasks:
                       - id: return
                         type: io.kestra.plugin.core.debug.Return
@@ -95,8 +95,8 @@ import java.io.IOException;
 
                 tasks:
                   - id: each
-                    type: io.kestra.plugin.core.flow.EachSequential
-                    value: "{{ trigger.files }}"
+                    type: io.kestra.plugin.core.flow.ForEach
+                    values: "{{ trigger.files }}"
                     tasks:
                       - id: return
                         type: io.kestra.plugin.core.debug.Return
