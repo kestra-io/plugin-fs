@@ -49,6 +49,7 @@ class SftpTest {
         );
         URI source = storageInterface.put(
             null,
+            null,
             new URI("/" + FriendlyId.createFriendlyId()),
             new FileInputStream(applicationFile)
         );

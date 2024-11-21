@@ -24,6 +24,7 @@ public abstract class AbstractUtils {
 
         return storageInterface.put(
             null,
+            null,
             new URI("/" + FriendlyId.createFriendlyId()),
             new FileInputStream(applicationFile)
         );
