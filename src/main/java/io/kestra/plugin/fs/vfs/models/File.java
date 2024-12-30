@@ -10,7 +10,9 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.vfs2.FileSystemException;
 import org.apache.commons.vfs2.FileType;
 import org.apache.commons.vfs2.provider.AbstractFileObject;
+import org.apache.commons.vfs2.provider.GenericFileName;
 import org.apache.commons.vfs2.provider.URLFileName;
+import org.apache.commons.vfs2.provider.smb.SmbFileName;
 
 import java.lang.reflect.Field;
 import java.net.URI;
@@ -64,20 +66,37 @@ public class File {
 
     @SuppressWarnings("deprecation")
     private static URI serverPath(AbstractFileObject<?> fileObject) throws URISyntaxException {
-        if (fileObject.getName() instanceof URLFileName) {
-            URLFileName urlFileName = (URLFileName) fileObject.getName();
+        return switch (fileObject.getName()) {
+            case URLFileName urlFileName -> new URI(
+                    urlFileName.getScheme(),
+                    VfsService.basicAuth(urlFileName.getUserName(), urlFileName.getPassword()),
+                    urlFileName.getHostName(),
+                    urlFileName.getPort(),
+                    urlFileName.getPath(),
+                    urlFileName.getQueryString(),
+                    null
+                );
+            case GenericFileName genericFileName -> {
+                String share = extractShareForSmb(genericFileName);
+                yield  new URI(
+                    genericFileName.getScheme(),
+                    VfsService.basicAuth(genericFileName.getUserName(), genericFileName.getPassword()),
+                    genericFileName.getHostName(),
+                    genericFileName.getPort(),
+                    share == null ? genericFileName.getPath() : String.join("", "/", share, genericFileName.getPath()),
+                    null,
+                    null
+                );
+            }
+            default -> fileObject.getURI();
+        };
+    }
 
-            return new URI(
-                urlFileName.getScheme(),
-                VfsService.basicAuth(urlFileName.getUserName(), urlFileName.getPassword()),
-                urlFileName.getHostName(),
-                urlFileName.getPort(),
-                urlFileName.getPath(),
-                urlFileName.getQueryString(),
-                null
-            );
-        } else {
-            return fileObject.getURI();
-        }
+    private static String extractShareForSmb(GenericFileName genericFileName) {
+        return switch (genericFileName) {
+            case SmbFileName smbFileName -> smbFileName.getShare();
+            case net.idauto.oss.jcifsng.vfs2.provider.SmbFileName smbFileName -> smbFileName.getShare();
+            default -> null;
+        };
     }
 }

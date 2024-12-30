@@ -13,6 +13,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
+import static io.kestra.plugin.fs.smb.SmbUtils.PASSWORD;
+import static io.kestra.plugin.fs.smb.SmbUtils.USERNAME;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.endsWith;
 
@@ -37,8 +39,8 @@ class MoveTest {
             .from(Property.of(from))
             .to(Property.of(to))
             .host(Property.of("localhost"))
-            .username(Property.of("alice"))
-            .password(Property.of("alipass"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .build();
 
         Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
@@ -51,8 +53,8 @@ class MoveTest {
             .from(Property.of(from))
             .host(Property.of("localhost"))
             .port(Property.of("445"))
-            .username(Property.of("alice"))
-            .password(Property.of("alipass"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .build();
         Assertions.assertThrows(FileSystemException.class, () -> fetchFrom.run(TestsUtils.mockRunContext(runContextFactory, fetchFrom, Map.of())));
 
@@ -75,8 +77,8 @@ class MoveTest {
             .from(Property.of(from))
             .to(Property.of(to))
             .host(Property.of("localhost"))
-            .username(Property.of("alice"))
-            .password(Property.of("alipass"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .build();
 
         Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
@@ -89,8 +91,8 @@ class MoveTest {
             .from(Property.of(from))
             .host(Property.of("localhost"))
             .port(Property.of("445"))
-            .username(Property.of("alice"))
-            .password(Property.of("alipass"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .build();
         Assertions.assertThrows(FileSystemException.class, () -> fetchFrom.run(TestsUtils.mockRunContext(runContextFactory, fetchFrom, Map.of())));
 
@@ -113,8 +115,8 @@ class MoveTest {
                 .from(Property.of(from))
                 .to(Property.of(to))
                 .host(Property.of("localhost"))
-                .username(Property.of("alice"))
-                .password(Property.of("alipass"))
+                .username(USERNAME)
+                .password(PASSWORD)
                 .build();
 
         Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
@@ -127,8 +129,8 @@ class MoveTest {
                 .from(Property.of(from))
                 .host(Property.of("localhost"))
                 .port(Property.of("445"))
-                .username(Property.of("alice"))
-                .password(Property.of("alipass"))
+                .username(USERNAME)
+                .password(PASSWORD)
                 .build();
         Assertions.assertThrows(FileSystemException.class, () -> fetchFrom.run(TestsUtils.mockRunContext(runContextFactory, fetchFrom, Map.of())));
 
@@ -151,8 +153,8 @@ class MoveTest {
             .from(Property.of(FilenameUtils.getPath(from)))
             .to(Property.of(to))
             .host(Property.of("localhost"))
-            .username(Property.of("alice"))
-            .password(Property.of("alipass"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .build();
 
         Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
@@ -165,8 +167,8 @@ class MoveTest {
             .from(Property.of(from))
             .host(Property.of("localhost"))
             .port(Property.of("445"))
-            .username(Property.of("alice"))
-            .password(Property.of("alipass"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .build();
         Assertions.assertThrows(FileSystemException.class, () -> fetchFrom.run(TestsUtils.mockRunContext(runContextFactory, fetchFrom, Map.of())));
 

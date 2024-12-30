@@ -16,6 +16,9 @@ class SftpUtils extends AbstractUtils {
     @Inject
     private RunContextFactory runContextFactory;
 
+    public static final Property<String> USERNAME = Property.of("foo");
+    public static final Property<String> PASSWORD = Property.of("pass*+=");
+
     public Upload.Output upload(URI source, String to) throws Exception {
         var task = Upload.builder()
             .id(SftpUtils.class.getSimpleName())
@@ -24,8 +27,8 @@ class SftpUtils extends AbstractUtils {
             .to(Property.of(to))
             .host(Property.of("localhost"))
             .port(Property.of("6622"))
-            .username(Property.of("foo"))
-            .password(Property.of("pass"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .rootDir(Property.of(true))
             .build();
 
@@ -40,8 +43,8 @@ class SftpUtils extends AbstractUtils {
             .from(Property.of(dir))
             .host(Property.of("localhost"))
             .port(Property.of("6622"))
-            .username(Property.of("foo"))
-            .password(Property.of("pass"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .build()
             .run(this.runContextFactory.of());
     }
@@ -54,8 +57,8 @@ class SftpUtils extends AbstractUtils {
             .uri(Property.of(file))
             .host(Property.of("localhost"))
             .port(Property.of("6622"))
-            .username(Property.of("foo"))
-            .password(Property.of("pass"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .rootDir(Property.of(true))
             .build();
 

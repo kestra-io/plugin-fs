@@ -14,6 +14,8 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
+import static io.kestra.plugin.fs.smb.SmbUtils.PASSWORD;
+import static io.kestra.plugin.fs.smb.SmbUtils.USERNAME;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
@@ -37,8 +39,8 @@ class UploadsTest {
             .from(List.of(uri1.toString(), uri2.toString()))
             .to(Property.of(SmbUtils.SHARE_NAME + "/" + random + "/"))
             .host(Property.of("localhost"))
-            .username(Property.of("alice"))
-            .password(Property.of("alipass"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .build();
         Uploads.Output uploadsRun = uploadsTask.run(TestsUtils.mockRunContext(runContextFactory, uploadsTask, Map.of()));
 
@@ -49,8 +51,8 @@ class UploadsTest {
             .from("{{ inputs.uris }}")
             .to(Property.of(SmbUtils.SHARE_NAME + "/" + random + "/"))
             .host(Property.of("localhost"))
-            .username(Property.of("alice"))
-            .password(Property.of("alipass"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .build();
         Uploads.Output uploadsRunTemplate = uploadsTask.run(TestsUtils.mockRunContext(runContextFactory, uploadsTask,
             Map.of("uris", "[\"" + uri3.toString() + "\",\"" + uri4.toString() + "\"]"))
@@ -62,8 +64,8 @@ class UploadsTest {
             .from(Property.of(SmbUtils.SHARE_NAME + "/" + random + "/"))
             .action(Property.of(Downloads.Action.DELETE))
             .host(Property.of("localhost"))
-            .username(Property.of("alice"))
-            .password(Property.of("alipass"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .build();
 
         Downloads.Output downloadsRun = downloadsTask.run(TestsUtils.mockRunContext(runContextFactory, downloadsTask, Map.of()));

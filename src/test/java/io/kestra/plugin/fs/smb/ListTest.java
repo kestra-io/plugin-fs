@@ -10,6 +10,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
+import static io.kestra.plugin.fs.smb.SmbUtils.PASSWORD;
+import static io.kestra.plugin.fs.smb.SmbUtils.USERNAME;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
@@ -38,8 +40,8 @@ class ListTest {
             .type(ListTest.class.getName())
             .from(Property.of(SmbUtils.SHARE_NAME + dir))
             .host(Property.of("localhost"))
-            .username(Property.of("alice"))
-            .password(Property.of("alipass"));
+            .username(USERNAME)
+            .password(PASSWORD);
 
         List task = builder.build();
 
@@ -60,8 +62,8 @@ class ListTest {
             .type(ListTest.class.getName())
             .from(Property.of(SmbUtils.SHARE_NAME + dir))
             .host(Property.of("localhost"))
-            .username(Property.of("alice"))
-            .password(Property.of("alipass"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .recursive(Property.of(true)).build();
 
         run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
@@ -73,8 +75,8 @@ class ListTest {
             .type(ListTest.class.getName())
             .from(Property.of(SmbUtils.SECOND_SHARE_NAME + dir))
             .host(Property.of("localhost"))
-            .username(Property.of("alice"))
-            .password(Property.of("alipass"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .recursive(Property.of(true))
             .build();
 

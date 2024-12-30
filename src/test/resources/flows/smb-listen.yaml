@@ -7,7 +7,7 @@ triggers:
     host: localhost
     port: "445"
     username: alice
-    password: alipass
+    password: O7m)&H/0Em4/T8RqCa!Al=M@N6^;@+
     from: "/upload/trigger/"
     interval: PT10S
     action: MOVE

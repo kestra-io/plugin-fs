@@ -1,6 +1,7 @@
 package io.kestra.plugin.fs;
 
 import com.devskiller.friendly_id.FriendlyId;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.storages.StorageInterface;
 import io.kestra.plugin.fs.sftp.Upload;
 import io.kestra.plugin.fs.vfs.Delete;
@@ -13,6 +14,7 @@ import java.net.URI;
 import java.util.Objects;
 
 public abstract class AbstractUtils {
+
     @Inject
     private StorageInterface storageInterface;
 

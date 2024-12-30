@@ -21,6 +21,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import java.util.UUID;
 
+import static io.kestra.plugin.fs.sftp.SftpUtils.PASSWORD;
+import static io.kestra.plugin.fs.sftp.SftpUtils.USERNAME;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
@@ -71,14 +73,14 @@ class SftpTest {
             .to(Property.of(sftpPath))
             .host(Property.of("localhost"))
             .port(Property.of("6622"))
-            .username(Property.of("foo"));
+            .username(USERNAME);
 
         if (keyAuth) {
             uploadTask = uploadTask
                 .keyfile(Property.of(keyFileContent))
                 .passphrase(Property.of("testPassPhrase"));
         } else {
-            uploadTask.password(Property.of("pass"));
+            uploadTask.password(PASSWORD);
         }
 
         Upload taskUpload = uploadTask.build();
@@ -89,14 +91,14 @@ class SftpTest {
             .from(Property.of(sftpPath))
             .host(Property.of("localhost"))
             .port(Property.of("6622"))
-            .username(Property.of("foo"));
+            .username(USERNAME);
 
         if (keyAuth) {
             downloadTask = downloadTask
                 .keyfile(Property.of(keyFileContent))
                 .passphrase(Property.of("testPassPhrase"));
         } else {
-            downloadTask = downloadTask.password(Property.of("pass"));
+            downloadTask = downloadTask.password(PASSWORD);
         }
 
         Download taskDownload = downloadTask.build();
