@@ -15,6 +15,8 @@ import java.util.Map;
 public class FtpUtils extends AbstractUtils {
     @Inject
     private RunContextFactory runContextFactory;
+    public static final Property<String> USERNAME = Property.of("guest");
+    public static final Property<String> PASSWORD = Property.of("O7m)&H/0Em4/T8RqCa!Al=M@N6^;@+");
 
     public Upload.Output upload(URI source, String to) throws Exception {
         var task = Upload.builder()
@@ -24,8 +26,8 @@ public class FtpUtils extends AbstractUtils {
             .to(Property.of(to))
             .host(Property.of("localhost"))
             .port(Property.of("6621"))
-            .username(Property.of("guest"))
-            .password(Property.of("guest"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .build();
 
         return task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
@@ -39,8 +41,8 @@ public class FtpUtils extends AbstractUtils {
             .from(Property.of(dir))
             .host(Property.of("localhost"))
             .port(Property.of("6621"))
-            .username(Property.of("guest"))
-            .password(Property.of("guest"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .build()
             .run(this.runContextFactory.of());
     }
@@ -53,8 +55,8 @@ public class FtpUtils extends AbstractUtils {
             .uri(Property.of(file))
             .host(Property.of("localhost"))
             .port(Property.of("6621"))
-            .username(Property.of("guest"))
-            .password(Property.of("guest"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .build();
 
         return task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));

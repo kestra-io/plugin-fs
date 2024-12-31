@@ -11,6 +11,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
+import static io.kestra.plugin.fs.ftp.FtpUtils.PASSWORD;
+import static io.kestra.plugin.fs.ftp.FtpUtils.USERNAME;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 
@@ -36,8 +38,8 @@ class MoveTest {
             .to(Property.of(to))
             .host(Property.of("localhost"))
             .port(Property.of("6621"))
-            .username(Property.of("guest"))
-            .password(Property.of("guest"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .build();
 
         Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
@@ -59,8 +61,8 @@ class MoveTest {
             .to(Property.of(to))
             .host(Property.of("localhost"))
             .port(Property.of("6621"))
-            .username(Property.of("guest"))
-            .password(Property.of("guest"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .build();
 
         Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
@@ -82,8 +84,8 @@ class MoveTest {
             .to(Property.of(to))
             .host(Property.of("localhost"))
             .port(Property.of("6621"))
-            .username(Property.of("guest"))
-            .password(Property.of("guest"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .build();
 
         Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
@@ -106,8 +108,8 @@ class MoveTest {
                 .to(Property.of(to))
                 .host(Property.of("localhost"))
                 .port(Property.of("6621"))
-                .username(Property.of("guest"))
-                .password(Property.of("guest"))
+                .username(USERNAME)
+                .password(PASSWORD)
                 .build();
 
         Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));

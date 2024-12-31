@@ -15,6 +15,8 @@ import org.junit.jupiter.api.Test;
 import java.util.Map;
 import java.util.Optional;
 
+import static io.kestra.plugin.fs.sftp.SftpUtils.PASSWORD;
+import static io.kestra.plugin.fs.sftp.SftpUtils.USERNAME;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
@@ -41,8 +43,8 @@ public class TriggerTest extends AbstractFileTriggerTest {
             .type(Trigger.class.getName())
             .host(Property.of("localhost"))
             .port(Property.of("6622"))
-            .username(Property.of("foo"))
-            .password(Property.of("pass"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .from(Property.of("/upload/trigger/"))
             .action(Property.of(Downloads.Action.MOVE))
             .moveDirectory(Property.of("/upload/trigger-move/"))
@@ -66,8 +68,8 @@ public class TriggerTest extends AbstractFileTriggerTest {
                 .type(Download.class.getName())
                 .host(Property.of("localhost"))
                 .port(Property.of("6622"))
-            .username(Property.of("foo"))
-            .password(Property.of("pass"))
+            .username(USERNAME)
+            .password(PASSWORD)
                 .from(Property.of(upload.getTo().toString()))
                 .build();
 
@@ -79,8 +81,8 @@ public class TriggerTest extends AbstractFileTriggerTest {
             .type(Download.class.getName())
             .host(Property.of("localhost"))
             .port(Property.of("6622"))
-            .username(Property.of("foo"))
-            .password(Property.of("pass"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .from(Property.of("/upload/trigger" + "-move/" + out + ".yml"))
             .build();
 

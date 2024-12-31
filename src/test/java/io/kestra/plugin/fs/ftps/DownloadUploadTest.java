@@ -18,6 +18,8 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
+import static io.kestra.plugin.fs.ftp.FtpUtils.PASSWORD;
+import static io.kestra.plugin.fs.ftp.FtpUtils.USERNAME;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.is;
@@ -46,8 +48,8 @@ class DownloadUploadTest {
             .to(Property.of(to))
             .host(Property.of("127.0.0.1"))
             .port(Property.of("6990"))
-            .username(Property.of("guest"))
-            .password(Property.of("guest"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .build();
 
         var uploadRun = upload.run(TestsUtils.mockRunContext(runContextFactory, upload, Map.of()));
@@ -58,8 +60,8 @@ class DownloadUploadTest {
             .from(Property.of(uploadRun.getTo().getPath()))
             .host(Property.of("127.0.0.1"))
             .port(Property.of("6990"))
-            .username(Property.of("guest"))
-            .password(Property.of("guest"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .build();
 
         var downloadRun = download.run(TestsUtils.mockRunContext(runContextFactory, download, Map.of()));
@@ -83,8 +85,8 @@ class DownloadUploadTest {
                 .to(Property.of(sftpPath))
                 .host(Property.of("127.0.0.1"))
                 .port(Property.of("6990"))
-                .username(Property.of("guest"))
-                .password(Property.of("guest"))
+                .username(USERNAME)
+                .password(PASSWORD)
                 .build();
         Uploads.Output uploadsRun = uploadsTask.run(TestsUtils.mockRunContext(runContextFactory, uploadsTask, Map.of()));
 
@@ -95,8 +97,8 @@ class DownloadUploadTest {
                 .action(Property.of(io.kestra.plugin.fs.ftp.Downloads.Action.DELETE))
                 .host(Property.of("127.0.0.1"))
                 .port(Property.of("6990"))
-                .username(Property.of("guest"))
-                .password(Property.of("guest"))
+                .username(USERNAME)
+                .password(PASSWORD)
                 .build();
 
         Downloads.Output downloadsRun = downloadsTask.run(TestsUtils.mockRunContext(runContextFactory, downloadsTask, Map.of()));

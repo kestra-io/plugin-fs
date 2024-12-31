@@ -7,7 +7,7 @@ triggers:
     host: localhost
     port: 6622
     username: foo
-    password: pass
+    password: pass*+=
     from: "/upload/trigger/"
     interval: PT10S
     action: MOVE
