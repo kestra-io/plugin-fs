@@ -10,6 +10,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
+import static io.kestra.plugin.fs.ftp.FtpUtils.PASSWORD;
+import static io.kestra.plugin.fs.ftp.FtpUtils.USERNAME;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
@@ -39,8 +41,8 @@ class ListTest {
             .from(Property.of("/upload" + dir))
             .host(Property.of("localhost"))
             .port(Property.of("6621"))
-            .username(Property.of("guest"))
-            .password(Property.of("guest"));
+            .username(USERNAME)
+            .password(PASSWORD);
 
         List task = builder.build();
 
@@ -62,8 +64,8 @@ class ListTest {
             .from(Property.of("/upload" + dir))
             .host(Property.of("localhost"))
             .port(Property.of("6621"))
-            .username(Property.of("guest"))
-            .password(Property.of("guest"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .recursive(Property.of(true)).build();
 
         run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
@@ -76,8 +78,8 @@ class ListTest {
             .from(Property.of("/" + dir))
             .host(Property.of("localhost"))
             .port(Property.of("6621"))
-            .username(Property.of("guest"))
-            .password(Property.of("guest"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .recursive(Property.of(true)).build();
 
         run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));

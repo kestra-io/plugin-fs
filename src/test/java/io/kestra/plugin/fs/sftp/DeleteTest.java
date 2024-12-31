@@ -10,6 +10,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
+import static io.kestra.plugin.fs.sftp.SftpUtils.PASSWORD;
+import static io.kestra.plugin.fs.sftp.SftpUtils.USERNAME;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
@@ -34,8 +36,8 @@ class DeleteTest {
             .uri(Property.of(from))
             .host(Property.of("localhost"))
             .port(Property.of("6622"))
-            .username(Property.of("foo"))
-            .password(Property.of("pass"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .build();
 
         Delete.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));

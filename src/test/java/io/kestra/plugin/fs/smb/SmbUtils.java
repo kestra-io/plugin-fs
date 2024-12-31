@@ -16,6 +16,8 @@ import java.util.Map;
 public class SmbUtils extends AbstractUtils {
     public static final String SHARE_NAME = "upload";
     public static final String SECOND_SHARE_NAME = "another_upload";
+    public static final Property<String> USERNAME = Property.of("alice");
+    public static final Property<String> PASSWORD = Property.of("O7m)&H/0Em4/T8RqCa!Al=M@N6^;@+");
 
     @Inject
     private RunContextFactory runContextFactory;
@@ -27,8 +29,8 @@ public class SmbUtils extends AbstractUtils {
             .from(Property.of(source.toString()))
             .to(Property.of(to))
             .host(Property.of("localhost"))
-            .username(Property.of("alice"))
-            .password(Property.of("alipass"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .build();
 
         return task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
@@ -42,8 +44,8 @@ public class SmbUtils extends AbstractUtils {
             .from(Property.of(dir))
             .host(Property.of("localhost"))
             .port(Property.of("445"))
-            .username(Property.of("alice"))
-            .password(Property.of("alipass"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .build()
             .run(this.runContextFactory.of());
     }
@@ -55,8 +57,8 @@ public class SmbUtils extends AbstractUtils {
             .type(SmbUtils.class.getName())
             .uri(Property.of(file))
             .host(Property.of("localhost"))
-            .username(Property.of("alice"))
-            .password(Property.of("alipass"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .build();
 
         return task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));

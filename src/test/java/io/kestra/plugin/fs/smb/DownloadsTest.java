@@ -10,6 +10,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 
+import static io.kestra.plugin.fs.smb.SmbUtils.PASSWORD;
+import static io.kestra.plugin.fs.smb.SmbUtils.USERNAME;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.is;
@@ -36,8 +38,8 @@ class DownloadsTest {
             .action(Property.of(Downloads.Action.DELETE))
             .host(Property.of("localhost"))
             .port(Property.of("445"))
-            .username(Property.of("alice"))
-            .password(Property.of("alipass"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .build();
 
         Downloads.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
@@ -65,8 +67,8 @@ class DownloadsTest {
             .action(Property.of(Downloads.Action.MOVE))
             .host(Property.of("localhost"))
             .port(Property.of("445"))
-            .username(Property.of("alice"))
-            .password(Property.of("alipass"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .build();
 
         Downloads.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
@@ -104,8 +106,8 @@ class DownloadsTest {
             .action(Property.of(Downloads.Action.NONE))
             .host(Property.of("localhost"))
             .port(Property.of("445"))
-            .username(Property.of("alice"))
-            .password(Property.of("alipass"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .build();
 
         Downloads.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));

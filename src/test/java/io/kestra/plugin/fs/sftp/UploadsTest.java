@@ -15,6 +15,8 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
+import static io.kestra.plugin.fs.sftp.SftpUtils.PASSWORD;
+import static io.kestra.plugin.fs.sftp.SftpUtils.USERNAME;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
@@ -39,8 +41,8 @@ class UploadsTest {
             .to(Property.of("/upload/" + random))
             .host(Property.of("localhost"))
             .port(Property.of("6622"))
-            .username(Property.of("foo"))
-            .password(Property.of("pass"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .build();
         Output uploadsRun = uploads.run(TestsUtils.mockRunContext(runContextFactory, uploads, Map.of()));
 
@@ -51,8 +53,8 @@ class UploadsTest {
             .action(Property.of(Downloads.Action.DELETE))
             .host(Property.of("localhost"))
             .port(Property.of("6622"))
-            .username(Property.of("foo"))
-            .password(Property.of("pass"))
+            .username(USERNAME)
+            .password(PASSWORD)
             .build();
 
         Downloads.Output downloadsRun = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
