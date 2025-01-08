@@ -37,7 +37,7 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
     private Property<Downloads.Action> action;
 
     @Schema(
-        title = "The destination directory in case off `MOVE` "
+        title = "The destination directory in case of `MOVE`"
     )
     private Property<String> moveDirectory;
 
