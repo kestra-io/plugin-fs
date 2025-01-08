@@ -268,6 +268,10 @@ public abstract class VfsService {
             }
         } else if (action == Downloads.Action.MOVE) {
             for (io.kestra.plugin.fs.vfs.models.File file : blobList) {
+                //Destination should be considered as a directory
+                if (!moveDirectory.getPath().endsWith("/")) {
+                    moveDirectory = moveDirectory.resolve(URIUtils.encodePath(StringUtils.stripEnd(moveDirectory.getPath(), "/") + "/"));
+                }
                 VfsService.move(
                     runContext,
                     fsm,
