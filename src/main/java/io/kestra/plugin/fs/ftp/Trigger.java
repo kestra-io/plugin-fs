@@ -29,7 +29,7 @@ import java.net.Proxy;
             code = """
                 id: ftp_trigger_flow
                 namespace: company.team
-                
+
                 tasks:
                   - id: for_each_file
                     type: io.kestra.plugin.core.flow.ForEach
@@ -38,7 +38,7 @@ import java.net.Proxy;
                       - id: return
                         type: io.kestra.plugin.core.debug.Return
                         format: "{{ taskrun.value | jq('.path') }}"
-                
+
                 triggers:
                   - id: watch
                     type: io.kestra.plugin.fs.ftp.Trigger
@@ -58,7 +58,7 @@ import java.net.Proxy;
             code = """
                 id: ftp_trigger_flow
                 namespace: company.team
-                
+
                 tasks:
                   - id: for_each_file
                     type: io.kestra.plugin.core.flow.ForEach
@@ -74,7 +74,7 @@ import java.net.Proxy;
                         username: foo
                         password: bar
                         uri: "/in/{{ taskrun.value | jq('.name') }}"
-                
+
                 triggers:
                   - id: watch
                     type: io.kestra.plugin.fs.ftp.Trigger
@@ -102,7 +102,7 @@ import java.net.Proxy;
                       - id: return
                         type: io.kestra.plugin.core.debug.Return
                         format: "{{ taskrun.value | jq('.path') }}"
-                
+
                 triggers:
                   - id: watch
                     type: io.kestra.plugin.fs.ftp.Trigger
@@ -116,7 +116,7 @@ import java.net.Proxy;
                     moveDirectory: "archive/"
                     interval: PTS
                 """
-        )        
+        )
     }
 )
 public class Trigger extends io.kestra.plugin.fs.vfs.Trigger implements FtpInterface {
@@ -131,6 +131,8 @@ public class Trigger extends io.kestra.plugin.fs.vfs.Trigger implements FtpInter
     protected Property<Boolean> passiveMode = Property.of(true);
     @Builder.Default
     protected Property<Boolean> remoteIpVerification = Property.of(true);
+    @Builder.Default
+    protected Options options = Options.builder().build();
 
     @Override
     protected FileSystemOptions fsOptions(RunContext runContext) throws IllegalVariableEvaluationException, IOException {

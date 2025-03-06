@@ -12,6 +12,7 @@ import org.apache.commons.vfs2.FileSystemOptions;
 
 import java.io.IOException;
 import java.net.Proxy;
+import java.time.Duration;
 
 @SuperBuilder
 @ToString
@@ -53,6 +54,8 @@ public class Download extends io.kestra.plugin.fs.vfs.Download implements FtpInt
     protected Property<Boolean> passiveMode = Property.of(true);
     @Builder.Default
     protected Property<Boolean> remoteIpVerification = Property.of(true);
+    @Builder.Default
+    protected Options options = Options.builder().build();
 
     @Override
     protected FileSystemOptions fsOptions(RunContext runContext) throws IllegalVariableEvaluationException, IOException {
