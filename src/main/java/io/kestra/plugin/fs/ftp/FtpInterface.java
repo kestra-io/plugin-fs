@@ -2,8 +2,12 @@ package io.kestra.plugin.fs.ftp;
 
 import io.kestra.core.models.property.Property;
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.extern.jackson.Jacksonized;
 
 import java.net.Proxy;
+import java.time.Duration;
 
 public interface FtpInterface {
     @Schema(
@@ -35,4 +39,43 @@ public interface FtpInterface {
         title = "Control that the server ip that emit the request is the same than send response."
     )
     Property<Boolean> getRemoteIpVerification();
+
+    Options getOptions();
+
+    @Getter
+    @Builder(toBuilder = true)
+    @Jacksonized
+    class Options {
+        @Schema(
+            title = "The timeout for the initial control connection."
+        )
+        @Builder.Default
+        Property<Duration> connectionTimeout = Property.of(Duration.ofSeconds(30));
+
+        @Schema(
+            title = "The timeout for opening the data channel."
+        )
+        @Builder.Default
+        Property<Duration> dataTimeout = Property.of(Duration.ofSeconds(30));
+
+        @Schema(
+            title = "The socket timeout."
+        )
+        @Builder.Default
+        Property<Duration> socketTimeout = Property.of(Duration.ofSeconds(30));
+
+        @Schema(
+            title = "the control keep alive timeout.",
+            description = "to ensure the socket be alive after download huge file."
+        )
+        @Builder.Default
+        Property<Duration> controlKeepAliveTimeout = Property.of(Duration.ofSeconds(30));
+
+        @Schema(
+            title = "The control keep alive reply timeout.",
+            description = "to ensure the socket be alive after download huge file."
+        )
+        @Builder.Default
+        Property<Duration> controlKeepAliveReplyTimeout = Property.of(Duration.ofSeconds(30));
+    }
 }

@@ -53,6 +53,8 @@ public class Delete extends io.kestra.plugin.fs.vfs.Delete implements FtpInterfa
     protected Property<Boolean> passiveMode = Property.of(true);
     @Builder.Default
     protected Property<Boolean> remoteIpVerification = Property.of(true);
+    @Builder.Default
+    protected Options options = Options.builder().build();
 
     @Override
     protected FileSystemOptions fsOptions(RunContext runContext) throws IllegalVariableEvaluationException, IOException {

@@ -60,6 +60,8 @@ public class Downloads extends io.kestra.plugin.fs.vfs.Downloads implements FtpI
     protected Property<Boolean> passiveMode = Property.of(true);
     @Builder.Default
     protected Property<Boolean> remoteIpVerification = Property.of(true);
+    @Builder.Default
+    protected Options options = Options.builder().build();
 
     @Builder.Default
     protected Property<FtpsMode> mode = Property.of(FtpsMode.EXPLICIT);

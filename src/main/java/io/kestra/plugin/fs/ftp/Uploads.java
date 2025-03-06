@@ -28,7 +28,7 @@ import java.net.Proxy;
                         code = """
                             id: fs_ftp_uploads
                             namespace: company.team
-            
+
                             inputs:
                               - id: file1
                                 type: FILE
@@ -62,6 +62,8 @@ public class Uploads extends io.kestra.plugin.fs.vfs.Uploads implements FtpInter
     private Property<Boolean> passiveMode = Property.of(true);
     @Builder.Default
     private Property<Boolean> remoteIpVerification = Property.of(true);
+    @Builder.Default
+    protected Options options = Options.builder().build();
 
     @Override
     protected FileSystemOptions fsOptions(RunContext runContext) throws IllegalVariableEvaluationException, IOException {
