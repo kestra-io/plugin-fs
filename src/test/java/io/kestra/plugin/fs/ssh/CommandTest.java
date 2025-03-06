@@ -3,6 +3,7 @@ package io.kestra.plugin.fs.ssh;
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.ssh.SshInterface.AuthMethod;
 import jakarta.inject.Inject;
@@ -27,7 +28,7 @@ class CommandTest {
     @Test
     void run_passwordMethod() throws Exception {
         Command command = Command.builder()
-            .id(CommandTest.class.getName())
+            .id(IdUtils.create())
             .type(CommandTest.class.getName())
             .host(Property.of("localhost"))
             .username(Property.of("foo"))
@@ -65,7 +66,7 @@ class CommandTest {
         String keyFileContent = new String(data, StandardCharsets.UTF_8);
 
         Command command = Command.builder()
-            .id(CommandTest.class.getName())
+            .id(IdUtils.create())
             .type(CommandTest.class.getName())
             .host(Property.of("localhost"))
             .username(Property.of("foo"))
@@ -96,7 +97,7 @@ class CommandTest {
     @Disabled("Cannot work on CI")
     void run_openSSHMethod() throws Exception {
         Command command = Command.builder()
-            .id(CommandTest.class.getName())
+            .id(IdUtils.create())
             .type(CommandTest.class.getName())
             .host(Property.of("localhost"))
             .password(Property.of("password"))
