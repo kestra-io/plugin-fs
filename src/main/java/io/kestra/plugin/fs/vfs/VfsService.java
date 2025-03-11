@@ -1,6 +1,8 @@
 package io.kestra.plugin.fs.vfs;
 
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
+import io.kestra.core.exceptions.KestraRuntimeException;
+import io.kestra.core.models.validations.KestraConstraintViolationException;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.fs.vfs.models.File;
 import org.apache.commons.io.FilenameUtils;
@@ -154,6 +156,17 @@ public abstract class VfsService {
         URI from,
         URI to
     ) throws Exception {
+        return upload(runContext, fsm, fileSystemOptions, from, to, true);
+    }
+
+    public static Upload.Output upload(
+        RunContext runContext,
+        StandardFileSystemManager fsm,
+        FileSystemOptions fileSystemOptions,
+        URI from,
+        URI to,
+        boolean overwrite
+    ) throws Exception {
         // copy from to a temp files
         java.io.File tempFile = runContext.workingDir().createTempFile().toFile();
 
@@ -166,6 +179,16 @@ public abstract class VfsService {
         try (FileObject local = fsm.resolveFile(tempFile.toURI());
              FileObject remote = fsm.resolveFile(to.toString(), fileSystemOptions)
         ) {
+            //Avoid overriding a folder with a file when the remote folder exists
+            if (!overwrite && remote.isFolder() && remote.exists() && !to.getPath().endsWith("/")) {
+                throw new KestraRuntimeException(String.format(
+                    """
+                    Overwrite field is set to `false`. Folder %s will be overwritten with current file.
+                    If you want the folder to be overwritten with the file, set `overwrite: true`.
+                    """,
+                    remote.getName().getPath()
+                ));
+            }
             remote.copyFrom(local, Selectors.SELECT_SELF);
         }
 
