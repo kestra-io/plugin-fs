@@ -28,6 +28,13 @@ public abstract class Upload extends AbstractVfsTask implements RunnableTask<Upl
     )
     private Property<String> to;
 
+    @Schema(
+        title = "Overwrite.",
+        description = "If set to false, it will raise an exception if the destination folder or file already exists."
+    )
+    @Builder.Default
+    private Property<Boolean> overwrite = Property.of(false);
+
     public Upload.Output run(RunContext runContext) throws Exception {
         try (StandardFileSystemManager fsm = new KestraStandardFileSystemManager(runContext)) {
             fsm.setConfiguration(StandardFileSystemManager.class.getResource(KestraStandardFileSystemManager.CONFIG_RESOURCE));
@@ -43,7 +50,8 @@ public abstract class Upload extends AbstractVfsTask implements RunnableTask<Upl
                 fsm,
                 this.fsOptions(runContext),
                 URI.create(renderedFrom),
-                this.uri(runContext, renderedTo)
+                this.uri(runContext, renderedTo),
+                runContext.render(this.overwrite).as(Boolean.class).orElseThrow()
             );
         }
     }
