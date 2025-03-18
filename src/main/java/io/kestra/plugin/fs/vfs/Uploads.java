@@ -23,7 +23,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Uploads.Output> {
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, internalStorageURI = true)
     @Schema(
             title = "The files to upload, must be internal storage URIs, must be a list of URIs or a pebble template that returns a list of URIs",
             anyOf = {

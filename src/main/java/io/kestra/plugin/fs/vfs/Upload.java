@@ -1,5 +1,6 @@
 package io.kestra.plugin.fs.vfs;
 
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
@@ -21,6 +22,7 @@ public abstract class Upload extends AbstractVfsTask implements RunnableTask<Upl
         title = "The file to copy, must be an internal storage URI"
     )
     @NotNull
+    @PluginProperty(internalStorageURI = true)
     private Property<String> from;
 
     @Schema(
