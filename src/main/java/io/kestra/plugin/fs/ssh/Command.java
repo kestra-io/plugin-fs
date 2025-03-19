@@ -292,7 +292,7 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
                     String line;
                     while ((line = bufferedReader.readLine()) != null) {
                         count.incrementAndGet();
-                        outputs.putAll(PluginUtilsService.parseOut(line, runContext.logger(), runContext, isStdErr));
+                        outputs.putAll(PluginUtilsService.parseOut(line, runContext.logger(), runContext, isStdErr, null));
                     }
                 }
             } catch (Exception e) {
