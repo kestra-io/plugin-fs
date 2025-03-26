@@ -2,7 +2,6 @@ package io.kestra.plugin.fs.vfs;
 
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.exceptions.KestraRuntimeException;
-import io.kestra.core.models.validations.KestraConstraintViolationException;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.fs.vfs.models.File;
 import org.apache.commons.io.FilenameUtils;
@@ -59,7 +58,7 @@ public abstract class VfsService {
         String username,
         String password,
         String filepath
-    ) throws IllegalVariableEvaluationException, URISyntaxException {
+    ) throws URISyntaxException {
         return new URI(
             scheme,
             basicAuth(username, password),
@@ -114,7 +113,7 @@ public abstract class VfsService {
             java.util.List<File> list = Stream.of(children)
                 .map(throwFunction(r -> File.of((AbstractFileObject<?>) r)))
                 .filter(r -> regExp == null || r.getPath().toString().matches(regExp))
-                .collect(Collectors.toList());
+                .toList();
 
             runContext.logger().debug("Found '{}' files from '{}'", list.size(), VfsService.uriWithoutAuth(from));
 
@@ -208,7 +207,7 @@ public abstract class VfsService {
         Boolean errorOnMissing
     ) throws Exception {
         try (FileObject local = fsm.resolveFile(from.toString(), fileSystemOptions)) {
-            if (!local.exists() && errorOnMissing) {
+            if (!local.exists() && Boolean.TRUE.equals(errorOnMissing)) {
                 throw new NoSuchElementException("Unable to find file '" + VfsService.uriWithoutAuth(from) + "'");
             }
 
@@ -230,7 +229,8 @@ public abstract class VfsService {
         StandardFileSystemManager fsm,
         FileSystemOptions fileSystemOptions,
         URI from,
-        URI to
+        URI to,
+        boolean overwrite
     ) throws Exception {
         // user pass a destination without filename, we add it
         if (!isDirectory(from) && isDirectory(to)) {
@@ -245,7 +245,13 @@ public abstract class VfsService {
                 throw new NoSuchElementException("Unable to find file '" + VfsService.uriWithoutAuth(from) + "'");
             }
 
-            if (!remote.exists()) {
+            if (remote.exists()) {
+                String remoteFileName = FilenameUtils.getName(remote.getName().getPath());
+                if (remoteFileName != null && remoteFileName.equals(FilenameUtils.getName(local.getName().getPath())) && !overwrite) {
+                    throw new KestraRuntimeException(String.format("File '%s' already exists in the remote server. If you want to ignore this, set `overwrite` to `true`.", remoteFileName));
+                }
+
+            } else {
                 URI pathToCreate = to.resolve("/" + URIUtils.encodePath(FilenameUtils.getPath(to.getPath())));
 
                 try (FileObject directory = fsm.resolveFile(to.toString(), fileSystemOptions)) {
@@ -300,7 +306,8 @@ public abstract class VfsService {
                     fsm,
                     fileSystemOptions,
                     file.getServerPath(),
-                    moveDirectory
+                    moveDirectory,
+                    true
                 );
             }
         }
