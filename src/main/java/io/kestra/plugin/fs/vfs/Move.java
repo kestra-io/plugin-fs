@@ -32,6 +32,13 @@ public abstract class Move extends AbstractVfsTask implements RunnableTask<Move.
     @NotNull
     private Property<String> to;
 
+    @Schema(
+        title = "Overwrite.",
+        description = "If set to false, it will raise an exception if the destination folder or file already exists."
+    )
+    @Builder.Default
+    protected Property<Boolean> overwrite = Property.of(false);
+
     public Output run(RunContext runContext) throws Exception {
         try (StandardFileSystemManager fsm = new KestraStandardFileSystemManager(runContext)) {
             fsm.setConfiguration(StandardFileSystemManager.class.getResource(KestraStandardFileSystemManager.CONFIG_RESOURCE));
@@ -42,7 +49,8 @@ public abstract class Move extends AbstractVfsTask implements RunnableTask<Move.
                 fsm,
                 this.fsOptions(runContext),
                 this.uri(runContext, runContext.render(this.from).as(String.class).orElseThrow()),
-                this.uri(runContext, runContext.render(this.to).as(String.class).orElseThrow())
+                this.uri(runContext, runContext.render(this.to).as(String.class).orElseThrow()),
+                runContext.render(this.overwrite).as(Boolean.class).orElseThrow()
             );
         }
     }
