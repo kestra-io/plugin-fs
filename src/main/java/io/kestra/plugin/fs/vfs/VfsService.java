@@ -247,10 +247,13 @@ public abstract class VfsService {
 
             if (remote.exists()) {
                 String remoteFileName = FilenameUtils.getName(remote.getName().getPath());
-                if (remoteFileName != null && remoteFileName.equals(FilenameUtils.getName(local.getName().getPath())) && !overwrite) {
-                    throw new KestraRuntimeException(String.format("File '%s' already exists in the remote server. If you want to ignore this, set `overwrite` to `true`.", remoteFileName));
+                if (remoteFileName != null && remoteFileName.equals(FilenameUtils.getName(local.getName().getPath()))) {
+                    if (overwrite) {
+                        runContext.logger().warn("File '%s' already exists in the remote server and will be overwritten.");
+                    } else {
+                        throw new KestraRuntimeException(String.format("File '%s' already exists in the remote server and cannot be overwritten. If you want to ignore this, set `overwrite` to `true`.", remoteFileName));
+                    }
                 }
-
             } else {
                 URI pathToCreate = to.resolve("/" + URIUtils.encodePath(FilenameUtils.getPath(to.getPath())));
 
