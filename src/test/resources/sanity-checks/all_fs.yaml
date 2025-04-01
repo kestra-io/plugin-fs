@@ -1,4 +1,4 @@
-id: all
+id: all_fs
 namespace: sanitychecks.plugin-fs
 
 tasks:
