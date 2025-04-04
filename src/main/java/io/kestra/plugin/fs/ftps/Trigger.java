@@ -48,7 +48,7 @@ import java.net.Proxy;
                     host: localhost
                     port: 990
                     username: foo
-                    password: bar
+                    password: "{{ secret('FTPS_PASSWORD') }}"
                     from: "/in/"
                     interval: PT10S
                     action: MOVE
@@ -77,7 +77,7 @@ import java.net.Proxy;
                     host: localhost
                     port: "21"
                     username: foo
-                    password: bar
+                    password: "{{ secret('FTPS_PASSWORD') }}"
                     from: "mydir/"
                     regExp: ".*.csv"
                     action: MOVE
