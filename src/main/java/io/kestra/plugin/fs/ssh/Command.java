@@ -49,7 +49,8 @@ import java.util.concurrent.atomic.AtomicInteger;
                     authMethod: PASSWORD
                     username: foo
                     password: pass
-                    commands: ['ls']
+                    commands:
+                      - ls
                 """
         ),
         @Example(
@@ -67,7 +68,8 @@ import java.util.concurrent.atomic.AtomicInteger;
                     authMethod: PUBLIC_KEY
                     username: root
                     privateKey: "{{ secret('SSH_RSA_PRIVATE_KEY') }}"
-                    commands: ['touch kestra_was_here']
+                    commands:
+                      - touch kestra_was_here
                 """
         ),
         @Example(
