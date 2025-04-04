@@ -35,7 +35,7 @@ import java.io.IOException;
                     host: localhost
                     port: "22"
                     username: foo
-                    password: pass
+                    password: "{{ secret('SFTP_PASSWORD') }}"
                     from: "/in/"
                     interval: PT10S
                     action: MOVE

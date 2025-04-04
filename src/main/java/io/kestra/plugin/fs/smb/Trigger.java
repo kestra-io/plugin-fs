@@ -75,7 +75,7 @@ import java.io.IOException;
                         host: localhost
                         port: "445"
                         username: foo
-                        password: bar
+                        password: "{{ secret('SMB_PASSWORD') }}"
                         uri: "/my_share/in/{{ taskrun.value | jq('.path') }}"
                 
                 triggers:
@@ -84,7 +84,7 @@ import java.io.IOException;
                     host: localhost
                     port: "445"
                     username: foo
-                    password: bar
+                    password: "{{ secret('SMB_PASSWORD') }}"
                     from: "/my_share/in/"
                     interval: PT10S
                     action: NONE
@@ -114,7 +114,7 @@ import java.io.IOException;
                     host: localhost
                     port: "445"
                     username: foo
-                    password: bar
+                    password: "{{ secret('SMB_PASSWORD') }}"
                     from: "my_share/mydir/"
                     regExp: ".*.csv"
                     action: MOVE

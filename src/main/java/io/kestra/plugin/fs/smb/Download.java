@@ -34,7 +34,7 @@ import java.io.IOException;
                     host: localhost
                     port: "445"
                     username: foo
-                    password: pass
+                    password: "{{ secret('SMB_PASSWORD') }}"
                     from: "/my_share/file.txt"
                 """
         )

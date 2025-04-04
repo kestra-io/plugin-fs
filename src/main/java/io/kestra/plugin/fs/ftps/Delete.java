@@ -38,7 +38,7 @@ import java.net.Proxy;
                     host: localhost
                     port: 990
                     username: foo
-                    password: pass
+                    password: "{{ secret('FTPS_PASSWORD') }}"
                     uri: "/upload/dir1/file.txt"
                 """
         )
