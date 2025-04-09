@@ -1,17 +1,15 @@
 package io.kestra.plugin.fs.ssh;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.jcraft.jsch.*;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
-import io.kestra.core.models.flows.State;
 import io.kestra.core.models.property.Property;
-import io.kestra.core.models.tasks.Output;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.models.tasks.runners.PluginUtilsService;
 import io.kestra.core.runners.RunContext;
+import io.kestra.plugin.scripts.exec.scripts.models.ScriptOutput;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -90,7 +88,7 @@ import java.util.concurrent.atomic.AtomicInteger;
         )
     }
 )
-public class Command extends Task implements SshInterface, RunnableTask<Command.ScriptOutput> {
+public class Command extends Task implements SshInterface, RunnableTask<ScriptOutput> {
     private static final long SLEEP_DELAY_MS = 25L;
 
     private Property<String> host;
@@ -128,12 +126,11 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
     )
     private Property<Map<String, String>> env;
 
-    @Builder.Default
     @Schema(
-        title = "Use `WARNING` state if any stdErr is sent"
+        title = "Not used anymore, will be removed soon"
     )
-    @NotNull
-    private Property<Boolean> warningOnStdErr = Property.of(true);
+    @Deprecated
+    private Property<Boolean> warningOnStdErr;
 
     @Builder.Default
     @Schema(
@@ -143,7 +140,7 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
     private Property<Boolean> enableSshRsa1 = Property.of(false);
 
     @Override
-    public Command.ScriptOutput run(RunContext runContext) throws Exception {
+    public ScriptOutput run(RunContext runContext) throws Exception {
         JSch jsch;
         Session session = null;
         ChannelExec channel = null;
@@ -249,7 +246,6 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
                 .exitCode(channel.getExitStatus())
                 .stdOutLineCount(stdOutRunnable.count.get())
                 .stdErrLineCount(stdErrRunnable.count.get())
-                .warningOnStdErr(runContext.render(this.warningOnStdErr).as(Boolean.class).orElse(true))
                 .vars(vars)
                 .build();
         } finally {
@@ -303,32 +299,4 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
         }
     }
 
-    @Builder
-    @Getter
-    public static class ScriptOutput implements Output {
-        @Schema(
-            title = "The value extracted from the output of the executed `commands`"
-        )
-        private final Map<String, Object> vars;
-
-        @Schema(
-            title = "The exit code of the entire Flow Execution"
-        )
-        @NotNull
-        private final int exitCode;
-
-        @JsonIgnore
-        private final int stdOutLineCount;
-
-        @JsonIgnore
-        private final int stdErrLineCount;
-
-        @JsonIgnore
-        private Boolean warningOnStdErr;
-
-        @Override
-        public Optional<State.Type> finalState() {
-            return this.warningOnStdErr != null && this.warningOnStdErr && this.stdErrLineCount > 0 ? Optional.of(State.Type.WARNING) : Output.super.finalState();
-        }
-    }
 }
