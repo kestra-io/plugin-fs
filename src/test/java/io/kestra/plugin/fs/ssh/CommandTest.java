@@ -6,6 +6,7 @@ import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.ssh.SshInterface.AuthMethod;
+import io.kestra.plugin.scripts.exec.scripts.models.ScriptOutput;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -47,7 +48,7 @@ class CommandTest {
             })
             .build();
 
-        Command.ScriptOutput run = command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));
+        ScriptOutput run = command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));
 
         Thread.sleep(500);
 
@@ -85,7 +86,7 @@ class CommandTest {
             })
             .build();
 
-        Command.ScriptOutput run = command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));
+        ScriptOutput run = command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));
 
         Thread.sleep(500);
 
@@ -115,7 +116,7 @@ class CommandTest {
             })
             .build();
 
-        Command.ScriptOutput run = command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));
+        ScriptOutput run = command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));
 
         Thread.sleep(500);
 
