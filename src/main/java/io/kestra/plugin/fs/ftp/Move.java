@@ -19,7 +19,7 @@ import java.net.Proxy;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Move a file to a FTP server.",
+    title = "Move a file to an FTP server.",
     description ="If the destination directory doesn't exist, it will be created"
 )
 @Plugin(

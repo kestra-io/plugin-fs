@@ -19,7 +19,7 @@ import java.net.Proxy;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Delete a file to a FTP server."
+    title = "Delete a file from an FTP server."
 )
 @Plugin(
     examples = {

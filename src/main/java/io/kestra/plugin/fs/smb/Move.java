@@ -18,7 +18,7 @@ import java.io.IOException;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Move a file to a different share / folder on a SMB (Samba for eg.) server.",
+    title = "Move a file to a different folder on an SMB (e.g., Samba) server directory.",
     description = "If the destination directory doesn't exist, it will be created"
 )
 @Plugin(

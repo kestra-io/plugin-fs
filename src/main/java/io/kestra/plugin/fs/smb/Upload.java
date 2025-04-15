@@ -18,7 +18,7 @@ import java.io.IOException;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Upload a file to a SMB (Samba for eg.) server"
+    title = "Upload a file to an SMB (e.g., Samba) server directory."
 )
 @Plugin(
     examples = {

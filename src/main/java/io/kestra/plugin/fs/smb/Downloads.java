@@ -18,7 +18,7 @@ import java.io.IOException;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Download multiple files from a SMB (Samba for eg.) server"
+    title = "Download multiple files from an SMB (e.g., Samba) server."
 )
 @Plugin(
     examples = {
