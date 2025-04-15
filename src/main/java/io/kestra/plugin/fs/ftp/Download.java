@@ -20,7 +20,7 @@ import java.time.Duration;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Download file from FTP server"
+    title = "Download file from an FTP server."
 )
 @Plugin(
     examples = {

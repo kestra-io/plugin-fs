@@ -18,7 +18,7 @@ import java.io.IOException;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Trigger a flow as soon as new files are detected in a given SMB (Samba for eg.) server's directory."
+    title = "Trigger a flow on new file arrival in a given SMB (e.g., Samba) server directory."
 )
 @Plugin(
     examples = {

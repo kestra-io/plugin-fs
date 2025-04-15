@@ -18,7 +18,7 @@ import java.io.IOException;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Delete a file from a SMB (Samba for eg.) server."
+    title = "Delete a file from an SMB (e.g., Samba) server."
 )
 @Plugin(
     examples = {

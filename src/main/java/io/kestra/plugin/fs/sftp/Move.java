@@ -18,7 +18,7 @@ import java.io.IOException;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Move a file to a SFTP server.",
+    title = "Move a file to an SFTP server.",
     description ="If the destination directory doesn't exist, it will be created"
 )
 @Plugin(
