@@ -22,7 +22,7 @@ import java.net.Proxy;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Delete a file to a FTPS server."
+    title = "Delete a file from an FTPS server."
 )
 @Plugin(
     examples = {

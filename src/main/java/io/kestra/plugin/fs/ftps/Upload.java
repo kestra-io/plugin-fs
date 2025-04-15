@@ -22,7 +22,7 @@ import java.net.Proxy;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Upload a file to a FTPS server"
+    title = "Upload a file to an FTPS server."
 )
 @Plugin(
     examples = {

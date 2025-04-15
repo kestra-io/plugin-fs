@@ -18,7 +18,7 @@ import java.io.IOException;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Download file from SFTP server"
+    title = "Download a file from an SFTP server."
 )
 @Plugin(
     examples = {

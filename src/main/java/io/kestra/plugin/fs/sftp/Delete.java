@@ -18,7 +18,7 @@ import java.io.IOException;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Delete a file to a SFTP server."
+    title = "Delete a file from an SFTP server."
 )
 @Plugin(
     examples = {

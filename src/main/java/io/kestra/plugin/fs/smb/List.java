@@ -18,7 +18,7 @@ import java.io.IOException;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "List files from a SMB (Samba for eg.) server directory"
+    title = "List files from an SMB (e.g., Samba) server directory."
 )
 @Plugin(
     examples = {

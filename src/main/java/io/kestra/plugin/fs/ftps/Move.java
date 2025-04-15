@@ -22,7 +22,7 @@ import java.net.Proxy;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Move a file to a FTPS server.",
+    title = "Move a file to an FTPS server.",
     description ="If the destination directory doesn't exist, it will be created"
 )
 @Plugin(
