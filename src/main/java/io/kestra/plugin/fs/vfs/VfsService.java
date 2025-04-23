@@ -3,6 +3,7 @@ package io.kestra.plugin.fs.vfs;
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.exceptions.KestraRuntimeException;
 import io.kestra.core.runners.RunContext;
+import io.kestra.core.utils.FileUtils;
 import io.kestra.plugin.fs.vfs.models.File;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
@@ -129,7 +130,7 @@ public abstract class VfsService {
         FileSystemOptions fileSystemOptions,
         URI from
     ) throws Exception {
-        java.io.File tempFile = runContext.workingDir().createTempFile(extension(from)).toFile();
+        java.io.File tempFile = runContext.workingDir().createTempFile(FileUtils.getExtension(from)).toFile();
 
         try (
             FileObject local = fsm.resolveFile(tempFile.toURI());
