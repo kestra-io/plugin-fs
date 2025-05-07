@@ -55,9 +55,7 @@ public class Download extends AbstractLocalTask implements RunnableTask<Download
 
         String renderedFrom = runContext.render(this.from).as(String.class).orElseThrow();
 
-        var basePath = runContext.render(this.basePath).as(String.class).orElse(USER_DIR);
-
-        Path sourcePath = resolveLocalPath(renderedFrom, basePath);
+        Path sourcePath = resolveLocalPath(renderedFrom);
 
         if (!Files.exists(sourcePath)) {
             throw new IllegalArgumentException("Source file '" + sourcePath + "' does not exist");

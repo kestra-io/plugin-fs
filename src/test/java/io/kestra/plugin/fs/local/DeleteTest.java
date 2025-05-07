@@ -2,6 +2,7 @@ package io.kestra.plugin.fs.local;
 
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
+import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.TestsUtils;
 import jakarta.inject.Inject;
@@ -16,7 +17,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @KestraTest
 class DeleteTest {
-    protected static final String USER_DIR = System.getenv().getOrDefault("KESRA_LOCAL_TEST_PATH", System.getProperty("user.home"));
     private Path testFile;
     private Path testDir;
 
@@ -25,7 +25,8 @@ class DeleteTest {
 
     @BeforeEach
     void setUp() throws IOException {
-        Path tempDir = Files.createTempDirectory(Path.of(USER_DIR), "kestra-test-delete-");
+        RunContext runContext = runContextFactory.of();
+        Path tempDir = Files.createTempDirectory(Path.of(runContext.workingDir().path().toUri()), "kestra-test-delete-");
         testFile = tempDir.resolve("test-file.txt");
         testDir = tempDir.resolve("test-dir");
 
@@ -39,7 +40,7 @@ class DeleteTest {
         Delete task = Delete.builder()
             .id(DeleteTest.class.getSimpleName())
             .type(Delete.class.getName())
-            .uri(Property.of(testFile.toUri().toString()))
+            .path(Property.of(testFile.toString()))
             .build();
 
         Delete.Output output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
@@ -54,7 +55,7 @@ class DeleteTest {
         Delete task = Delete.builder()
             .id(DeleteTest.class.getSimpleName())
             .type(Delete.class.getName())
-            .uri(Property.of(nonExistentFile.toUri().toString()))
+            .path(Property.of(nonExistentFile.toUri().toString()))
             .errorOnMissing(Property.of(false))
             .build();
 
@@ -69,7 +70,7 @@ class DeleteTest {
         Delete task = Delete.builder()
             .id(DeleteTest.class.getSimpleName())
             .type(Delete.class.getName())
-            .uri(Property.of(nonExistentFile.toUri().toString()))
+            .path(Property.of(nonExistentFile.toUri().toString()))
             .errorOnMissing(Property.of(true))
             .build();
 
@@ -84,7 +85,7 @@ class DeleteTest {
         Delete task = Delete.builder()
             .id(DeleteTest.class.getSimpleName())
             .type(Delete.class.getName())
-            .uri(Property.of(testDir.toUri().toString()))
+            .path(Property.of(testDir.toString()))
             .recursive(Property.of(true))
             .build();
 

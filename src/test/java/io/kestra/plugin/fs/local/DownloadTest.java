@@ -19,7 +19,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @KestraTest
 class DownloadTest {
-    protected static final String USER_DIR = System.getenv().getOrDefault("KESRA_LOCAL_TEST_PATH", System.getProperty("user.home"));
+
     private Path sourceFile;
     private final String fileContent = "test content";
 
@@ -28,7 +28,8 @@ class DownloadTest {
 
     @BeforeEach
     void setUp() throws IOException {
-        Path tempDir = Files.createTempDirectory(Path.of(USER_DIR), "kestra-test-download-");
+        RunContext runContext = runContextFactory.of();
+        Path tempDir = Files.createTempDirectory(Path.of(runContext.workingDir().path().toUri()), "kestra-test-download-");
         sourceFile = tempDir.resolve("source-file.txt");
 
         Files.writeString(sourceFile, fileContent);
@@ -40,7 +41,7 @@ class DownloadTest {
             .id(DownloadTest.class.getSimpleName())
             .type(Download.class.getName())
             .from(Property.of(sourceFile.toString()))
-            .basePath(Property.of(USER_DIR))
+
             .build();
 
         RunContext runContext = TestsUtils.mockRunContext(runContextFactory, task, Map.of());
@@ -64,7 +65,7 @@ class DownloadTest {
             .id(DownloadTest.class.getSimpleName())
             .type(Download.class.getName())
             .from(Property.of(nonExistentFile.toString()))
-            .basePath(Property.of(USER_DIR))
+
             .build();
 
         assertThrows(

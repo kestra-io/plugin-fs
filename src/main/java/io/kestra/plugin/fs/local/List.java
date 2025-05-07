@@ -11,7 +11,6 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 
 import jakarta.validation.constraints.NotNull;
-import org.apache.commons.vfs2.FileType;
 
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -74,9 +73,7 @@ public class List extends AbstractLocalTask implements RunnableTask<List.Output>
     public Output run(RunContext runContext) throws Exception {
         String resolvedDirectory = runContext.render(this.from).as(String.class).orElseThrow();
 
-        var basePath = runContext.render(this.basePath).as(String.class).orElse(USER_DIR);
-
-        Path directoryPath = resolveLocalPath(resolvedDirectory, basePath);
+        Path directoryPath = resolveLocalPath(resolvedDirectory);
 
         String fileRegex = this.regExp != null ? runContext.render(this.regExp).as(String.class).orElseThrow() : ".*";
         int maxDepth = runContext.render(recursive).as(Boolean.class).orElse(false) ? Integer.MAX_VALUE : 1;

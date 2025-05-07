@@ -62,7 +62,6 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
                 Delete delete = Delete.builder()
                     .id("archive")
                     .type(Delete.class.getName())
-                    .uri(Property.of(file.getUri().toString()))
                     .build();
                 delete.run(runContext);
             }
@@ -84,9 +83,7 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
     @Override
     public Output run(RunContext runContext) throws Exception {
         String renderedFrom = runContext.render(this.from).as(String.class).orElseThrow();
-        var basePath = runContext.render(this.basePath).as(String.class).orElse(USER_DIR);
 
-        
         io.kestra.plugin.fs.local.List task = io.kestra.plugin.fs.local.List.builder()
             .id(this.id)
             .type(List.class.getName())
@@ -99,7 +96,7 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
             .getFiles()
             .stream()
             .map(throwFunction(fileItem -> {
-                Path sourcePath = resolveLocalPath(renderedFrom, basePath);
+                Path sourcePath = resolveLocalPath(renderedFrom);
                 java.io.File tempFile = runContext.workingDir().createTempFile(FileUtils.getExtension(renderedFrom)).toFile();
                 Files.copy(sourcePath, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
                 URI storageUri = runContext.storage().putFile(tempFile);

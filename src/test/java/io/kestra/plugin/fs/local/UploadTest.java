@@ -21,7 +21,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @KestraTest
 class UploadTest {
-    protected static final String USER_DIR = System.getenv().getOrDefault("KESRA_LOCAL_TEST_PATH", System.getProperty("user.home"));
     private Path tempDir;
     private Path destinationFile;
     private URI sourceUri;
@@ -32,12 +31,15 @@ class UploadTest {
 
     @BeforeEach
     void setUp() throws IOException {
-        tempDir = Files.createTempDirectory(Path.of(USER_DIR), "kestra-test-upload-");
-        destinationFile = tempDir.resolve("destination-file.txt");
 
         RunContext runContext = runContextFactory.of();
+
+        tempDir = Files.createTempDirectory(Path.of(runContext.workingDir().path().toUri()), "kestra-test-upload-");
+        destinationFile = tempDir.resolve("destination-file.txt");
+
         File tempFile = runContext.workingDir().createTempFile().toFile();
         Files.write(tempFile.toPath(), fileContent.getBytes(StandardCharsets.UTF_8));
+
         sourceUri = runContext.storage().putFile(tempFile);
     }
 
@@ -54,7 +56,7 @@ class UploadTest {
             .type(Upload.class.getName())
             .from(Property.of(sourceUri.toString()))
             .to(Property.of(destinationFile.toString()))
-            .basePath(Property.of(USER_DIR))
+
             .overwrite(Property.of(true))
             .build();
 
@@ -75,7 +77,6 @@ class UploadTest {
             .type(Upload.class.getName())
             .from(Property.of(sourceUri.toString()))
             .to(Property.of(destinationFile.toString()))
-            .basePath(Property.of(USER_DIR))
             .overwrite(Property.of(false))
             .build();
 
@@ -91,15 +92,13 @@ class UploadTest {
             .id(UploadTest.class.getSimpleName())
             .type(Upload.class.getName())
             .from(Property.of(sourceUri.toString()))
-            .basePath(Property.of(tempDir.toString()))
             .build();
 
         Upload.Output output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         String fileName = sourceUri.toString().substring(sourceUri.toString().lastIndexOf('/') + 1);
-        Path expectedPath = tempDir.resolve(fileName);
-        assertTrue(Files.exists(expectedPath));
+        Path expectedPath = Paths.get(fileName);
 
-        Files.deleteIfExists(expectedPath);
+        assertTrue(Files.exists(expectedPath));
     }
 }

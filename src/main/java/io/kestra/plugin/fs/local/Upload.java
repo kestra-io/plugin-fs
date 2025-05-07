@@ -77,10 +77,10 @@ public class Upload extends AbstractLocalTask implements RunnableTask<Upload.Out
             throw new IllegalArgumentException("'from' must be a Kestra's internal storage URI");
         }
 
-        var basePath = runContext.render(this.basePath).as(String.class).orElse(USER_DIR);
-        var renderedTo = runContext.render(this.to).as(String.class).orElse(renderedFrom.substring(renderedFrom.lastIndexOf('/')+1));
+        var renderedTo = runContext.render(this.to).as(String.class)
+            .orElse(renderedFrom.substring(renderedFrom.lastIndexOf('/') + 1));
 
-        Path destinationPath = resolveLocalPath(renderedTo, basePath);
+        Path destinationPath = resolveLocalPath(renderedTo);
 
         Files.createDirectories(destinationPath.getParent()!=null ? destinationPath.getParent() : destinationPath);
 
@@ -94,7 +94,7 @@ public class Upload extends AbstractLocalTask implements RunnableTask<Upload.Out
         }
 
         return Output.builder()
-            .uri(destinationPath.toUri().toString())
+            .uri(destinationPath.toUri())
             .size(Files.size(destinationPath))
             .build();
     }
@@ -105,7 +105,7 @@ public class Upload extends AbstractLocalTask implements RunnableTask<Upload.Out
         @Schema(
             title = "URI of the uploaded file"
         )
-        private String uri;
+        private URI uri;
 
         @Schema(
             title = "Size of the uploaded file in bytes"

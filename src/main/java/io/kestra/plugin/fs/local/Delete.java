@@ -2,6 +2,7 @@ package io.kestra.plugin.fs.local;
 
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
+import io.kestra.core.models.tasks.VoidOutput;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
@@ -21,9 +22,9 @@ import java.util.NoSuchElementException;
 @NoArgsConstructor
 public class Delete extends AbstractLocalTask implements RunnableTask<Delete.Output> {
 
-    @Schema(title = "The local file URI to delete (e.g., file:///tmp/test.txt)")
+    @Schema(title = "The local file path to delete.")
     @NotNull
-    private Property<String> uri;
+    private Property<String> path;
 
     @Schema(title = "Raise an error if the file is not found")
     @Builder.Default
@@ -38,18 +39,17 @@ public class Delete extends AbstractLocalTask implements RunnableTask<Delete.Out
 
     @Override
     public Output run(RunContext runContext) throws Exception {
-        URI uri = URI.create(runContext.render(this.uri).as(String.class).orElseThrow());
-        Path path = Paths.get(uri);
+        Path path = Paths.get(runContext.render(this.path).as(String.class).orElseThrow());
 
         if (!Files.exists(path)) {
             if (runContext.render(this.errorOnMissing).as(Boolean.class).orElse(false)) {
-                throw new NoSuchElementException("Unable to find file '" + path + "'");
+                throw new NoSuchElementException("File does not exist '" + path +
+                    "'. To avoid this error, configure `errorOnMissing: true` in your configuration.");
             }
 
             runContext.logger().debug("File doesn't exist '{}'", path);
 
             return Output.builder()
-                .uri(uri)
                 .deleted(false)
                 .build();
         }
@@ -67,7 +67,6 @@ public class Delete extends AbstractLocalTask implements RunnableTask<Delete.Out
         }
 
         return outputBuilder
-            .uri(uri)
             .build();
     }
 
@@ -95,9 +94,6 @@ public class Delete extends AbstractLocalTask implements RunnableTask<Delete.Out
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
-        @Schema(title = "The deleted URI")
-        private final URI uri;
-
         @Schema(title = "Whether the file was deleted")
         private final boolean deleted;
     }

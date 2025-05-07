@@ -2,6 +2,8 @@ package io.kestra.plugin.fs.local;
 
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
+import io.kestra.core.models.tasks.VoidOutput;
+import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.TestsUtils;
 import jakarta.inject.Inject;
@@ -17,7 +19,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @KestraTest
 class MoveTest {
-    protected static final String USER_DIR = System.getenv().getOrDefault("KESRA_LOCAL_TEST_PATH", System.getProperty("user.home"));
     private Path sourceFile;
     private Path targetFile;
 
@@ -26,7 +27,8 @@ class MoveTest {
 
     @BeforeEach
     void setUp() throws IOException {
-        Path tempDir = Files.createTempDirectory(Path.of(USER_DIR), "kestra-test-move-");
+        RunContext runContext = runContextFactory.of();
+        Path tempDir = Files.createTempDirectory(Path.of(runContext.workingDir().path().toUri()), "kestra-test-move-");
         sourceFile = tempDir.resolve("file1.csv");
         targetFile = tempDir.resolve("file2.csv");
 
@@ -46,11 +48,11 @@ class MoveTest {
             .type(MoveTest.class.getName())
             .from(Property.of(sourceFile.toString()))
             .to(Property.of(targetFile.toString()))
-            .basePath(Property.of(USER_DIR))
+
             .overwrite(Property.of(true))
             .build();
 
-        Move.Output output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+        VoidOutput output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertTrue(Files.exists(targetFile));
         assertFalse(Files.exists(sourceFile));
@@ -65,7 +67,7 @@ class MoveTest {
             .type(MoveTest.class.getName())
             .from(Property.of(sourceFile.toString()))
             .to(Property.of(targetFile.toString()))
-            .basePath(Property.of(USER_DIR))
+
             .overwrite(Property.of(false))
             .build();
 

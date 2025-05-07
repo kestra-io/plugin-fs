@@ -2,6 +2,7 @@ package io.kestra.plugin.fs.local;
 
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
+import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.TestsUtils;
 import jakarta.inject.Inject;
@@ -20,8 +21,6 @@ import static org.hamcrest.Matchers.*;
 
 @KestraTest
 class ListTest {
-
-    protected static final String USER_DIR = System.getenv().getOrDefault("KESRA_LOCAL_TEST_PATH", System.getProperty("user.home"));
     private Path tempDir;
 
     @Inject
@@ -29,7 +28,8 @@ class ListTest {
 
     @BeforeEach
     void setUp() throws IOException {
-        tempDir = Files.createTempDirectory(Path.of(USER_DIR), "kestra-test-list-");
+        RunContext runContext = runContextFactory.of();
+        tempDir = Files.createTempDirectory(Path.of(runContext.workingDir().path().toUri()), "kestra-test-list-");
         Files.createFile(tempDir.resolve("file1.csv"));
         Files.createFile(tempDir.resolve("file2.csv"));
         Files.createDirectory(tempDir.resolve("nested"));
@@ -54,7 +54,7 @@ class ListTest {
             .id(ListTest.class.getSimpleName())
             .type(List.class.getName())
             .from(Property.of(tempDir.toString()))
-            .basePath(Property.of(USER_DIR))
+
             .regExp(Property.of(".*\\.csv"))
             .recursive(Property.of(true))
             .build();
