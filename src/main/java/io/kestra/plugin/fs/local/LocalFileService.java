@@ -60,7 +60,7 @@ public class LocalFileService {
                         try {
                             results.add(
                                 io.kestra.plugin.fs.local.models.File.builder()
-                                    .localPath(path.toUri())
+                                    .localPath(path)
                                     .name(path.getFileName().toString())
                                     .parent(path.getParent().toString())
                                     .size(Files.isRegularFile(path) ? Files.size(path) : 0)
@@ -106,7 +106,7 @@ public class LocalFileService {
         }
 
         for (io.kestra.plugin.fs.local.models.File file : files) {
-            Path sourcePath = Paths.get(file.getLocalPath());
+            Path sourcePath = file.getLocalPath();
 
             switch (action) {
                 case DELETE:

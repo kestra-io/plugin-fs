@@ -1,7 +1,7 @@
 package io.kestra.plugin.fs.local;
 
 import io.kestra.core.models.annotations.Example;
-import io.kestra.core.models.annotations.Examples;
+import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.*;
 import io.kestra.core.runners.RunContext;
@@ -14,6 +14,7 @@ import lombok.experimental.SuperBuilder;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 
+import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -26,56 +27,125 @@ import java.util.stream.Collectors;
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
 @SuperBuilder
-@NoArgsConstructor
 @ToString
 @EqualsAndHashCode
 @Getter
-@Examples({
-    @Example(
-        title = "Download multiple files from a local directory",
-        code = """
-            id: download-multiple
-            type: io.kestra.plugin.fs.local.Downloads
-            from:
-              - "file:///tmp/file1.txt"
-              - "file:///tmp/file2.csv"
-            """
-    )
-})
+@NoArgsConstructor
+@Schema(
+    title = "Download multiple files from a local filesystem directory to Kestra storage."
+)
+@Plugin(
+    examples = {
+        @Example(
+            full = true,
+            code = """
+                id: fs_local_downloads
+                namespace: company.team
+
+                tasks:
+                  - id: downloads
+                    type: io.kestra.plugin.fs.local.Downloads
+                    from: "/data/files/"
+                    regExp: ".*\\.csv"
+                    recursive: true
+                    action: NONE
+                    allowedPaths:
+                      - /data/files
+                """
+        ),
+        @Example(
+            full = true,
+            code = """
+                id: fs_local_downloads_move
+                namespace: company.team
+
+                tasks:
+                  - id: downloads_move
+                    type: io.kestra.plugin.fs.local.Downloads
+                    from: /data/files/
+                    regExp: ".*\\.csv"
+                    recursive: true
+                    action: MOVE
+                    moveDirectory: "/data/archive"
+                    allowedPaths:
+                      - /data/files
+                      - /data/archive
+                """
+        )
+    }
+)
 public class Downloads extends AbstractLocalTask implements RunnableTask<Downloads.Output> {
 
-    @NotNull
     @Schema(
-        title = "Paths to files to download",
-        description = "List of full file paths (e.g., file:///tmp/my-file.txt)"
+        title = "The directory to list"
     )
+    @NotNull
     private Property<String> from;
 
+    @Schema(
+        title = "The action to do on downloaded files"
+    )
+    @Builder.Default
+    private Property<Downloads.Action> action = Property.of(Downloads.Action.NONE);
+
+    @Schema(
+        title = "The destination directory in case of `MOVE`"
+    )
+    private Property<String> moveDirectory;
+
+    @Schema(
+        title = "A regexp to filter on full path"
+    )
+    private Property<String> regExp;
+
+    @Schema(
+        title = "List file recursively"
+    )
+    @Builder.Default
+    private Property<Boolean> recursive = Property.of(false);
+
+    /**
+     * Performs the specified action on the list of files
+     *
+     * @param fileList      List of downloaded files
+     * @param action        Action to perform (MOVE, DELETE, NONE)
+     * @param moveDirectory Destination directory for MOVE action
+     * @param runContext    Current run context
+     * @param allowedPaths
+     * @throws Exception If the action cannot be performed
+     */
     static void performAction(
         List<File> fileList,
         Action action,
         Property<String> moveDirectory,
-        RunContext runContext
-    ) throws Exception {
+        RunContext runContext,
+        @NotNull Property<List<String>> allowedPaths) throws Exception {
         if (action == Action.DELETE) {
             for (File file : fileList) {
                 Delete delete = Delete.builder()
-                    .id("archive")
+                    .id(Delete.class.getSimpleName())
                     .type(Delete.class.getName())
+                    .allowedPaths(allowedPaths)
+                    .path(Property.of(file.getLocalPath().toString()))
                     .build();
                 delete.run(runContext);
             }
         } else if (action == Action.MOVE) {
+            if (moveDirectory == null) {
+                throw new IllegalArgumentException("moveDirectory must be specified when action is MOVE");
+            }
+
+            String destinationDir = StringUtils.stripEnd(runContext.render(moveDirectory).as(String.class).orElseThrow(), "/");
+
             for (File file : fileList) {
-                Move copy = Move.builder()
-                    .id("archive")
-                    .type(Copy.class.getName())
+                Move move = Move.builder()
+                    .id(Move.class.getSimpleName())
+                    .type(Move.class.getName())
                     .from(Property.of(file.getLocalPath().toString()))
-                    .to(Property.of(StringUtils.stripEnd(runContext.render(moveDirectory).as(String.class).orElseThrow() + "/", "/")
-                        + "/" + FilenameUtils.getName(file.getName())
-                    ))
+                    .to(Property.of(destinationDir + "/" + FilenameUtils.getName(file.getName())))
+                    .allowedPaths(allowedPaths)
                     .build();
-                copy.run(runContext);
+                move.run(runContext);
             }
         }
     }
@@ -84,34 +154,53 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
     public Output run(RunContext runContext) throws Exception {
         String renderedFrom = runContext.render(this.from).as(String.class).orElseThrow();
 
-        io.kestra.plugin.fs.local.List task = io.kestra.plugin.fs.local.List.builder()
-            .id(this.id)
-            .type(List.class.getName())
-            .from(this.from)
+        io.kestra.plugin.fs.local.List listTask = io.kestra.plugin.fs.local.List.builder()
+            .id(io.kestra.plugin.fs.local.List.class.getSimpleName())
+            .type(io.kestra.plugin.fs.local.List.class.getName())
+            .from(Property.of(renderedFrom))
+            .regExp(this.regExp)
+            .recursive(this.recursive)
+            .allowedPaths(this.allowedPaths)
             .build();
 
-        io.kestra.plugin.fs.local.List.Output run = task.run(runContext);
+        io.kestra.plugin.fs.local.List.Output listOutput = listTask.run(runContext);
 
-        List<File> list = run
+        List<File> downloadedFiles = listOutput
             .getFiles()
             .stream()
             .map(throwFunction(fileItem -> {
-                Path sourcePath = resolveLocalPath(renderedFrom);
-                java.io.File tempFile = runContext.workingDir().createTempFile(FileUtils.getExtension(renderedFrom)).toFile();
+                if (fileItem.isDirectory()) {
+                    return fileItem;
+                }
+
+                Path sourcePath = resolveLocalPath(fileItem.getLocalPath().toString(), runContext);
+                if (!Files.exists(sourcePath)) {
+                    throw new IOException("Source file '" + sourcePath + "' does not exist");
+                }
+
+                java.io.File tempFile = runContext.workingDir().createTempFile(FileUtils.getExtension(fileItem.getName())).toFile();
                 Files.copy(sourcePath, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
                 URI storageUri = runContext.storage().putFile(tempFile);
 
                 return fileItem.withUri(storageUri);
-                })
-            ).toList();
+            }))
+            .toList();
 
-        Map<String, URI> outputFiles = list.stream()
-            .filter(file -> !file.isDirectory())
-            .map(file -> new AbstractMap.SimpleEntry<>(file.getName(), file.getUri()))
+        Action selectedAction = this.action != null ?
+            runContext.render(this.action).as(Action.class).orElse(Action.NONE) :
+            Action.NONE;
+
+        if (selectedAction != Action.NONE) {
+            performAction(downloadedFiles, selectedAction, this.moveDirectory, runContext, allowedPaths);
+        }
+
+        Map<String, URI> outputFiles = downloadedFiles.stream()
+            .filter(file -> !file.isDirectory() && file.getUri() != null)
+            .map(file -> new AbstractMap.SimpleEntry<>(file.getLocalPath().toString(), file.getUri()))
             .collect(Collectors.toMap(AbstractMap.SimpleEntry::getKey, AbstractMap.SimpleEntry::getValue));
 
         return Output.builder()
-            .files(list)
+            .files(downloadedFiles)
             .outputFiles(outputFiles)
             .build();
     }
@@ -126,12 +215,12 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
-            title = "URIs of the downloaded files in internal storage"
+            title = "Metadata of downloaded files."
         )
         private final List<File> files;
 
         @Schema(
-            title = "The downloaded files as a map of from/to URIs."
+            title = "The downloaded files as a map of from/to URIs"
         )
         private final Map<String, URI> outputFiles;
     }

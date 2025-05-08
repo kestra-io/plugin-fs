@@ -47,11 +47,10 @@ import java.nio.file.*;
     }
 )
 public class Upload extends AbstractLocalTask implements RunnableTask<Upload.Output> {
-    private static final String USER_DIR = System.getProperty("user.home");
 
     @Schema(
         title = "Source file URI",
-        description = "Can be any valid Kestra file URI (kestra://, file://, etc.)"
+        description = "URI of the file to be uploaded into local system"
     )
     @NotNull
     @PluginProperty(internalStorageURI = true)
@@ -80,7 +79,13 @@ public class Upload extends AbstractLocalTask implements RunnableTask<Upload.Out
         var renderedTo = runContext.render(this.to).as(String.class)
             .orElse(renderedFrom.substring(renderedFrom.lastIndexOf('/') + 1));
 
-        Path destinationPath = resolveLocalPath(renderedTo);
+        Path destinationPath = resolveLocalPath(renderedTo, runContext);
+
+
+        if (Files.exists(destinationPath) && !runContext.render(overwrite).as(Boolean.class).orElse(false)) {
+            throw new IllegalArgumentException("Target file already exists: " + destinationPath +
+                ". To avoid this error, configure `overwrite: true` to replace the existing file.");
+        }
 
         Files.createDirectories(destinationPath.getParent()!=null ? destinationPath.getParent() : destinationPath);
 

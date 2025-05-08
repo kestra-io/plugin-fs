@@ -56,8 +56,8 @@ public class Move extends AbstractLocalTask implements RunnableTask<VoidOutput> 
         String renderedFrom = runContext.render(this.from).as(String.class).orElseThrow();
         String renderedTo = runContext.render(this.to).as(String.class).orElseThrow();
 
-        Path sourcePath = resolveLocalPath(renderedFrom);
-        Path targetPath = resolveLocalPath(renderedTo);
+        Path sourcePath = resolveLocalPath(renderedFrom, runContext);
+        Path targetPath = resolveLocalPath(renderedTo, runContext);
 
         if (!Files.exists(sourcePath)) {
             throw new IllegalArgumentException("Source file does not exist: " + sourcePath);

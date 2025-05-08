@@ -35,16 +35,16 @@ public class Delete extends AbstractLocalTask implements RunnableTask<Delete.Out
         description = "If true, will recursively delete files in all subdirectories"
     )
     @Builder.Default
-    private Property<Boolean> recursive = Property.of(false);
+    private Property<Boolean> recursive = Property.of(true);
 
     @Override
     public Output run(RunContext runContext) throws Exception {
         Path path = Paths.get(runContext.render(this.path).as(String.class).orElseThrow());
 
         if (!Files.exists(path)) {
-            if (runContext.render(this.errorOnMissing).as(Boolean.class).orElse(false)) {
+            if (runContext.render(this.errorOnMissing).as(Boolean.class).orElse(true)) {
                 throw new NoSuchElementException("File does not exist '" + path +
-                    "'. To avoid this error, configure `errorOnMissing: true` in your configuration.");
+                    "'. To avoid this error, configure `errorOnMissing: false` in your configuration.");
             }
 
             runContext.logger().debug("File doesn't exist '{}'", path);

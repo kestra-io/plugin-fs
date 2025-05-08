@@ -73,7 +73,7 @@ public class List extends AbstractLocalTask implements RunnableTask<List.Output>
     public Output run(RunContext runContext) throws Exception {
         String resolvedDirectory = runContext.render(this.from).as(String.class).orElseThrow();
 
-        Path directoryPath = resolveLocalPath(resolvedDirectory);
+        Path directoryPath = resolveLocalPath(resolvedDirectory, runContext);
 
         String fileRegex = this.regExp != null ? runContext.render(this.regExp).as(String.class).orElseThrow() : ".*";
         int maxDepth = runContext.render(recursive).as(Boolean.class).orElse(false) ? Integer.MAX_VALUE : 1;
