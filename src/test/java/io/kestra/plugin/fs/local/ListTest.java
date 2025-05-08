@@ -54,7 +54,7 @@ class ListTest {
             .id(ListTest.class.getSimpleName())
             .type(List.class.getName())
             .from(Property.of(tempDir.toString()))
-
+            .allowedPaths(Property.of(java.util.List.of(tempDir.toRealPath().toString())))
             .regExp(Property.of(".*\\.csv"))
             .recursive(Property.of(true))
             .build();

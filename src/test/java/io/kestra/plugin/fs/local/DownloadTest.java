@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -21,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class DownloadTest {
 
     private Path sourceFile;
+    private Path tempDir;
     private final String fileContent = "test content";
 
     @Inject
@@ -29,7 +31,7 @@ class DownloadTest {
     @BeforeEach
     void setUp() throws IOException {
         RunContext runContext = runContextFactory.of();
-        Path tempDir = Files.createTempDirectory(Path.of(runContext.workingDir().path().toUri()), "kestra-test-download-");
+        tempDir = Files.createTempDirectory(Path.of(runContext.workingDir().path().toUri()), "kestra-test-download-");
         sourceFile = tempDir.resolve("source-file.txt");
 
         Files.writeString(sourceFile, fileContent);
@@ -40,8 +42,8 @@ class DownloadTest {
         Download task = Download.builder()
             .id(DownloadTest.class.getSimpleName())
             .type(Download.class.getName())
+            .allowedPaths(Property.of(List.of(tempDir.toRealPath().toString())))
             .from(Property.of(sourceFile.toString()))
-
             .build();
 
         RunContext runContext = TestsUtils.mockRunContext(runContextFactory, task, Map.of());
@@ -59,13 +61,13 @@ class DownloadTest {
     }
 
     @Test
-    void downloadNonExistentFile() {
+    void downloadNonExistentFile() throws IOException {
         Path nonExistentFile = sourceFile.getParent().resolve("non-existent.txt");
         Download task = Download.builder()
             .id(DownloadTest.class.getSimpleName())
             .type(Download.class.getName())
+            .allowedPaths(Property.of(List.of(tempDir.toRealPath().toString())))
             .from(Property.of(nonExistentFile.toString()))
-
             .build();
 
         assertThrows(

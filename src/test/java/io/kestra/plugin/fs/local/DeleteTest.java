@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.file.*;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -19,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class DeleteTest {
     private Path testFile;
     private Path testDir;
+    private Path tempDir;
 
     @Inject
     private RunContextFactory runContextFactory;
@@ -26,7 +28,7 @@ class DeleteTest {
     @BeforeEach
     void setUp() throws IOException {
         RunContext runContext = runContextFactory.of();
-        Path tempDir = Files.createTempDirectory(Path.of(runContext.workingDir().path().toUri()), "kestra-test-delete-");
+        tempDir = Files.createTempDirectory(Path.of(runContext.workingDir().path().toUri()), "kestra-test-delete-");
         testFile = tempDir.resolve("test-file.txt");
         testDir = tempDir.resolve("test-dir");
 
@@ -40,6 +42,7 @@ class DeleteTest {
         Delete task = Delete.builder()
             .id(DeleteTest.class.getSimpleName())
             .type(Delete.class.getName())
+            .allowedPaths(Property.of(List.of(tempDir.toString())))
             .path(Property.of(testFile.toString()))
             .build();
 
@@ -55,6 +58,7 @@ class DeleteTest {
         Delete task = Delete.builder()
             .id(DeleteTest.class.getSimpleName())
             .type(Delete.class.getName())
+            .allowedPaths(Property.of(List.of(tempDir.toString())))
             .path(Property.of(nonExistentFile.toUri().toString()))
             .errorOnMissing(Property.of(false))
             .build();
@@ -71,6 +75,7 @@ class DeleteTest {
             .id(DeleteTest.class.getSimpleName())
             .type(Delete.class.getName())
             .path(Property.of(nonExistentFile.toUri().toString()))
+            .allowedPaths(Property.of(List.of(tempDir.toString())))
             .errorOnMissing(Property.of(true))
             .build();
 
@@ -85,6 +90,7 @@ class DeleteTest {
         Delete task = Delete.builder()
             .id(DeleteTest.class.getSimpleName())
             .type(Delete.class.getName())
+            .allowedPaths(Property.of(List.of(tempDir.toString())))
             .path(Property.of(testDir.toString()))
             .recursive(Property.of(true))
             .build();

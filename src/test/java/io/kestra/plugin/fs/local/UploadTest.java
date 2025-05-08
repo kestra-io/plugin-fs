@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -56,7 +57,7 @@ class UploadTest {
             .type(Upload.class.getName())
             .from(Property.of(sourceUri.toString()))
             .to(Property.of(destinationFile.toString()))
-
+            .allowedPaths(Property.of(List.of(tempDir.toRealPath().toString())))
             .overwrite(Property.of(true))
             .build();
 
@@ -78,10 +79,11 @@ class UploadTest {
             .from(Property.of(sourceUri.toString()))
             .to(Property.of(destinationFile.toString()))
             .overwrite(Property.of(false))
+            .allowedPaths(Property.of(List.of(tempDir.toRealPath().toString())))
             .build();
 
         assertThrows(
-            FileAlreadyExistsException.class,
+            IllegalArgumentException.class,
             () -> task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()))
         );
     }
@@ -92,6 +94,7 @@ class UploadTest {
             .id(UploadTest.class.getSimpleName())
             .type(Upload.class.getName())
             .from(Property.of(sourceUri.toString()))
+            .allowedPaths(Property.of(List.of("/")))
             .build();
 
         Upload.Output output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));

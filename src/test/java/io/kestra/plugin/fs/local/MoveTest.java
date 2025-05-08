@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.file.*;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -21,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class MoveTest {
     private Path sourceFile;
     private Path targetFile;
+    private Path tempDir;
 
     @Inject
     private RunContextFactory runContextFactory;
@@ -28,7 +30,7 @@ class MoveTest {
     @BeforeEach
     void setUp() throws IOException {
         RunContext runContext = runContextFactory.of();
-        Path tempDir = Files.createTempDirectory(Path.of(runContext.workingDir().path().toUri()), "kestra-test-move-");
+        tempDir = Files.createTempDirectory(Path.of(runContext.workingDir().path().toUri()), "kestra-test-move-");
         sourceFile = tempDir.resolve("file1.csv");
         targetFile = tempDir.resolve("file2.csv");
 
@@ -48,7 +50,7 @@ class MoveTest {
             .type(MoveTest.class.getName())
             .from(Property.of(sourceFile.toString()))
             .to(Property.of(targetFile.toString()))
-
+            .allowedPaths(Property.of(List.of(tempDir.toRealPath().toString())))
             .overwrite(Property.of(true))
             .build();
 
@@ -67,7 +69,7 @@ class MoveTest {
             .type(MoveTest.class.getName())
             .from(Property.of(sourceFile.toString()))
             .to(Property.of(targetFile.toString()))
-
+            .allowedPaths(Property.of(List.of(tempDir.toRealPath().toString())))
             .overwrite(Property.of(false))
             .build();
 
