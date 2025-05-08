@@ -35,7 +35,7 @@ import java.net.Proxy;
                     host: localhost
                     port: 21
                     username: foo
-                    password: pass
+                    password: "{{ secret('FTP_PASSWORD') }}"
                     from: "/upload/dir1/"
                     regExp: ".*\\/dir1\\/.*.(yaml|yml)"
                 """
