@@ -83,7 +83,7 @@ class UploadTest {
             .build();
 
         assertThrows(
-            IllegalArgumentException.class,
+            io.kestra.core.exceptions.KestraRuntimeException.class,
             () -> task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()))
         );
     }

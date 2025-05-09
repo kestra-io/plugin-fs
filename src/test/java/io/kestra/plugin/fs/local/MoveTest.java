@@ -73,6 +73,6 @@ class MoveTest {
             .overwrite(Property.of(false))
             .build();
 
-        assertThrows(IllegalArgumentException.class, () -> task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of())));
+        assertThrows(io.kestra.core.exceptions.KestraRuntimeException.class, () -> task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of())));
     }
 }
