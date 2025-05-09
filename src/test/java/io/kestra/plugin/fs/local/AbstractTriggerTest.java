@@ -102,7 +102,7 @@ public abstract class AbstractTriggerTest {
             java.util.List<File> trigger = (java.util.List<File>) last.get().getTrigger().getVariables().get("files");
             assertThat(trigger.size(), greaterThanOrEqualTo(2));
 
-            assertThrows(java.nio.file.NoSuchFileException.class, () -> utils().list(toUploadDir));
+            assertThrows(IllegalArgumentException.class, () -> utils().list(toUploadDir));
             assertThat(utils().list(toUploadDir + "-move").getFiles().size(), greaterThanOrEqualTo(2));
 
             utils().delete(toUploadDir + "-move");

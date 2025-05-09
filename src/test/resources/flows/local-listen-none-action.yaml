@@ -1,0 +1,17 @@
+id: local-listen-none-action
+namespace: io.kestra.tests
+
+triggers:
+  - id: watch
+    type: io.kestra.plugin.fs.local.Trigger
+    from: "/var/tmp/local-listen-none-action"
+    recursive: true
+    action: NONE
+    interval: PT10S
+    allowedPaths:
+      - "/"
+
+tasks:
+  - id: end
+    type: io.kestra.plugin.core.debug.Return
+    format: "{{task.id}} > {{taskrun.startDate}}"
