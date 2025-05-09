@@ -1,16 +1,19 @@
 package io.kestra.plugin.fs.local;
 
+import io.kestra.core.exceptions.KestraRuntimeException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
+import io.kestra.core.utils.FileUtils;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
 import jakarta.validation.constraints.NotNull;
+import org.apache.commons.io.FilenameUtils;
 
 import java.net.URI;
 import java.nio.file.*;
@@ -81,10 +84,19 @@ public class Upload extends AbstractLocalTask implements RunnableTask<Upload.Out
 
         Path destinationPath = resolveLocalPath(renderedTo, runContext);
 
+        if (Files.exists(destinationPath) && Files.isDirectory(destinationPath)) {
+            String filename = renderedFrom.substring(renderedFrom.lastIndexOf('/') + 1);
+            destinationPath = destinationPath.resolve(filename);
+        }
 
         if (Files.exists(destinationPath) && !runContext.render(overwrite).as(Boolean.class).orElse(false)) {
-            throw new IllegalArgumentException("Target file already exists: " + destinationPath +
-                ". To avoid this error, configure `overwrite: true` to replace the existing file.");
+            throw new KestraRuntimeException(String.format(
+                """
+                Overwrite field is set to `false`. Folder %s will be overwritten with current file.
+                If you want the folder to be overwritten with the file, set `overwrite: true`.
+                """,
+                destinationPath
+            ));
         }
 
         Files.createDirectories(destinationPath.getParent()!=null ? destinationPath.getParent() : destinationPath);

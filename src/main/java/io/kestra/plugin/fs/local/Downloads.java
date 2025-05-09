@@ -11,8 +11,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.lang3.StringUtils;
 
 import java.io.IOException;
 import java.net.URI;
@@ -111,42 +109,39 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
      * @param action        Action to perform (MOVE, DELETE, NONE)
      * @param moveDirectory Destination directory for MOVE action
      * @param runContext    Current run context
-     * @param allowedPaths
+     * @param allowedPaths  List of allowed paths to perform action
      * @throws Exception If the action cannot be performed
      */
     static void performAction(
-        List<File> fileList,
+        String from,
         Action action,
         Property<String> moveDirectory,
         RunContext runContext,
         @NotNull Property<List<String>> allowedPaths) throws Exception {
         if (action == Action.DELETE) {
-            for (File file : fileList) {
-                Delete delete = Delete.builder()
-                    .id(Delete.class.getSimpleName())
-                    .type(Delete.class.getName())
-                    .allowedPaths(allowedPaths)
-                    .path(Property.of(file.getLocalPath().toString()))
-                    .build();
-                delete.run(runContext);
-            }
+
+            Delete delete = Delete.builder()
+                .id(Delete.class.getSimpleName())
+                .type(Delete.class.getName())
+                .allowedPaths(allowedPaths)
+                .path(Property.of(from))
+                .recursive(Property.of(true))
+                .build();
+            delete.run(runContext);
         } else if (action == Action.MOVE) {
             if (moveDirectory == null) {
                 throw new IllegalArgumentException("moveDirectory must be specified when action is MOVE");
             }
 
-            String destinationDir = StringUtils.stripEnd(runContext.render(moveDirectory).as(String.class).orElseThrow(), "/");
-
-            for (File file : fileList) {
-                Move move = Move.builder()
-                    .id(Move.class.getSimpleName())
-                    .type(Move.class.getName())
-                    .from(Property.of(file.getLocalPath().toString()))
-                    .to(Property.of(destinationDir + "/" + FilenameUtils.getName(file.getName())))
-                    .allowedPaths(allowedPaths)
-                    .build();
-                move.run(runContext);
-            }
+            Move move = Move.builder()
+                .id(Move.class.getSimpleName())
+                .type(Move.class.getName())
+                .from(Property.of(from))
+                .to(moveDirectory)
+                .overwrite(Property.of(true))
+                .allowedPaths(allowedPaths)
+                .build();
+            move.run(runContext);
         }
     }
 
@@ -191,7 +186,7 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
             Action.NONE;
 
         if (selectedAction != Action.NONE) {
-            performAction(downloadedFiles, selectedAction, this.moveDirectory, runContext, allowedPaths);
+            performAction(renderedFrom, selectedAction, this.moveDirectory, runContext, allowedPaths);
         }
 
         Map<String, URI> outputFiles = downloadedFiles.stream()

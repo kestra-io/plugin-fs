@@ -50,8 +50,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 public class List extends AbstractLocalTask implements RunnableTask<List.Output> {
 
     @Schema(
-        title = "The from to list files from",
-        description = "The absolute path to the from on the local filesystem"
+        title = "The fully-qualified URIs that point to path"
     )
     @NotNull
     private Property<String> from;

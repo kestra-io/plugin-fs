@@ -103,7 +103,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             Downloads.Action.NONE;
 
         if (selectedAction != Downloads.Action.NONE) {
-            Downloads.performAction(downloadedFiles, selectedAction, this.moveDirectory, runContext, allowedPaths);
+            Downloads.performAction(renderedFrom, selectedAction, this.moveDirectory, runContext, allowedPaths);
         }
 
         return Optional.of(TriggerService.generateExecution(
@@ -113,13 +113,5 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             Downloads.Output.builder().files(downloadedFiles).build()
         ));
     }
-
-    @Builder
-    @Getter
-    public static class Output implements io.kestra.core.models.tasks.Output {
-        @Schema(title = "List of detected files")
-        private final java.util.List<File> files;
-    }
-
 }
 
