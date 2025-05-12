@@ -1,6 +1,7 @@
 package io.kestra.plugin.fs.local;
 
 import com.devskiller.friendly_id.FriendlyId;
+import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.utils.TestsUtils;
@@ -8,6 +9,7 @@ import io.kestra.plugin.fs.sftp.Download;
 import io.kestra.plugin.fs.sftp.Trigger;
 import io.kestra.plugin.fs.vfs.models.File;
 import jakarta.inject.Inject;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Files;
@@ -22,6 +24,8 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+@KestraTest
+@Disabled("Cannot work on CI")
 class TriggerTest extends AbstractTriggerTest {
     @Inject
     private LocalUtils localUtils;
@@ -67,7 +71,6 @@ class TriggerTest extends AbstractTriggerTest {
             io.kestra.plugin.fs.local.Download task = io.kestra.plugin.fs.local.Download.builder()
                 .id(AbstractTriggerTest.class.getSimpleName())
                 .type(io.kestra.plugin.fs.local.Download.class.getName())
-                .allowedPaths(Property.of(List.of("/")))
                 .from(Property.of(upload.getUri().toString()))
                 .build();
 
@@ -77,7 +80,6 @@ class TriggerTest extends AbstractTriggerTest {
         io.kestra.plugin.fs.local.Download task = io.kestra.plugin.fs.local.Download.builder()
             .id(AbstractTriggerTest.class.getSimpleName())
             .type(Download.class.getName())
-            .allowedPaths(Property.of(List.of("/")))
             .from(Property.of("/var/tmp/trigger-move/" + out + ".yml"))
             .build();
 

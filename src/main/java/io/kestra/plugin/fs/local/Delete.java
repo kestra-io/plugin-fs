@@ -24,7 +24,7 @@ public class Delete extends AbstractLocalTask implements RunnableTask<Delete.Out
 
     @Schema(title = "The local file path to delete.")
     @NotNull
-    private Property<String> path;
+    private Property<String> from;
 
     @Schema(title = "Raise an error if the file is not found")
     @Builder.Default
@@ -39,15 +39,18 @@ public class Delete extends AbstractLocalTask implements RunnableTask<Delete.Out
 
     @Override
     public Output run(RunContext runContext) throws Exception {
-        Path path = Paths.get(runContext.render(this.path).as(String.class).orElseThrow());
 
-        if (!Files.exists(path)) {
+        String renderedFrom = runContext.render(this.from).as(String.class).orElseThrow();
+
+        Path sourcePath = resolveLocalPath(renderedFrom, runContext);
+
+        if (!Files.exists(sourcePath)) {
             if (runContext.render(this.errorOnMissing).as(Boolean.class).orElse(true)) {
-                throw new NoSuchElementException("File does not exist '" + path +
+                throw new NoSuchElementException("File does not exist '" + sourcePath +
                     "'. To avoid this error, configure `errorOnMissing: false` in your configuration.");
             }
 
-            runContext.logger().debug("File doesn't exist '{}'", path);
+            runContext.logger().debug("File doesn't exist '{}'", sourcePath);
 
             return Output.builder()
                 .deleted(false)
@@ -57,13 +60,13 @@ public class Delete extends AbstractLocalTask implements RunnableTask<Delete.Out
         Output.OutputBuilder outputBuilder = Output.builder();
 
         if (Boolean.TRUE.equals(runContext.render(this.recursive).as(Boolean.class).orElse(false))
-            && Files.isDirectory(path)) {
-            outputBuilder.deleted(deleteDirectoryRecursively(path));
+            && Files.isDirectory(sourcePath)) {
+            outputBuilder.deleted(deleteDirectoryRecursively(sourcePath));
 
-            runContext.logger().debug("Deleted directory '{}'", path);
+            runContext.logger().debug("Deleted directory '{}'", sourcePath);
         } else {
-           outputBuilder.deleted(Files.deleteIfExists(path));
-           runContext.logger().debug("Deleted file '{}'", path);
+           outputBuilder.deleted(Files.deleteIfExists(sourcePath));
+           runContext.logger().debug("Deleted file '{}'", sourcePath);
         }
 
         return outputBuilder

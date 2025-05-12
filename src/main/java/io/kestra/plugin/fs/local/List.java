@@ -40,7 +40,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                   - id: list_files
                     type: io.kestra.plugin.fs.local.List
                     from: "/data/input"
-                    regExp: ".*\\.csv"
+                    regExp: ".*.csv"
                     recursive: true
                     workerGroup: "etl-worker"
                 """
@@ -77,7 +77,7 @@ public class List extends AbstractLocalTask implements RunnableTask<List.Output>
         if (!Files.exists(directoryPath)) {
             throw new IllegalArgumentException("Source path does not exist: " + directoryPath);
         }
-        
+
         String fileRegex = this.regExp != null ? runContext.render(this.regExp).as(String.class).orElseThrow() : ".*";
         int maxDepth = runContext.render(recursive).as(Boolean.class).orElse(false) ? Integer.MAX_VALUE : 1;
 

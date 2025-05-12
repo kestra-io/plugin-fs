@@ -102,29 +102,17 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
     @Builder.Default
     private Property<Boolean> recursive = Property.of(false);
 
-    /**
-     * Performs the specified action on the list of files
-     *
-     * @param fileList      List of downloaded files
-     * @param action        Action to perform (MOVE, DELETE, NONE)
-     * @param moveDirectory Destination directory for MOVE action
-     * @param runContext    Current run context
-     * @param allowedPaths  List of allowed paths to perform action
-     * @throws Exception If the action cannot be performed
-     */
     static void performAction(
         String from,
         Action action,
         Property<String> moveDirectory,
-        RunContext runContext,
-        @NotNull Property<List<String>> allowedPaths) throws Exception {
+        RunContext runContext) throws Exception {
         if (action == Action.DELETE) {
 
             Delete delete = Delete.builder()
                 .id(Delete.class.getSimpleName())
                 .type(Delete.class.getName())
-                .allowedPaths(allowedPaths)
-                .path(Property.of(from))
+                .from(Property.of(from))
                 .recursive(Property.of(true))
                 .build();
             delete.run(runContext);
@@ -139,7 +127,6 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
                 .from(Property.of(from))
                 .to(moveDirectory)
                 .overwrite(Property.of(true))
-                .allowedPaths(allowedPaths)
                 .build();
             move.run(runContext);
         }
@@ -155,7 +142,6 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
             .from(Property.of(renderedFrom))
             .regExp(this.regExp)
             .recursive(this.recursive)
-            .allowedPaths(this.allowedPaths)
             .build();
 
         io.kestra.plugin.fs.local.List.Output listOutput = listTask.run(runContext);
@@ -186,7 +172,7 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
             Action.NONE;
 
         if (selectedAction != Action.NONE) {
-            performAction(renderedFrom, selectedAction, this.moveDirectory, runContext, allowedPaths);
+            performAction(renderedFrom, selectedAction, this.moveDirectory, runContext);
         }
 
         Map<String, URI> outputFiles = downloadedFiles.stream()

@@ -37,7 +37,6 @@ public class LocalUtils {
             .type(Upload.class.getName())
             .from(Property.of(uri.toString()))
             .to(Property.of(filePath))
-            .allowedPaths(Property.of(List.of("/")))
             .overwrite(Property.of(true))
             .build();
 
@@ -49,7 +48,6 @@ public class LocalUtils {
             .id(ListTest.class.getSimpleName())
             .type(io.kestra.plugin.fs.local.List.class.getName())
             .from(Property.of(filePath))
-            .allowedPaths(Property.of(java.util.List.of("/")))
             .recursive(Property.of(true))
             .build();
 
@@ -60,9 +58,8 @@ public class LocalUtils {
         var task = io.kestra.plugin.fs.local.Delete.builder()
             .id(FtpUtils.class.getSimpleName())
             .type(FtpUtils.class.getName())
-            .path(Property.of(file))
+            .from(Property.of(file))
             .recursive(Property.of(true))
-            .allowedPaths(Property.of(java.util.List.of("/")))
             .build();
 
         return task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));

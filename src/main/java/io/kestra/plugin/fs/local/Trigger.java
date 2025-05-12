@@ -72,7 +72,6 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .from(Property.of(renderedFrom))
             .regExp(this.regExp)
             .recursive(this.recursive)
-            .allowedPaths(this.allowedPaths)
             .build();
 
         io.kestra.plugin.fs.local.List.Output listOutput = listTask.run(runContext);
@@ -103,7 +102,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             Downloads.Action.NONE;
 
         if (selectedAction != Downloads.Action.NONE) {
-            Downloads.performAction(renderedFrom, selectedAction, this.moveDirectory, runContext, allowedPaths);
+            Downloads.performAction(renderedFrom, selectedAction, this.moveDirectory, runContext);
         }
 
         return Optional.of(TriggerService.generateExecution(

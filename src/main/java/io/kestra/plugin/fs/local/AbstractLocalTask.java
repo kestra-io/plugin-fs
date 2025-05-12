@@ -1,11 +1,8 @@
 package io.kestra.plugin.fs.local;
 
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
-import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
-import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
@@ -13,6 +10,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @SuperBuilder
@@ -21,14 +19,22 @@ import java.util.stream.Collectors;
 @Getter
 @NoArgsConstructor
 public abstract class AbstractLocalTask extends Task {
+    static final String ALLOWED_PATHS = "allowedPaths";
 
-    @Schema(
-        title = "Allowed paths for local filesystem access",
-        description = "List of allowed paths for local filesystem access." +
-            " Tasks will only be able to operate on files within these paths."
-    )
-    @NotNull
-    protected Property<List<String>> allowedPaths;
+    protected List<String> getAllowedPaths(RunContext runContext) {
+        Optional<List<String>> allowedPathConfig = runContext.pluginConfiguration(ALLOWED_PATHS);
+
+        if (allowedPathConfig.isEmpty() || allowedPathConfig.get().isEmpty()) {
+            runContext.logger().warn("Missing 'allowed-paths' configuration. Task execution aborted to enforce secure file access.");
+
+            throw new SecurityException(
+                "'allowed-paths' configuration is required to enable access to the local filesystem. " +
+                    "Define at least one allowed path in the plugin configuration."
+            );
+        }
+
+        return allowedPathConfig.get();
+    }
 
     protected Path resolveLocalPath(String renderedPath, RunContext runContext) throws IllegalVariableEvaluationException {
         Path path = Paths.get(renderedPath).normalize();
@@ -43,22 +49,10 @@ public abstract class AbstractLocalTask extends Task {
      *
      * @param path The path to validate
      * @param runContext The run context
-     * @throws SecurityException If the path is outside allowed paths
      */
-    protected void validatePath(Path path, RunContext runContext) throws IllegalVariableEvaluationException {
+    protected void validatePath(Path path, RunContext runContext) {
 
-        List<String> renderedAllowedPaths = runContext.render(allowedPaths).asList(String.class);
-
-        if(renderedAllowedPaths.isEmpty()) {
-            runContext.logger().warn("No 'allowedPaths' configured task execution stopped " +
-                "to enforce secure file access.");
-
-            throw new SecurityException(
-                "Missing configuration: 'allowedPaths' must be set to allow local filesystem access. " +
-                    "Configure 'allowedPaths' in your Kestra task or globally as a 'plugin default' in your Kestra " +
-                    "configuration file."
-            );
-        }
+        List<String> renderedAllowedPaths = getAllowedPaths(runContext);
 
         // gets real path also resolves symbolic links
         Path realPath;
@@ -91,24 +85,14 @@ public abstract class AbstractLocalTask extends Task {
                 .collect(Collectors.joining("', '", "'", "'"));
 
             runContext.logger().warn(
-                "Access to path '{}' is denied. It is not within the allowed paths: {}. " +
-                    "Update the 'allowedPaths' configuration in your task if access is intended.",
+                "Access to path '{}' is denied. It does not match any of the configured allowed paths: {}.",
                 realPath, formattedAllowedPaths
             );
 
             throw new SecurityException(
-                "Access denied to path '" + realPath + "'. " +
-                    "The path must be within one of the configured allowed paths: " + formattedAllowedPaths + ". "
+                "Access to path '" + realPath + "' is denied. " +
+                    "The specified path must be within one of the configured 'allowed-paths': " + formattedAllowedPaths + "."
             );
         }
-    }
-
-    /**
-     * Checks if the current operating system is Windows.
-     *
-     * @return true if the OS is Windows, false otherwise
-     */
-    private boolean isWindows() {
-        return System.getProperty("os.name").toLowerCase().contains("win");
     }
 }
