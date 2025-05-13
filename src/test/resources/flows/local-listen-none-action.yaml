@@ -4,7 +4,7 @@ namespace: io.kestra.tests
 triggers:
   - id: watch
     type: io.kestra.plugin.fs.local.Trigger
-    from: "/var/tmp/local-listen-none-action"
+    from: "/tmp/local-listen-none-action"
     recursive: true
     action: NONE
     interval: PT10S

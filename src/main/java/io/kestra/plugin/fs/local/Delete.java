@@ -1,5 +1,7 @@
 package io.kestra.plugin.fs.local;
 
+import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.VoidOutput;
@@ -20,6 +22,25 @@ import java.util.NoSuchElementException;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
+@Schema(
+    title = "Delete a file or Directory from the local filesystem."
+)
+@Plugin(
+    examples = {
+        @Example(
+            full = true,
+            code = """
+                id: fs_local_delete
+                namespace: company.team
+
+                tasks:
+                  - id: delete
+                    type: io.kestra.plugin.fs.local.Delete
+                    from: /data/uploads/file.txt
+                """
+        )
+    }
+)
 public class Delete extends AbstractLocalTask implements RunnableTask<Delete.Output> {
 
     @Schema(title = "The local file path to delete.")

@@ -25,7 +25,6 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @KestraTest
-@Disabled("Cannot work on CI")
 class TriggerTest extends AbstractTriggerTest {
     @Inject
     private LocalUtils localUtils;
@@ -42,21 +41,21 @@ class TriggerTest extends AbstractTriggerTest {
 
     @Test
     void move() throws Exception {
-        Path path = Paths.get("/var/tmp/trigger");
+        Path path = Paths.get("/tmp/trigger");
         Files.createDirectories(path);
 
         io.kestra.plugin.fs.local.Trigger trigger = io.kestra.plugin.fs.local.Trigger.builder()
             .id(AbstractTriggerTest.class.getSimpleName())
             .type(Trigger.class.getName())
-            .from(Property.of("/var/tmp/trigger/"))
+            .from(Property.of("/tmp/trigger/"))
             .action(Property.of(Downloads.Action.MOVE))
             .allowedPaths(Property.of(List.of("/")))
-            .moveDirectory(Property.of("/var/tmp/trigger-move/"))
+            .moveDirectory(Property.of("/tmp/trigger-move/"))
             .recursive(Property.of(true))
             .build();
 
         String out = FriendlyId.createFriendlyId();
-        Upload.Output upload = utils().upload("/var/tmp/trigger/" + out + ".yml");
+        Upload.Output upload = utils().upload("/tmp/trigger/" + out + ".yml");
 
         var context = TestsUtils.mockTrigger(runContextFactory, trigger);
         Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
@@ -80,12 +79,12 @@ class TriggerTest extends AbstractTriggerTest {
         io.kestra.plugin.fs.local.Download task = io.kestra.plugin.fs.local.Download.builder()
             .id(AbstractTriggerTest.class.getSimpleName())
             .type(Download.class.getName())
-            .from(Property.of("/var/tmp/trigger-move/" + out + ".yml"))
+            .from(Property.of("/tmp/trigger-move/" + out + ".yml"))
             .build();
 
         io.kestra.plugin.fs.local.Download.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
         assertThat(run.getUri().toString(), containsString("kestra://"));
 
-        utils().delete("/var/tmp/trigger-move/");
+        utils().delete("/tmp/trigger-move/");
     }
 }

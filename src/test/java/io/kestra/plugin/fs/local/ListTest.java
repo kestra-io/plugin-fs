@@ -2,14 +2,12 @@ package io.kestra.plugin.fs.local;
 
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
-import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.TestsUtils;
 import jakarta.inject.Inject;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -21,7 +19,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
 @KestraTest
-@Disabled("Cannot work on CI")
 class ListTest {
     private Path tempDir;
 
@@ -30,8 +27,7 @@ class ListTest {
 
     @BeforeEach
     void setUp() throws IOException {
-        RunContext runContext = runContextFactory.of();
-        tempDir = Files.createTempDirectory(Path.of(runContext.workingDir().path().toUri()), "kestra-test-list-");
+        tempDir = Files.createTempDirectory(Path.of(Paths.get("/tmp").toAbsolutePath().toUri()), "kestra-test-list-");
         Files.createFile(tempDir.resolve("file1.csv"));
         Files.createFile(tempDir.resolve("file2.csv"));
         Files.createDirectory(tempDir.resolve("nested"));
@@ -52,8 +48,6 @@ class ListTest {
 
     @Test
     void listFiles() throws Exception {
-        System.out.println(runContextFactory.of().pluginConfiguration("allowed-paths"));
-
         List task = List.builder()
             .id(ListTest.class.getSimpleName())
             .type(List.class.getName())

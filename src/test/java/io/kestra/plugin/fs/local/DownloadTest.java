@@ -4,27 +4,25 @@ import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
-import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.utils.TestsUtils;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
-import java.util.List;
 import java.util.Map;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.*;
 
 @KestraTest
-@Disabled("Cannot work on CI")
 class DownloadTest {
 
     private Path sourceFile;
-    private Path tempDir;
     private final String fileContent = "test content";
 
     @Inject
@@ -32,8 +30,7 @@ class DownloadTest {
 
     @BeforeEach
     void setUp() throws IOException {
-        RunContext runContext = runContextFactory.of();
-        tempDir = Files.createTempDirectory(Path.of(runContext.workingDir().path().toUri()), "kestra-test-download-");
+        Path tempDir = Files.createTempDirectory(Path.of(Paths.get("/tmp").toAbsolutePath().toUri()), "kestra-test-download-");
         sourceFile = tempDir.resolve("source-file.txt");
 
         Files.writeString(sourceFile, fileContent);
@@ -51,14 +48,14 @@ class DownloadTest {
 
         Download.Output output = task.run(runContext);
 
-        assertNotNull(output.getUri());
-        assertEquals(fileContent.length(), output.getSize());
+        assertThat(output.getUri(), notNullValue());
+        assertThat((long) fileContent.length(), is(output.getSize()));
 
         String storedContent = new String(
             runContext.storage().getFile(output.getUri()).readAllBytes(),
             StandardCharsets.UTF_8
         );
-        assertEquals(fileContent, storedContent);
+        assertThat(fileContent, is(storedContent));
     }
 
     @Test

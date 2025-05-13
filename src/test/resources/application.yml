@@ -12,3 +12,27 @@ kestra:
       - type: io.kestra.plugin.fs.ssh.Command
         values:
           allow-open-ssh-config: true
+      - type: io.kestra.plugin.fs.local.List
+        values:
+          allowed-paths:
+            - /tmp
+      - type: io.kestra.plugin.fs.local.Copy
+        values:
+          allowed-paths:
+            - /tmp
+      - type: io.kestra.plugin.fs.local.Download
+        values:
+          allowed-paths:
+            - /tmp
+      - type: io.kestra.plugin.fs.local.Upload
+        values:
+          allowed-paths:
+            - /
+      - type: io.kestra.plugin.fs.local.Delete
+        values:
+          allowed-paths:
+            - /tmp
+      - type: io.kestra.plugin.fs.local.Move
+        values:
+          allowed-paths:
+            - /tmp

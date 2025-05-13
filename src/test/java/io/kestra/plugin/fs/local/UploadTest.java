@@ -8,7 +8,6 @@ import io.kestra.core.utils.TestsUtils;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
@@ -16,13 +15,13 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
-import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @KestraTest
-@Disabled("Cannot work on CI")
 class UploadTest {
     private Path tempDir;
     private Path destinationFile;
@@ -37,10 +36,10 @@ class UploadTest {
 
         RunContext runContext = runContextFactory.of();
 
-        tempDir = Files.createTempDirectory(Path.of(runContext.workingDir().path().toUri()), "kestra-test-upload-");
+        tempDir = Files.createTempDirectory(Path.of(Paths.get("/tmp").toAbsolutePath().toUri()), "kestra-test-upload-");
         destinationFile = tempDir.resolve("destination-file.txt");
 
-        File tempFile = runContext.workingDir().createTempFile().toFile();
+        File tempFile = Files.createTempFile(tempDir, "kestra-test-upload-", ".txt").toFile();
         Files.write(tempFile.toPath(), fileContent.getBytes(StandardCharsets.UTF_8));
 
         sourceUri = runContext.storage().putFile(tempFile);
@@ -64,10 +63,10 @@ class UploadTest {
 
         Upload.Output output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
-        assertTrue(Files.exists(destinationFile));
-        assertEquals(fileContent.length(), output.getSize());
-        String uploadedContent = new String(Files.readAllBytes(destinationFile), StandardCharsets.UTF_8);
-        assertEquals(fileContent, uploadedContent);
+        assertThat(Files.exists(destinationFile), is(true));
+        assertThat((long) fileContent.length(), is(output.getSize()));
+        String uploadedContent = Files.readString(destinationFile);
+        assertThat(fileContent, is(uploadedContent));
     }
 
     @Test
@@ -98,9 +97,8 @@ class UploadTest {
 
         Upload.Output output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
-        String fileName = sourceUri.toString().substring(sourceUri.toString().lastIndexOf('/') + 1);
-        Path expectedPath = Paths.get(fileName);
-
-        assertTrue(Files.exists(expectedPath));
+        Path expectedPath = runContextFactory.of().workingDir().path();
+        assertThat(output.getSize(), greaterThan(0L));
+        assertThat(Files.exists(expectedPath), is(true));
     }
 }

@@ -24,6 +24,9 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
+@Schema(
+    title = "Copy files within the local file system."
+)
 @Plugin(
     examples = {
         @Example(
@@ -37,7 +40,6 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                     type: io.kestra.plugin.fs.local.Copy
                     from: "input/data.csv"
                     to: "backup/data.csv"
-                    basePath: "/Users/malay/desktop/kestra-output"
                     overwrite: true
                 """
         )
@@ -92,8 +94,7 @@ public class Copy extends AbstractLocalTask implements RunnableTask<VoidOutput> 
         }
 
         if (Files.exists(target) && !overwrite) {
-            runContext.logger().warn("Target file already exists: {}. Configure 'overwrite: true' to replace it.", target);
-            throw new IllegalArgumentException("Target file already exists: " + target);
+            throw new IllegalArgumentException("Target file already exists: " + target + " . Set 'overwrite: true' to replace the existing file." );
         }
 
         Files.createDirectories(target.getParent());

@@ -9,18 +9,17 @@ import io.kestra.core.utils.TestsUtils;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.file.*;
-import java.util.List;
 import java.util.Map;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.*;
 
 @KestraTest
-@Disabled("Cannot work on CI")
 class CopyTest {
     private Path sourceFile;
     private Path targetFile;
@@ -32,7 +31,7 @@ class CopyTest {
     @BeforeEach
     void setUp() throws IOException {
         RunContext runContext = runContextFactory.of();
-        tempDir = Files.createTempDirectory(Path.of(runContext.workingDir().path().toUri()), "kestra-test-copy-");
+        tempDir = Files.createTempDirectory(Path.of(Paths.get("/tmp").toAbsolutePath().toUri()), "kestra-test-copy-");
         sourceFile = tempDir.resolve("file1.csv");
         targetFile = tempDir.resolve("file2.csv");
 
@@ -57,8 +56,8 @@ class CopyTest {
 
         VoidOutput output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
-        assertTrue(Files.exists(targetFile));
-        assertTrue(Files.exists(sourceFile));
+        assertThat(Files.exists(targetFile), is(true));
+        assertThat(Files.exists(sourceFile), is(true));
     }
 
     @Test

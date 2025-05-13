@@ -4,8 +4,8 @@ namespace: io.kestra.tests
 triggers:
   - id: watch
     type: io.kestra.plugin.fs.local.Trigger
-    from: "/var/tmp/local-listen"
-    moveDirectory: "/var/tmp/local-listen-move"
+    from: "/tmp/local-listen"
+    moveDirectory: "/tmp/local-listen-move"
     action: MOVE
     recursive: true
     interval: PT10S

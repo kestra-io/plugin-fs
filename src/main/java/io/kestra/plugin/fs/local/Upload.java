@@ -24,7 +24,7 @@ import java.nio.file.*;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Copy a file to a local filesystem location."
+    title = "Upload a file to a local filesystem."
 )
 @Plugin(
     examples = {
@@ -80,7 +80,7 @@ public class Upload extends AbstractLocalTask implements RunnableTask<Upload.Out
         }
 
         var renderedTo = runContext.render(this.to).as(String.class)
-            .orElse(renderedFrom.substring(renderedFrom.lastIndexOf('/') + 1));
+            .orElse(runContext.workingDir().path().resolve(renderedFrom.substring(renderedFrom.lastIndexOf('/') + 1)).toString());
 
         Path destinationPath = resolveLocalPath(renderedTo, runContext);
 
@@ -92,8 +92,8 @@ public class Upload extends AbstractLocalTask implements RunnableTask<Upload.Out
         if (Files.exists(destinationPath) && !runContext.render(overwrite).as(Boolean.class).orElse(false)) {
             throw new KestraRuntimeException(String.format(
                 """
-                Overwrite field is set to `false`. Folder %s will be overwritten with current file.
-                If you want the folder to be overwritten with the file, set `overwrite: true`.
+                Target file already exists: %s.
+                Set 'overwrite: true' to replace the existing file.
                 """,
                 destinationPath
             ));

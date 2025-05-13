@@ -2,23 +2,21 @@ package io.kestra.plugin.fs.local;
 
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
-import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.TestsUtils;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.file.*;
-import java.util.List;
 import java.util.Map;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.*;
 
 @KestraTest
-@Disabled("Cannot work on CI")
 class DeleteTest {
     private Path testFile;
     private Path testDir;
@@ -29,8 +27,7 @@ class DeleteTest {
 
     @BeforeEach
     void setUp() throws IOException {
-        RunContext runContext = runContextFactory.of();
-        tempDir = Files.createTempDirectory(Path.of(runContext.workingDir().path().toUri()), "kestra-test-delete-");
+        tempDir = Files.createTempDirectory(Path.of(Paths.get("/tmp").toAbsolutePath().toUri()), "kestra-test-delete-");
         testFile = tempDir.resolve("test-file.txt");
         testDir = tempDir.resolve("test-dir");
 
@@ -49,31 +46,34 @@ class DeleteTest {
 
         Delete.Output output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
-        assertTrue(output.isDeleted());
-        assertFalse(Files.exists(testFile));
+        assertThat(output.isDeleted(), is(true));
+        assertThat(Files.exists(testFile), is(false));
     }
 
     @Test
     void deleteNonExistentFileWithoutError() throws Exception {
         Path nonExistentFile = testFile.getParent().resolve("non-existent.txt");
+
         Delete task = Delete.builder()
             .id(DeleteTest.class.getSimpleName())
             .type(Delete.class.getName())
-            .from(Property.of(nonExistentFile.toUri().toString()))
+            .from(Property.of(nonExistentFile.toAbsolutePath().toString()))
             .errorOnMissing(Property.of(false))
             .build();
 
         Delete.Output output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
-        assertFalse(output.isDeleted());
+        assertThat(output.isDeleted(), is(false));
     }
 
     @Test
     void deleteNonExistentFileWithError() {
         Path nonExistentFile = testFile.getParent().resolve("non-existent.txt");
+        System.out.println(nonExistentFile.toUri());
         Delete task = Delete.builder()
             .id(DeleteTest.class.getSimpleName())
             .type(Delete.class.getName())
+            .from(Property.of(nonExistentFile.toAbsolutePath().toString()))
             .errorOnMissing(Property.of(true))
             .build();
 
@@ -94,7 +94,7 @@ class DeleteTest {
 
         Delete.Output output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
-        assertTrue(output.isDeleted());
-        assertFalse(Files.exists(testDir));
+        assertThat(output.isDeleted(), is(true));
+        assertThat(Files.exists(testDir), is(false));
     }
 }

@@ -44,7 +44,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                   - id: downloads
                     type: io.kestra.plugin.fs.local.Downloads
                     from: "/data/files/"
-                    regExp: ".*\\.csv"
+                    regExp: ".*.csv"
                     recursive: true
                     action: NONE
                     allowedPaths:
@@ -61,7 +61,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                   - id: downloads_move
                     type: io.kestra.plugin.fs.local.Downloads
                     from: /data/files/
-                    regExp: ".*\\.csv"
+                    regExp: ".*.csv"
                     recursive: true
                     action: MOVE
                     moveDirectory: "/data/archive"
@@ -154,16 +154,15 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
                     return fileItem;
                 }
 
-                Path sourcePath = resolveLocalPath(fileItem.getLocalPath().toString(), runContext);
-                if (!Files.exists(sourcePath)) {
-                    throw new IOException("Source file '" + sourcePath + "' does not exist");
-                }
+                Download downloadTask = Download.builder()
+                    .id(Download.class.getSimpleName())
+                    .type(Download.class.getName())
+                    .from(Property.of(fileItem.getLocalPath().toString()))
+                    .build();
 
-                java.io.File tempFile = runContext.workingDir().createTempFile(FileUtils.getExtension(fileItem.getName())).toFile();
-                Files.copy(sourcePath, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                URI storageUri = runContext.storage().putFile(tempFile);
+                Download.Output downloadOutput = downloadTask.run(runContext);
 
-                return fileItem.withUri(storageUri);
+                return fileItem.withUri(downloadOutput.getUri());
             }))
             .toList();
 

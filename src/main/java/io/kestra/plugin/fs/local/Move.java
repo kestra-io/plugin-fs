@@ -3,7 +3,6 @@ package io.kestra.plugin.fs.local;
 import io.kestra.core.exceptions.KestraRuntimeException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.VoidOutput;
@@ -19,13 +18,14 @@ import java.nio.file.*;
 import java.util.Comparator;
 import java.util.stream.Stream;
 
-import static java.lang.invoke.MethodHandles.throwException;
-
 @SuperBuilder
 @ToString
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
+@Schema(
+    title = "Move files within the local filesystem."
+)
 @Plugin(
     examples = {
         @Example(
@@ -37,16 +37,14 @@ import static java.lang.invoke.MethodHandles.throwException;
                 tasks:
                   - id: move
                     type: io.kestra.plugin.fs.local.Move
-                    from: "input/data.csv"
-                    to: "archive/data.csv"
-                    basePath: "/Users/malay/desktop/kestra-output"
+                    from: /input/data.csv
+                    to: /archive/data.csv
                     overwrite: true
                 """
         )
     }
 )
 public class Move extends AbstractLocalTask implements RunnableTask<VoidOutput> {
-
     @Schema(
         title = "The file or directory to move from local file system."
     )
@@ -94,11 +92,10 @@ public class Move extends AbstractLocalTask implements RunnableTask<VoidOutput> 
         }
 
         if (Files.exists(target) && !overwrite) {
-            runContext.logger().warn("Target file already exists: {}. Set 'overwrite: true' to replace it.", target);
             throw new KestraRuntimeException(String.format(
                 """
-                Overwrite field is set to `false`. Folder %s will be overwritten with current file.
-                If you want the folder to be overwritten with the file, set `overwrite: true`.
+                Target file already exists : %s.
+                Set 'overwrite: true' to replace the existing file.
                 """,
                 target
             ));

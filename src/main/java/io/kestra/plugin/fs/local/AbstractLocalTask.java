@@ -19,17 +19,16 @@ import java.util.stream.Collectors;
 @Getter
 @NoArgsConstructor
 public abstract class AbstractLocalTask extends Task {
-    static final String ALLOWED_PATHS = "allowedPaths";
+    static final String ALLOWED_PATHS = "allowed-paths";
 
-    protected List<String> getAllowedPaths(RunContext runContext) {
+    protected List<String> allowedPaths(RunContext runContext) {
         Optional<List<String>> allowedPathConfig = runContext.pluginConfiguration(ALLOWED_PATHS);
 
         if (allowedPathConfig.isEmpty() || allowedPathConfig.get().isEmpty()) {
-            runContext.logger().warn("Missing 'allowed-paths' configuration. Task execution aborted to enforce secure file access.");
-
             throw new SecurityException(
-                "'allowed-paths' configuration is required to enable access to the local filesystem. " +
-                    "Define at least one allowed path in the plugin configuration."
+                "The 'allowed-paths' configuration is required to enable access to the local filesystem. " +
+                "You must define at least one allowed path in the plugin configuration. " +
+                "Refer to the documentation: https://kestra.io/docs/configuration#set-default-values"
             );
         }
 
@@ -52,7 +51,7 @@ public abstract class AbstractLocalTask extends Task {
      */
     protected void validatePath(Path path, RunContext runContext) {
 
-        List<String> renderedAllowedPaths = getAllowedPaths(runContext);
+        List<String> renderedAllowedPaths = allowedPaths(runContext);
 
         // gets real path also resolves symbolic links
         Path realPath;
@@ -84,14 +83,10 @@ public abstract class AbstractLocalTask extends Task {
                 .map(Path::toString)
                 .collect(Collectors.joining("', '", "'", "'"));
 
-            runContext.logger().warn(
-                "Access to path '{}' is denied. It does not match any of the configured allowed paths: {}.",
-                realPath, formattedAllowedPaths
-            );
-
             throw new SecurityException(
                 "Access to path '" + realPath + "' is denied. " +
-                    "The specified path must be within one of the configured 'allowed-paths': " + formattedAllowedPaths + "."
+                "The specified path must be within one of the configured 'allowed-paths': " + formattedAllowedPaths + ". " +
+                "Refer to:: https://kestra.io/docs/configuration#set-default-values"
             );
         }
     }

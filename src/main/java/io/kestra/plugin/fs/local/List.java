@@ -25,8 +25,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "List files in a local filesystem from",
-    description = "Lists files in a specified from on the local filesystem"
+    title = "List files in the local filesystem."
 )
 @Plugin(
     examples = {
@@ -42,7 +41,6 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                     from: "/data/input"
                     regExp: ".*.csv"
                     recursive: true
-                    workerGroup: "etl-worker"
                 """
         )
     }

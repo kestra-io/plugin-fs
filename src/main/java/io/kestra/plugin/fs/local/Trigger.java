@@ -84,16 +84,15 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
                     return fileItem;
                 }
 
-                Path sourcePath = resolveLocalPath(fileItem.getLocalPath().toString(), runContext);
-                if (!Files.exists(sourcePath)) {
-                    throw new IOException("Source file '" + sourcePath + "' does not exist");
-                }
+                Download downloadTask = Download.builder()
+                    .id(Download.class.getSimpleName())
+                    .type(Download.class.getName())
+                    .from(Property.of(fileItem.getLocalPath().toString()))
+                    .build();
 
-                java.io.File tempFile = runContext.workingDir().createTempFile(FileUtils.getExtension(fileItem.getName())).toFile();
-                Files.copy(sourcePath, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                URI storageUri = runContext.storage().putFile(tempFile);
+                Download.Output downloadOutput = downloadTask.run(runContext);
 
-                return fileItem.withUri(storageUri);
+                return fileItem.withUri(downloadOutput.getUri());
             }))
             .toList();
 
