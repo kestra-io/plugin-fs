@@ -8,8 +8,6 @@ triggers:
     recursive: true
     action: NONE
     interval: PT10S
-    allowedPaths:
-      - "/"
 
 tasks:
   - id: end

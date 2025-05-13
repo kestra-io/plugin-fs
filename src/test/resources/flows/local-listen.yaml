@@ -9,8 +9,6 @@ triggers:
     action: MOVE
     recursive: true
     interval: PT10S
-    allowedPaths:
-      - "/"
 
 tasks:
   - id: end

@@ -36,3 +36,7 @@ kestra:
         values:
           allowed-paths:
             - /tmp
+      - type: io.kestra.plugin.fs.local.Trigger
+        values:
+          allowed-paths:
+            - /tmp

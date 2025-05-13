@@ -3,7 +3,6 @@ package io.kestra.plugin.fs.local;
 import com.devskiller.friendly_id.FriendlyId;
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.executions.Execution;
-import io.kestra.core.models.property.Property;
 import io.kestra.core.queues.QueueFactoryInterface;
 import io.kestra.core.queues.QueueInterface;
 import io.kestra.core.repositories.LocalFlowRepositoryLoader;
@@ -22,10 +21,7 @@ import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
 
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -59,14 +55,8 @@ public abstract class AbstractTriggerTest {
 
     @Test
     void moveAction() throws Exception {
-        String toUploadDir = "/var/tmp/local-listen";
+        String toUploadDir = "/tmp/local-listen";
         Files.createDirectories(Paths.get(toUploadDir));
-
-        String out1 = FriendlyId.createFriendlyId();
-        utils().upload(toUploadDir + "/" + out1);
-
-        String out2 = FriendlyId.createFriendlyId();
-        utils().upload(toUploadDir + "/" + out2);
 
         // mock flow listeners
         CountDownLatch queueCount = new CountDownLatch(1);
@@ -90,11 +80,17 @@ public abstract class AbstractTriggerTest {
                 }
             });
 
+            String out1 = FriendlyId.createFriendlyId();
+            utils().upload(toUploadDir + "/" + out1);
+
+            String out2 = FriendlyId.createFriendlyId();
+            utils().upload(toUploadDir + "/" + out2);
+
             worker.run();
             scheduler.run();
             repositoryLoader.load(Objects.requireNonNull(io.kestra.plugin.fs.local.AbstractTriggerTest.class.getClassLoader().getResource("flows")));
 
-            boolean await = queueCount.await(10, TimeUnit.SECONDS);
+            boolean await = queueCount.await(20, TimeUnit.SECONDS);
             assertThat(await, is(true));
             receive.blockLast();
 
@@ -111,14 +107,8 @@ public abstract class AbstractTriggerTest {
 
     @Test
     void noneAction() throws Exception {
-        String toUploadDir = "/var/tmp/local-listen-none-action";
+        String toUploadDir = "/tmp/local-listen-none-action";
         Files.createDirectories(Paths.get(toUploadDir));
-
-        String out1 = FriendlyId.createFriendlyId();
-        utils().upload(toUploadDir + "/" + out1);
-
-        String out2 = FriendlyId.createFriendlyId();
-        utils().upload(toUploadDir + "/" + out2);
 
         CountDownLatch queueCount = new CountDownLatch(1);
 
@@ -142,6 +132,12 @@ public abstract class AbstractTriggerTest {
                     }
                 }
             );
+
+            String out1 = FriendlyId.createFriendlyId();
+            utils().upload(toUploadDir + "/" + out1);
+
+            String out2 = FriendlyId.createFriendlyId();
+            utils().upload(toUploadDir + "/" + out2);
 
             worker.run();
             scheduler.run();

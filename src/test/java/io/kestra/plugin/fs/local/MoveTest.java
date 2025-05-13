@@ -45,7 +45,7 @@ class MoveTest {
     void moveFile() throws Exception {
         Move task = Move.builder()
             .id(MoveTest.class.getSimpleName())
-            .type(MoveTest.class.getName())
+            .type(Move.class.getName())
             .from(Property.of(sourceFile.toAbsolutePath().toString()))
             .to(Property.of(targetFile.toAbsolutePath().toString()))
             .overwrite(Property.of(true))
@@ -63,7 +63,7 @@ class MoveTest {
 
         Move task = Move.builder()
             .id(MoveTest.class.getSimpleName())
-            .type(MoveTest.class.getName())
+            .type(Move.class.getName())
             .from(Property.of(sourceFile.toString()))
             .to(Property.of(targetFile.toString()))
             .overwrite(Property.of(false))

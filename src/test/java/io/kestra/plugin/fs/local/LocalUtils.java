@@ -6,7 +6,6 @@ import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.AbstractUtils;
-import io.kestra.plugin.fs.ftp.FtpUtils;
 import io.micronaut.context.annotation.Prototype;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
@@ -14,7 +13,6 @@ import lombok.extern.slf4j.Slf4j;
 import java.io.File;
 import java.io.FileInputStream;
 import java.net.URI;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -45,7 +43,7 @@ public class LocalUtils {
 
     public io.kestra.plugin.fs.local.List.Output list(String filePath) throws Exception {
         io.kestra.plugin.fs.local.List task = io.kestra.plugin.fs.local.List.builder()
-            .id(ListTest.class.getSimpleName())
+            .id(LocalUtils.class.getSimpleName())
             .type(io.kestra.plugin.fs.local.List.class.getName())
             .from(Property.of(filePath))
             .recursive(Property.of(true))
@@ -56,8 +54,8 @@ public class LocalUtils {
 
     public io.kestra.plugin.fs.local.Delete.Output delete(String file) throws Exception {
         var task = io.kestra.plugin.fs.local.Delete.builder()
-            .id(FtpUtils.class.getSimpleName())
-            .type(FtpUtils.class.getName())
+            .id(LocalUtils.class.getSimpleName())
+            .type(Delete.class.getName())
             .from(Property.of(file))
             .recursive(Property.of(true))
             .build();

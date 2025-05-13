@@ -89,6 +89,10 @@ public class Copy extends AbstractLocalTask implements RunnableTask<VoidOutput> 
     }
 
     private void copyFile(Path source, Path target, boolean overwrite, RunContext runContext) throws IOException {
+        if (!Files.isRegularFile(source) || !Files.isReadable(source)) {
+            throw new IllegalArgumentException("Source file is not a regular or readable file: " + source);
+        }
+
         if (Files.isDirectory(target)) {
             target = target.resolve(source.getFileName());
         }
@@ -104,6 +108,10 @@ public class Copy extends AbstractLocalTask implements RunnableTask<VoidOutput> 
     }
 
     private void copyDirectory(Path sourceDir, Path targetDir, boolean overwrite, RunContext runContext) throws IOException {
+        if (sourceDir.equals(targetDir) || targetDir.startsWith(sourceDir)) {
+            throw new IllegalArgumentException("Cannot copy a directory into itself or its subdirectory");
+        }
+
         if (!Files.exists(targetDir)) {
             Files.createDirectories(targetDir);
         } else if (!Files.isDirectory(targetDir)) {
@@ -124,11 +132,16 @@ public class Copy extends AbstractLocalTask implements RunnableTask<VoidOutput> 
                         if (Files.exists(target) && !overwrite) {
                             runContext.logger().warn("Target file already exists. Skipping existing file: {}", target);
                         } else {
+                            if (!Files.isRegularFile(source) || !Files.isReadable(source)) {
+                                runContext.logger().info("Skipping non-regular or unreadable file: {}", source);
+                                return;
+                            }
+
                             if (!Files.exists(target.getParent())) {
                                 Files.createDirectories(target.getParent());
                             }
                             Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
-                            runContext.logger().debug("Copied '{}' to '{}'", source, target);
+                            runContext.logger().info("Copied '{}' to '{}'", source, target);
                         }
                     }
                 } catch (IOException e) {
