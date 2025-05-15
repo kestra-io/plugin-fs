@@ -1,0 +1,16 @@
+id: local-listen
+namespace: io.kestra.tests
+
+triggers:
+  - id: watch
+    type: io.kestra.plugin.fs.local.Trigger
+    from: "/tmp/local-listen"
+    moveDirectory: "/tmp/local-listen-move"
+    action: MOVE
+    recursive: true
+    interval: PT10S
+
+tasks:
+  - id: end
+    type: io.kestra.plugin.core.debug.Return
+    format: "{{task.id}} > {{taskrun.startDate}}"
