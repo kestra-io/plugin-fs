@@ -6,6 +6,7 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.storages.StorageInterface;
+import io.kestra.core.tenant.TenantService;
 import io.kestra.plugin.fs.vfs.Download.Output;
 import jakarta.inject.Inject;
 import org.apache.commons.io.FilenameUtils;
@@ -50,7 +51,7 @@ class SftpTest {
             .toURI()
         );
         URI source = storageInterface.put(
-            null,
+            TenantService.MAIN_TENANT,
             null,
             new URI("/" + FriendlyId.createFriendlyId()),
             new FileInputStream(applicationFile)
