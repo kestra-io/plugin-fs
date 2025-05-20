@@ -3,6 +3,7 @@ package io.kestra.plugin.fs;
 import com.devskiller.friendly_id.FriendlyId;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.storages.StorageInterface;
+import io.kestra.core.tenant.TenantService;
 import io.kestra.plugin.fs.sftp.Upload;
 import io.kestra.plugin.fs.vfs.Delete;
 import io.kestra.plugin.fs.vfs.List;
@@ -25,7 +26,7 @@ public abstract class AbstractUtils {
         );
 
         return storageInterface.put(
-            null,
+            TenantService.MAIN_TENANT,
             null,
             new URI("/" + FriendlyId.createFriendlyId()),
             new FileInputStream(applicationFile)

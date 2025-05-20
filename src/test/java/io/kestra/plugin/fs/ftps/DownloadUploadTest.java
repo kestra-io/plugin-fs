@@ -5,6 +5,7 @@ import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.storages.StorageInterface;
+import io.kestra.core.tenant.TenantService;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.ftp.FtpUtils;
@@ -66,7 +67,7 @@ class DownloadUploadTest {
 
         var downloadRun = download.run(TestsUtils.mockRunContext(runContextFactory, download, Map.of()));
 
-        assertThat(IOUtils.toString(this.storageInterface.get(null, null, downloadRun.getTo()), Charsets.UTF_8), is(IOUtils.toString(this.storageInterface.get(null, null, uri), Charsets.UTF_8)));
+        assertThat(IOUtils.toString(this.storageInterface.get(TenantService.MAIN_TENANT, null, downloadRun.getTo()), Charsets.UTF_8), is(IOUtils.toString(this.storageInterface.get(null, null, uri), Charsets.UTF_8)));
         assertThat(downloadRun.getFrom().getPath(), endsWith(".yaml"));
     }
 

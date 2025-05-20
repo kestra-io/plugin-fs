@@ -4,6 +4,7 @@ import com.devskiller.friendly_id.FriendlyId;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.storages.StorageInterface;
+import io.kestra.core.tenant.TenantService;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.AbstractUtils;
 import io.micronaut.context.annotation.Prototype;
@@ -70,7 +71,7 @@ public class LocalUtils {
         );
 
         return storageInterface.put(
-            null,
+            TenantService.MAIN_TENANT,
             null,
             new URI("/" + FriendlyId.createFriendlyId()),
             new FileInputStream(applicationFile)
