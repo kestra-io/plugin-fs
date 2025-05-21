@@ -67,7 +67,7 @@ class DownloadUploadTest {
 
         var downloadRun = download.run(TestsUtils.mockRunContext(runContextFactory, download, Map.of()));
 
-        assertThat(IOUtils.toString(this.storageInterface.get(TenantService.MAIN_TENANT, null, downloadRun.getTo()), Charsets.UTF_8), is(IOUtils.toString(this.storageInterface.get(null, null, uri), Charsets.UTF_8)));
+        assertThat(IOUtils.toString(this.storageInterface.get(TenantService.MAIN_TENANT, null, downloadRun.getTo()), Charsets.UTF_8), is(IOUtils.toString(this.storageInterface.get(TenantService.MAIN_TENANT, null, uri), Charsets.UTF_8)));
         assertThat(downloadRun.getFrom().getPath(), endsWith(".yaml"));
     }
 
