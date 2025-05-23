@@ -30,7 +30,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Download multiple files from a local filesystem directory to Kestra storage."
+    title = "Download multiple files from a local filesystem directory to Kestra's internal storage."
 )
 @Plugin(
     examples = {
@@ -81,7 +81,7 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
     private Property<String> from;
 
     @Schema(
-        title = "The action to do on downloaded files"
+        title = "The action to take on downloaded files"
     )
     @Builder.Default
     private Property<Downloads.Action> action = Property.of(Downloads.Action.NONE);
@@ -195,12 +195,12 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
-            title = "Metadata of downloaded files."
+            title = "Metadata of downloaded files"
         )
         private final List<File> files;
 
         @Schema(
-            title = "The downloaded files as a map of from/to URIs"
+            title = "The downloaded files formatted as a map of from/to URIs"
         )
         private final Map<String, URI> outputFiles;
     }

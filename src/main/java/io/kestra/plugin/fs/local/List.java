@@ -48,20 +48,20 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 public class List extends AbstractLocalTask implements RunnableTask<List.Output> {
 
     @Schema(
-        title = "The fully-qualified URIs that point to path"
+        title = "The fully-qualified URIs that point to the path"
     )
     @NotNull
     private Property<String> from;
 
     @Schema(
         title = "Regular expression to filter files",
-        description = "Only files matching this regular expression will be listed"
+        description = "Only files matching this regular expression will be listed."
     )
     private Property<String> regExp;
 
     @Schema(
         title = "Whether to include subdirectories",
-        description = "If true, will recursively list files in all subdirectories"
+        description = "If true, the task will recursively list files in all subdirectories."
     )
     @Builder.Default
     private Property<Boolean> recursive = Property.of(false);
