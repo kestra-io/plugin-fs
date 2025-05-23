@@ -46,19 +46,19 @@ import java.util.stream.Stream;
 )
 public class Move extends AbstractLocalTask implements RunnableTask<VoidOutput> {
     @Schema(
-        title = "The file or directory to move from local file system."
+        title = "The file or directory to move from the local file system"
     )
     @NotNull
     private Property<String> from;
 
     @Schema(
-        title = "The path to move the file or directory to on the local file system."
+        title = "The path to move the file or directory to on the local file system"
     )
     @NotNull
     private Property<String> to;
 
     @Schema(
-        title = "Overwrite.",
+        title = "Overwrite",
         description = "If set to false, it will raise an exception if the destination folder or file already exists."
     )
     @Builder.Default

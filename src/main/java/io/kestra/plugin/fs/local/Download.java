@@ -22,7 +22,7 @@ import java.nio.file.*;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Download a file from the local filesystem to the Kestra storage."
+    title = "Download a file from the local filesystem to the Kestra internal storage."
 )
 @Plugin(
     examples = {

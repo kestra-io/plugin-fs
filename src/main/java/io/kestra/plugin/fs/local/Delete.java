@@ -23,7 +23,7 @@ import java.util.NoSuchElementException;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Delete a file or Directory from the local filesystem."
+    title = "Delete a file or directory from the local filesystem."
 )
 @Plugin(
     examples = {
@@ -43,7 +43,7 @@ import java.util.NoSuchElementException;
 )
 public class Delete extends AbstractLocalTask implements RunnableTask<Delete.Output> {
 
-    @Schema(title = "The local file path to delete.")
+    @Schema(title = "The local file path to delete")
     @NotNull
     private Property<String> from;
 
@@ -53,7 +53,7 @@ public class Delete extends AbstractLocalTask implements RunnableTask<Delete.Out
 
     @Schema(
         title = "Whether to include subdirectories",
-        description = "If true, will recursively delete files in all subdirectories"
+        description = "If true, the task will recursively delete files in all subdirectories."
     )
     @Builder.Default
     private Property<Boolean> recursive = Property.of(true);
