@@ -1,27 +1,20 @@
 package io.kestra.plugin.fs.local;
 
+import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.triggers.*;
 import io.kestra.core.runners.RunContext;
-import io.kestra.core.utils.FileUtils;
 import io.kestra.plugin.fs.local.models.File;
-import io.kestra.plugin.fs.vfs.VfsService;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.apache.commons.vfs2.FileType;
-import org.slf4j.Logger;
 
-import java.io.IOException;
-import java.net.URI;
-import java.nio.file.*;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Duration;
 import java.util.*;
-import java.util.stream.Stream;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -30,6 +23,39 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
+@Schema(
+    title = "Trigger a flow as soon as new files are detected in a given local file system's directory."
+)
+@Plugin(
+    examples = {
+        @Example(
+            title = "Wait for one or more files in a given local file system's directory and process each of these files sequentially.",
+            full = true,
+            code = """
+                id: local_trigger_flow
+                namespace: company.team
+
+                tasks:
+                  - id: for_each_file
+                    type: io.kestra.plugin.core.flow.ForEach
+                    values: "{{ trigger.files }}"
+                    tasks:
+                      - id: return
+                        type: io.kestra.plugin.core.debug.Return
+                        format: "{{ taskrun.value | jq('.path') }}"
+
+                triggers:
+                  - id: watch
+                    type: io.kestra.plugin.fs.local.Trigger
+                    from: "/home/dev/kestra"
+                    interval: PT10S
+                    action: MOVE
+                    recursive: true
+                    moveDirectory: "/home/dev/archive/"
+                """
+        )
+    }
+)
 public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<Downloads.Output> {
 
     @Schema(title = "The interval between checks")
@@ -52,13 +78,13 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
     @Schema(title = "Include files in subdirectories")
     @Builder.Default
-    private Property<Boolean> recursive = Property.of(false);
+    private Property<Boolean> recursive = Property.ofValue(false);
 
     @Schema(
         title = "The action to do on downloaded files"
     )
     @Builder.Default
-    private Property<Downloads.Action> action = Property.of(Downloads.Action.NONE);
+    private Property<Downloads.Action> action = Property.ofValue(Downloads.Action.NONE);
 
     @Override
     public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext triggerContext) throws Exception {
