@@ -53,20 +53,20 @@ public class Upload extends AbstractLocalTask implements RunnableTask<Upload.Out
 
     @Schema(
         title = "Source file URI",
-        description = "URI of the file to be uploaded into local system"
+        description = "URI of the file to be uploaded into the local system"
     )
     @NotNull
     @PluginProperty(internalStorageURI = true)
     private Property<String> from;
 
     @Schema(
-        title = "The destination path, if not set it will use the name of the file denoted by the `from` property"
+        title = "The destination path, if not set the task will use the name of the file denoted by the `from` property"
     )
     private Property<String> to;
 
     @Schema(
         title = "Whether to overwrite existing files",
-        description = "If false, will throw an error if the target file already exists"
+        description = "If false, the task will throw an error if the target file already exists"
     )
     @Builder.Default
     private Property<Boolean> overwrite = Property.of(true);
