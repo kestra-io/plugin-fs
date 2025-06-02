@@ -15,17 +15,17 @@ import java.util.Map;
 public class FtpUtils extends AbstractUtils {
     @Inject
     private RunContextFactory runContextFactory;
-    public static final Property<String> USERNAME = Property.of("guest");
-    public static final Property<String> PASSWORD = Property.of("O7m)&H/0Em4/T8RqCa!Al=M@N6^;@+");
+    public static final Property<String> USERNAME = Property.ofValue("guest");
+    public static final Property<String> PASSWORD = Property.ofValue("O7m)&H/0Em4/T8RqCa!Al=M@N6^;@+");
 
     public Upload.Output upload(URI source, String to) throws Exception {
         var task = Upload.builder()
             .id(FtpUtils.class.getSimpleName())
             .type(FtpUtils.class.getName())
-            .from(Property.of(source.toString()))
-            .to(Property.of(to))
-            .host(Property.of("localhost"))
-            .port(Property.of("6621"))
+            .from(Property.ofValue(source.toString()))
+            .to(Property.ofValue(to))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6621"))
             .username(USERNAME)
             .password(PASSWORD)
             .build();
@@ -38,9 +38,9 @@ public class FtpUtils extends AbstractUtils {
         return io.kestra.plugin.fs.ftp.List.builder()
             .id(TriggerTest.class.getSimpleName())
             .type(TriggerTest.class.getName())
-            .from(Property.of(dir))
-            .host(Property.of("localhost"))
-            .port(Property.of("6621"))
+            .from(Property.ofValue(dir))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6621"))
             .username(USERNAME)
             .password(PASSWORD)
             .build()
@@ -52,9 +52,9 @@ public class FtpUtils extends AbstractUtils {
         var task = io.kestra.plugin.fs.ftp.Delete.builder()
             .id(FtpUtils.class.getSimpleName())
             .type(FtpUtils.class.getName())
-            .uri(Property.of(file))
-            .host(Property.of("localhost"))
-            .port(Property.of("6621"))
+            .uri(Property.ofValue(file))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6621"))
             .username(USERNAME)
             .password(PASSWORD)
             .build();

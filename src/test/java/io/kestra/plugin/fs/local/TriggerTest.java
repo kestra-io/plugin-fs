@@ -41,10 +41,10 @@ class TriggerTest extends AbstractTriggerTest {
         io.kestra.plugin.fs.local.Trigger trigger = io.kestra.plugin.fs.local.Trigger.builder()
             .id(TriggerTest.class.getSimpleName())
             .type(io.kestra.plugin.fs.local.Trigger.class.getName())
-            .from(Property.of("/tmp/trigger/"))
-            .action(Property.of(Downloads.Action.MOVE))
-            .moveDirectory(Property.of("/tmp/trigger-move/"))
-            .recursive(Property.of(true))
+            .from(Property.ofValue("/tmp/trigger/"))
+            .action(Property.ofValue(Downloads.Action.MOVE))
+            .moveDirectory(Property.ofValue("/tmp/trigger-move/"))
+            .recursive(Property.ofValue(true))
             .build();
 
         String out = FriendlyId.createFriendlyId();
@@ -63,7 +63,7 @@ class TriggerTest extends AbstractTriggerTest {
             io.kestra.plugin.fs.local.Download task = io.kestra.plugin.fs.local.Download.builder()
                 .id(TriggerTest.class.getSimpleName())
                 .type(io.kestra.plugin.fs.local.Download.class.getName())
-                .from(Property.of(upload.getUri().getPath()))
+                .from(Property.ofValue(upload.getUri().getPath()))
                 .build();
 
             task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
@@ -72,7 +72,7 @@ class TriggerTest extends AbstractTriggerTest {
         Download task = Download.builder()
             .id(TriggerTest.class.getSimpleName())
             .type(Download.class.getName())
-            .from(Property.of("/tmp/trigger-move/" + out + ".yml"))
+            .from(Property.ofValue("/tmp/trigger-move/" + out + ".yml"))
             .build();
 
         io.kestra.plugin.fs.local.Download.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));

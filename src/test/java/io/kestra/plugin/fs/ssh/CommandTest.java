@@ -23,8 +23,8 @@ import static org.hamcrest.Matchers.is;
 // chmod go+x src/test/resources/ssh/setpasswd.sh
 @KestraTest
 class CommandTest {
-    public static final Property<String> USERNAME = Property.of("foo");
-    public static final Property<String> PASSWORD = Property.of("O7m)&H/0Em4/T8RqCa!Al=M@N6^;@+");
+    public static final Property<String> USERNAME = Property.ofValue("foo");
+    public static final Property<String> PASSWORD = Property.ofValue("O7m)&H/0Em4/T8RqCa!Al=M@N6^;@+");
 
     @Inject
     private RunContextFactory runContextFactory;
@@ -34,11 +34,11 @@ class CommandTest {
         Command command = Command.builder()
             .id(IdUtils.create())
             .type(CommandTest.class.getName())
-            .host(Property.of("localhost"))
+            .host(Property.ofValue("localhost"))
             .username(USERNAME)
-            .authMethod(Property.of(AuthMethod.PASSWORD))
+            .authMethod(Property.ofValue(AuthMethod.PASSWORD))
             .password(PASSWORD)
-            .port(Property.of("2222"))
+            .port(Property.ofValue("2222"))
             .commands(new String[] {
                 "echo 0",
                 "echo 1",
@@ -72,11 +72,11 @@ class CommandTest {
         Command command = Command.builder()
             .id(IdUtils.create())
             .type(CommandTest.class.getName())
-            .host(Property.of("localhost"))
+            .host(Property.ofValue("localhost"))
             .username(USERNAME)
-            .authMethod(Property.of(AuthMethod.PUBLIC_KEY))
-            .privateKey(Property.of(keyFileContent))
-            .port(Property.of("2222"))
+            .authMethod(Property.ofValue(AuthMethod.PUBLIC_KEY))
+            .privateKey(Property.ofValue(keyFileContent))
+            .port(Property.ofValue("2222"))
             .commands(new String[] {
                 "echo 0",
                 "echo 1",
@@ -103,10 +103,10 @@ class CommandTest {
         Command command = Command.builder()
             .id(CommandTest.class.getName())
             .type(CommandTest.class.getName())
-            .host(Property.of("localhost"))
+            .host(Property.ofValue("localhost"))
             .password(PASSWORD)
-            .authMethod(Property.of(AuthMethod.OPEN_SSH))
-            .port(Property.of("2222"))
+            .authMethod(Property.ofValue(AuthMethod.OPEN_SSH))
+            .port(Property.ofValue("2222"))
             .commands(new String[] {
                 "echo 0",
                 "echo 1",

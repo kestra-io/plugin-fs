@@ -41,7 +41,7 @@ class DownloadTest {
         Download task = Download.builder()
             .id(DownloadTest.class.getSimpleName())
             .type(Download.class.getName())
-            .from(Property.of(sourceFile.toString()))
+            .from(Property.ofValue(sourceFile.toString()))
             .build();
 
         RunContext runContext = TestsUtils.mockRunContext(runContextFactory, task, Map.of());
@@ -64,7 +64,7 @@ class DownloadTest {
         Download task = Download.builder()
             .id(DownloadTest.class.getSimpleName())
             .type(Download.class.getName())
-            .from(Property.of(nonExistentFile.toString()))
+            .from(Property.ofValue(nonExistentFile.toString()))
             .build();
 
         assertThrows(

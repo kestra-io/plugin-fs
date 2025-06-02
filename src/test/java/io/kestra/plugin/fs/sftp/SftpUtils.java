@@ -16,20 +16,20 @@ class SftpUtils extends AbstractUtils {
     @Inject
     private RunContextFactory runContextFactory;
 
-    public static final Property<String> USERNAME = Property.of("foo");
-    public static final Property<String> PASSWORD = Property.of("pass*+=");
+    public static final Property<String> USERNAME = Property.ofValue("foo");
+    public static final Property<String> PASSWORD = Property.ofValue("pass*+=");
 
     public Upload.Output upload(URI source, String to) throws Exception {
         var task = Upload.builder()
             .id(SftpUtils.class.getSimpleName())
             .type(Upload.class.getName())
-            .from(Property.of(source.toString()))
-            .to(Property.of(to))
-            .host(Property.of("localhost"))
-            .port(Property.of("6622"))
+            .from(Property.ofValue(source.toString()))
+            .to(Property.ofValue(to))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
             .username(USERNAME)
             .password(PASSWORD)
-            .rootDir(Property.of(true))
+            .rootDir(Property.ofValue(true))
             .build();
 
         return task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
@@ -40,9 +40,9 @@ class SftpUtils extends AbstractUtils {
         return io.kestra.plugin.fs.sftp.List.builder()
             .id(TriggerTest.class.getSimpleName())
             .type(TriggerTest.class.getName())
-            .from(Property.of(dir))
-            .host(Property.of("localhost"))
-            .port(Property.of("6622"))
+            .from(Property.ofValue(dir))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
             .username(USERNAME)
             .password(PASSWORD)
             .build()
@@ -54,12 +54,12 @@ class SftpUtils extends AbstractUtils {
         var task = io.kestra.plugin.fs.sftp.Delete.builder()
             .id(SftpUtils.class.getSimpleName())
             .type(Upload.class.getName())
-            .uri(Property.of(file))
-            .host(Property.of("localhost"))
-            .port(Property.of("6622"))
+            .uri(Property.ofValue(file))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
             .username(USERNAME)
             .password(PASSWORD)
-            .rootDir(Property.of(true))
+            .rootDir(Property.ofValue(true))
             .build();
 
         return task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));

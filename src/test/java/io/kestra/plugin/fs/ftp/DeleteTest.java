@@ -35,9 +35,9 @@ class DeleteTest {
         task = io.kestra.plugin.fs.ftp.Delete.builder()
             .id(DeleteTest.class.getSimpleName())
             .type(DeleteTest.class.getName())
-            .uri(Property.of(from))
-            .host(Property.of("localhost"))
-            .port(Property.of("6621"))
+            .uri(Property.ofValue(from))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6621"))
             .username(USERNAME)
             .password(PASSWORD)
             .build();

@@ -42,7 +42,7 @@ import java.io.IOException;
 )
 public class Delete extends io.kestra.plugin.fs.vfs.Delete implements SmbInterface {
     @Builder.Default
-    protected Property<String> port = Property.of("445");
+    protected Property<String> port = Property.ofValue("445");
 
     @Override
     protected FileSystemOptions fsOptions(RunContext runContext) throws IllegalVariableEvaluationException, IOException {

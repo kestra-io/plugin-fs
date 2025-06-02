@@ -35,7 +35,7 @@ public abstract class Upload extends AbstractVfsTask implements RunnableTask<Upl
         description = "If set to false, it will raise an exception if the destination folder or file already exists."
     )
     @Builder.Default
-    private Property<Boolean> overwrite = Property.of(false);
+    private Property<Boolean> overwrite = Property.ofValue(false);
 
     public Upload.Output run(RunContext runContext) throws Exception {
         try (StandardFileSystemManager fsm = new KestraStandardFileSystemManager(runContext)) {

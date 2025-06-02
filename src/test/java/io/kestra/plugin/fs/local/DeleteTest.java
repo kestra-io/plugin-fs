@@ -41,7 +41,7 @@ class DeleteTest {
         Delete task = Delete.builder()
             .id(DeleteTest.class.getSimpleName())
             .type(Delete.class.getName())
-            .from(Property.of(testFile.toString()))
+            .from(Property.ofValue(testFile.toString()))
             .build();
 
         Delete.Output output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
@@ -57,8 +57,8 @@ class DeleteTest {
         Delete task = Delete.builder()
             .id(DeleteTest.class.getSimpleName())
             .type(Delete.class.getName())
-            .from(Property.of(nonExistentFile.toAbsolutePath().toString()))
-            .errorOnMissing(Property.of(false))
+            .from(Property.ofValue(nonExistentFile.toAbsolutePath().toString()))
+            .errorOnMissing(Property.ofValue(false))
             .build();
 
         Delete.Output output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
@@ -73,8 +73,8 @@ class DeleteTest {
         Delete task = Delete.builder()
             .id(DeleteTest.class.getSimpleName())
             .type(Delete.class.getName())
-            .from(Property.of(nonExistentFile.toAbsolutePath().toString()))
-            .errorOnMissing(Property.of(true))
+            .from(Property.ofValue(nonExistentFile.toAbsolutePath().toString()))
+            .errorOnMissing(Property.ofValue(true))
             .build();
 
         assertThrows(
@@ -88,8 +88,8 @@ class DeleteTest {
         Delete task = Delete.builder()
             .id(DeleteTest.class.getSimpleName())
             .type(Delete.class.getName())
-            .from(Property.of(testDir.toString()))
-            .recursive(Property.of(true))
+            .from(Property.ofValue(testDir.toString()))
+            .recursive(Property.ofValue(true))
             .build();
 
         Delete.Output output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));

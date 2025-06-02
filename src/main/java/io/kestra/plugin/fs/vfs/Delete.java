@@ -26,7 +26,7 @@ public abstract class Delete extends AbstractVfsTask implements RunnableTask<Del
         title = "raise an error if the file is not found"
     )
     @Builder.Default
-    private final Property<Boolean> errorOnMissing = Property.of(false);
+    private final Property<Boolean> errorOnMissing = Property.ofValue(false);
 
     public Output run(RunContext runContext) throws Exception {
         try (StandardFileSystemManager fsm = new KestraStandardFileSystemManager(runContext)) {

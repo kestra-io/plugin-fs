@@ -64,7 +64,7 @@ public class List extends AbstractLocalTask implements RunnableTask<List.Output>
         description = "If true, the task will recursively list files in all subdirectories."
     )
     @Builder.Default
-    private Property<Boolean> recursive = Property.of(false);
+    private Property<Boolean> recursive = Property.ofValue(false);
 
     @Override
     public Output run(RunContext runContext) throws Exception {

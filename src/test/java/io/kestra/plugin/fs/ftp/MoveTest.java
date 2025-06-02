@@ -125,13 +125,13 @@ class MoveTest {
         return Move.builder()
             .id(MoveTest.class.getSimpleName())
             .type(Move.class.getName())
-            .from(Property.of(from))
-            .to(Property.of(to))
-            .host(Property.of("localhost"))
-            .port(Property.of("6621"))
+            .from(Property.ofValue(from))
+            .to(Property.ofValue(to))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6621"))
             .username(USERNAME)
             .password(PASSWORD)
-            .overwrite(Property.of(overwrite))
+            .overwrite(Property.ofValue(overwrite))
             .build();
     }
 }

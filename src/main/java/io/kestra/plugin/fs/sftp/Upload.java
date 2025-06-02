@@ -54,9 +54,9 @@ public class Upload extends io.kestra.plugin.fs.vfs.Upload implements SftpInterf
     protected Property<String> proxyPassword;
     protected Property<String> proxyType;
     @Builder.Default
-    protected Property<Boolean> rootDir = Property.of(true);
+    protected Property<Boolean> rootDir = Property.ofValue(true);
     @Builder.Default
-    protected Property<String> port = Property.of("22");
+    protected Property<String> port = Property.ofValue("22");
     protected Property<String> keyExchangeAlgorithm;
 
     @Override

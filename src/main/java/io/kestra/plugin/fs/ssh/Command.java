@@ -103,13 +103,13 @@ public class Command extends Task implements SshInterface, RunnableTask<ScriptOu
 
     // OpenSSH config
     @Builder.Default
-    private Property<String> openSSHConfigDir = Property.of("~/.ssh/config");
+    private Property<String> openSSHConfigDir = Property.ofValue("~/.ssh/config");
 
     @Builder.Default
-    private Property<AuthMethod> authMethod = Property.of(AuthMethod.PASSWORD);
+    private Property<AuthMethod> authMethod = Property.ofValue(AuthMethod.PASSWORD);
 
     @Builder.Default
-    private Property<String> port = Property.of("22");
+    private Property<String> port = Property.ofValue("22");
 
     @Schema(title = "The list of commands to run on the remote server")
     @PluginProperty(dynamic = true)
@@ -119,7 +119,7 @@ public class Command extends Task implements SshInterface, RunnableTask<ScriptOu
 
     @Schema(title = "Whether to check if the host public key could be found among known host, one of 'yes', 'no', 'ask'")
     @Builder.Default
-    private Property<String> strictHostKeyChecking = Property.of("no");
+    private Property<String> strictHostKeyChecking = Property.ofValue("no");
 
     @Schema(
         title = "Environment variables to pass to the SSH process."
@@ -137,7 +137,7 @@ public class Command extends Task implements SshInterface, RunnableTask<ScriptOu
         title = "Enable the disabled by default RSA/SHA1 algorithm"
     )
     @NotNull
-    private Property<Boolean> enableSshRsa1 = Property.of(false);
+    private Property<Boolean> enableSshRsa1 = Property.ofValue(false);
 
     @Override
     public ScriptOutput run(RunContext runContext) throws Exception {

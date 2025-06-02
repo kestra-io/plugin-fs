@@ -67,7 +67,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
         title = "List file recursively"
     )
     @Builder.Default
-    private Property<Boolean> recursive = Property.of(false);
+    private Property<Boolean> recursive = Property.ofValue(false);
 
     protected abstract FileSystemOptions fsOptions(RunContext runContext) throws IllegalVariableEvaluationException, IOException;
 

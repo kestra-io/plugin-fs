@@ -55,13 +55,13 @@ public class Uploads extends io.kestra.plugin.fs.vfs.Uploads implements FtpInter
     private Property<String> proxyPort;
     private Property<Proxy.Type> proxyType;
     @Builder.Default
-    private Property<Boolean> rootDir = Property.of(true);
+    private Property<Boolean> rootDir = Property.ofValue(true);
     @Builder.Default
-    private Property<String> port = Property.of("21");
+    private Property<String> port = Property.ofValue("21");
     @Builder.Default
-    private Property<Boolean> passiveMode = Property.of(true);
+    private Property<Boolean> passiveMode = Property.ofValue(true);
     @Builder.Default
-    private Property<Boolean> remoteIpVerification = Property.of(true);
+    private Property<Boolean> remoteIpVerification = Property.ofValue(true);
     @Builder.Default
     protected Options options = Options.builder().build();
 

@@ -70,16 +70,16 @@ class SftpTest {
 
         // Upload task
         var uploadTask = Upload.builder()
-            .from(Property.of(source.toString()))
-            .to(Property.of(sftpPath))
-            .host(Property.of("localhost"))
-            .port(Property.of("6622"))
+            .from(Property.ofValue(source.toString()))
+            .to(Property.ofValue(sftpPath))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
             .username(USERNAME);
 
         if (keyAuth) {
             uploadTask = uploadTask
-                .keyfile(Property.of(keyFileContent))
-                .passphrase(Property.of("testPassPhrase"));
+                .keyfile(Property.ofValue(keyFileContent))
+                .passphrase(Property.ofValue("testPassPhrase"));
         } else {
             uploadTask.password(PASSWORD);
         }
@@ -89,15 +89,15 @@ class SftpTest {
 
         // Download task
         var downloadTask = Download.builder()
-            .from(Property.of(sftpPath))
-            .host(Property.of("localhost"))
-            .port(Property.of("6622"))
+            .from(Property.ofValue(sftpPath))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
             .username(USERNAME);
 
         if (keyAuth) {
             downloadTask = downloadTask
-                .keyfile(Property.of(keyFileContent))
-                .passphrase(Property.of("testPassPhrase"));
+                .keyfile(Property.ofValue(keyFileContent))
+                .passphrase(Property.ofValue("testPassPhrase"));
         } else {
             downloadTask = downloadTask.password(PASSWORD);
         }

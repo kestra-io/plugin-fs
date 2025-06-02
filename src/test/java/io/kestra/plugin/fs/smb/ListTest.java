@@ -38,8 +38,8 @@ class ListTest {
         List.ListBuilder<?, ?> builder = List.builder()
             .id(ListTest.class.getSimpleName())
             .type(ListTest.class.getName())
-            .from(Property.of(SmbUtils.SHARE_NAME + dir))
-            .host(Property.of("localhost"))
+            .from(Property.ofValue(SmbUtils.SHARE_NAME + dir))
+            .host(Property.ofValue("localhost"))
             .username(USERNAME)
             .password(PASSWORD);
 
@@ -50,7 +50,7 @@ class ListTest {
         assertThat(run.getFiles().size(), is(7));
 
         task = builder
-            .regExp(Property.of(".*\\" + dir + "\\/" + lastFile + "\\.(yml|yaml)"))
+            .regExp(Property.ofValue(".*\\" + dir + "\\/" + lastFile + "\\.(yml|yaml)"))
             .build();
 
         run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
@@ -60,11 +60,11 @@ class ListTest {
         task = List.builder()
             .id(ListTest.class.getSimpleName())
             .type(ListTest.class.getName())
-            .from(Property.of(SmbUtils.SHARE_NAME + dir))
-            .host(Property.of("localhost"))
+            .from(Property.ofValue(SmbUtils.SHARE_NAME + dir))
+            .host(Property.ofValue("localhost"))
             .username(USERNAME)
             .password(PASSWORD)
-            .recursive(Property.of(true)).build();
+            .recursive(Property.ofValue(true)).build();
 
         run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
@@ -73,11 +73,11 @@ class ListTest {
         task = List.builder()
             .id(ListTest.class.getSimpleName())
             .type(ListTest.class.getName())
-            .from(Property.of(SmbUtils.SECOND_SHARE_NAME + dir))
-            .host(Property.of("localhost"))
+            .from(Property.ofValue(SmbUtils.SECOND_SHARE_NAME + dir))
+            .host(Property.ofValue("localhost"))
             .username(USERNAME)
             .password(PASSWORD)
-            .recursive(Property.of(true))
+            .recursive(Property.ofValue(true))
             .build();
 
         run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));

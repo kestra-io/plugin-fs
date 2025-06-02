@@ -49,20 +49,20 @@ public class Download extends io.kestra.plugin.fs.vfs.Download implements FtpInt
     protected Property<String> proxyPort;
     protected Property<Proxy.Type> proxyType;
     @Builder.Default
-    protected Property<Boolean> rootDir = Property.of(true);
+    protected Property<Boolean> rootDir = Property.ofValue(true);
     @Builder.Default
-    protected Property<String> port = Property.of("990");
+    protected Property<String> port = Property.ofValue("990");
     @Builder.Default
-    protected Property<Boolean> passiveMode = Property.of(true);
+    protected Property<Boolean> passiveMode = Property.ofValue(true);
     @Builder.Default
-    protected Property<Boolean> remoteIpVerification = Property.of(true);
+    protected Property<Boolean> remoteIpVerification = Property.ofValue(true);
     @Builder.Default
     protected Options options = Options.builder().build();
 
     @Builder.Default
-    protected Property<FtpsMode> mode = Property.of(FtpsMode.EXPLICIT);
+    protected Property<FtpsMode> mode = Property.ofValue(FtpsMode.EXPLICIT);
     @Builder.Default
-    protected Property<FtpsDataChannelProtectionLevel> dataChannelProtectionLevel = Property.of(FtpsDataChannelProtectionLevel.P);
+    protected Property<FtpsDataChannelProtectionLevel> dataChannelProtectionLevel = Property.ofValue(FtpsDataChannelProtectionLevel.P);
     protected Property<Boolean> insecureTrustAllCertificates;
 
     @Override

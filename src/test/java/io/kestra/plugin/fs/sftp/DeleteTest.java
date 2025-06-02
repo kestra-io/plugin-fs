@@ -33,9 +33,9 @@ class DeleteTest {
         Delete task = Delete.builder()
             .id(DeleteTest.class.getSimpleName())
             .type(DeleteTest.class.getName())
-            .uri(Property.of(from))
-            .host(Property.of("localhost"))
-            .port(Property.of("6622"))
+            .uri(Property.ofValue(from))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
             .username(USERNAME)
             .password(PASSWORD)
             .build();

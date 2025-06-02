@@ -31,7 +31,7 @@ public abstract class List extends AbstractVfsTask implements RunnableTask<List.
         title = "List file recursively"
     )
     @Builder.Default
-    private Property<Boolean> recursive = Property.of(false);
+    private Property<Boolean> recursive = Property.ofValue(false);
 
     public Output run(RunContext runContext) throws Exception {
         try (StandardFileSystemManager fsm = new KestraStandardFileSystemManager(runContext)) {

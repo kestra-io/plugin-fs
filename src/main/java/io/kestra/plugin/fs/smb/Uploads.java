@@ -51,7 +51,7 @@ import java.io.IOException;
 )
 public class Uploads extends io.kestra.plugin.fs.vfs.Uploads implements SmbInterface {
     @Builder.Default
-    private Property<String> port = Property.of("445");
+    private Property<String> port = Property.ofValue("445");
 
     @Override
     protected FileSystemOptions fsOptions(RunContext runContext) throws IllegalVariableEvaluationException, IOException {

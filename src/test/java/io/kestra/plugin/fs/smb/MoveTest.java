@@ -49,7 +49,7 @@ class MoveTest {
         Assertions.assertThrows(FileSystemException.class, () -> fetchFrom.run(TestsUtils.mockRunContext(runContextFactory, fetchFrom, Map.of())));
 
         Download fetchTo = fetchFrom.toBuilder()
-            .from(Property.of(to))
+            .from(Property.ofValue(to))
             .build();
         Assertions.assertDoesNotThrow(() -> fetchTo.run(TestsUtils.mockRunContext(runContextFactory, fetchTo, Map.of())));
     }
@@ -71,7 +71,7 @@ class MoveTest {
         Assertions.assertThrows(FileSystemException.class, () -> fetchFrom.run(TestsUtils.mockRunContext(runContextFactory, fetchFrom, Map.of())));
 
         Download fetchTo = fetchFrom.toBuilder()
-            .from(Property.of(to + "/" + FilenameUtils.getName(from)))
+            .from(Property.ofValue(to + "/" + FilenameUtils.getName(from)))
             .build();
         Assertions.assertDoesNotThrow(() -> fetchTo.run(TestsUtils.mockRunContext(runContextFactory, fetchTo, Map.of())));
     }
@@ -93,7 +93,7 @@ class MoveTest {
         Assertions.assertThrows(FileSystemException.class, () -> fetchFrom.run(TestsUtils.mockRunContext(runContextFactory, fetchFrom, Map.of())));
 
         Download fetchTo = fetchFrom.toBuilder()
-                .from(Property.of(to + "/" + FilenameUtils.getName(from)))
+                .from(Property.ofValue(to + "/" + FilenameUtils.getName(from)))
                 .build();
         Assertions.assertDoesNotThrow(() -> fetchTo.run(TestsUtils.mockRunContext(runContextFactory, fetchTo, Map.of())));
     }
@@ -108,9 +108,9 @@ class MoveTest {
         Move task = Move.builder()
             .id(MoveTest.class.getSimpleName())
             .type(Move.class.getName())
-            .from(Property.of(FilenameUtils.getPath(from)))
-            .to(Property.of(to))
-            .host(Property.of("localhost"))
+            .from(Property.ofValue(FilenameUtils.getPath(from)))
+            .to(Property.ofValue(to))
+            .host(Property.ofValue("localhost"))
             .username(USERNAME)
             .password(PASSWORD)
             .build();
@@ -123,7 +123,7 @@ class MoveTest {
         Assertions.assertThrows(FileSystemException.class, () -> fetchFrom.run(TestsUtils.mockRunContext(runContextFactory, fetchFrom, Map.of())));
 
         Download fetchTo = fetchFrom.toBuilder()
-            .from(Property.of(to + "/" + FilenameUtils.getName(from)))
+            .from(Property.ofValue(to + "/" + FilenameUtils.getName(from)))
             .build();
         Assertions.assertDoesNotThrow(() -> fetchTo.run(TestsUtils.mockRunContext(runContextFactory, fetchTo, Map.of())));
     }
@@ -165,13 +165,13 @@ class MoveTest {
         return Move.builder()
             .id(MoveTest.class.getSimpleName())
             .type(Move.class.getName())
-            .from(Property.of(from))
-            .to(Property.of(to))
-            .host(Property.of("localhost"))
-            .port(Property.of("445"))
+            .from(Property.ofValue(from))
+            .to(Property.ofValue(to))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("445"))
             .username(SmbUtils.USERNAME)
             .password(SmbUtils.PASSWORD)
-            .overwrite(Property.of(overwrite))
+            .overwrite(Property.ofValue(overwrite))
             .build();
     }
 
@@ -179,9 +179,9 @@ class MoveTest {
         return Download.builder()
             .id(DeleteTest.class.getSimpleName())
             .type(DeleteTest.class.getName())
-            .from(Property.of(from))
-            .host(Property.of("localhost"))
-            .port(Property.of("445"))
+            .from(Property.ofValue(from))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("445"))
             .username(USERNAME)
             .password(PASSWORD)
             .build();

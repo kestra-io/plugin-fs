@@ -56,9 +56,9 @@ class UploadTest {
         Upload task = Upload.builder()
             .id(UploadTest.class.getSimpleName())
             .type(Upload.class.getName())
-            .from(Property.of(sourceUri.toString()))
-            .to(Property.of(destinationFile.toString()))
-            .overwrite(Property.of(true))
+            .from(Property.ofValue(sourceUri.toString()))
+            .to(Property.ofValue(destinationFile.toString()))
+            .overwrite(Property.ofValue(true))
             .build();
 
         Upload.Output output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
@@ -76,9 +76,9 @@ class UploadTest {
         Upload task = Upload.builder()
             .id(UploadTest.class.getSimpleName())
             .type(Upload.class.getName())
-            .from(Property.of(sourceUri.toString()))
-            .to(Property.of(destinationFile.toString()))
-            .overwrite(Property.of(false))
+            .from(Property.ofValue(sourceUri.toString()))
+            .to(Property.ofValue(destinationFile.toString()))
+            .overwrite(Property.ofValue(false))
             .build();
 
         assertThrows(
@@ -92,7 +92,7 @@ class UploadTest {
         Upload task = Upload.builder()
             .id(UploadTest.class.getSimpleName())
             .type(Upload.class.getName())
-            .from(Property.of(sourceUri.toString()))
+            .from(Property.ofValue(sourceUri.toString()))
             .build();
 
         Upload.Output output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
