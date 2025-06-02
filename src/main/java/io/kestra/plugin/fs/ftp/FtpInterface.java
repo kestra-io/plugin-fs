@@ -50,32 +50,32 @@ public interface FtpInterface {
             title = "The timeout for the initial control connection."
         )
         @Builder.Default
-        Property<Duration> connectionTimeout = Property.of(Duration.ofSeconds(30));
+        Property<Duration> connectionTimeout = Property.ofValue(Duration.ofSeconds(30));
 
         @Schema(
             title = "The timeout for opening the data channel."
         )
         @Builder.Default
-        Property<Duration> dataTimeout = Property.of(Duration.ofSeconds(30));
+        Property<Duration> dataTimeout = Property.ofValue(Duration.ofSeconds(30));
 
         @Schema(
             title = "The socket timeout."
         )
         @Builder.Default
-        Property<Duration> socketTimeout = Property.of(Duration.ofSeconds(30));
+        Property<Duration> socketTimeout = Property.ofValue(Duration.ofSeconds(30));
 
         @Schema(
             title = "the control keep alive timeout.",
             description = "to ensure the socket be alive after download huge file."
         )
         @Builder.Default
-        Property<Duration> controlKeepAliveTimeout = Property.of(Duration.ofSeconds(30));
+        Property<Duration> controlKeepAliveTimeout = Property.ofValue(Duration.ofSeconds(30));
 
         @Schema(
             title = "The control keep alive reply timeout.",
             description = "to ensure the socket be alive after download huge file."
         )
         @Builder.Default
-        Property<Duration> controlKeepAliveReplyTimeout = Property.of(Duration.ofSeconds(30));
+        Property<Duration> controlKeepAliveReplyTimeout = Property.ofValue(Duration.ofSeconds(30));
     }
 }

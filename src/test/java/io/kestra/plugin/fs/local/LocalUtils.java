@@ -34,9 +34,9 @@ public class LocalUtils {
         Upload task = Upload.builder()
             .id(UploadTest.class.getSimpleName())
             .type(Upload.class.getName())
-            .from(Property.of(uri.toString()))
-            .to(Property.of(filePath))
-            .overwrite(Property.of(true))
+            .from(Property.ofValue(uri.toString()))
+            .to(Property.ofValue(filePath))
+            .overwrite(Property.ofValue(true))
             .build();
 
         return task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
@@ -46,8 +46,8 @@ public class LocalUtils {
         io.kestra.plugin.fs.local.List task = io.kestra.plugin.fs.local.List.builder()
             .id(LocalUtils.class.getSimpleName())
             .type(io.kestra.plugin.fs.local.List.class.getName())
-            .from(Property.of(filePath))
-            .recursive(Property.of(true))
+            .from(Property.ofValue(filePath))
+            .recursive(Property.ofValue(true))
             .build();
 
         return task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
@@ -57,8 +57,8 @@ public class LocalUtils {
         var task = io.kestra.plugin.fs.local.Delete.builder()
             .id(LocalUtils.class.getSimpleName())
             .type(Delete.class.getName())
-            .from(Property.of(file))
-            .recursive(Property.of(true))
+            .from(Property.ofValue(file))
+            .recursive(Property.ofValue(true))
             .build();
 
         return task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));

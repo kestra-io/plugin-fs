@@ -49,14 +49,14 @@ public class Delete extends AbstractLocalTask implements RunnableTask<Delete.Out
 
     @Schema(title = "Raise an error if the file is not found")
     @Builder.Default
-    private Property<Boolean> errorOnMissing = Property.of(false);
+    private Property<Boolean> errorOnMissing = Property.ofValue(false);
 
     @Schema(
         title = "Whether to include subdirectories",
         description = "If true, the task will recursively delete files in all subdirectories."
     )
     @Builder.Default
-    private Property<Boolean> recursive = Property.of(true);
+    private Property<Boolean> recursive = Property.ofValue(true);
 
     @Override
     public Output run(RunContext runContext) throws Exception {

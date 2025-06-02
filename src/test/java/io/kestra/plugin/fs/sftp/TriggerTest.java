@@ -41,13 +41,13 @@ public class TriggerTest extends AbstractFileTriggerTest {
         Trigger trigger = Trigger.builder()
             .id(AbstractFileTriggerTest.class.getSimpleName())
             .type(Trigger.class.getName())
-            .host(Property.of("localhost"))
-            .port(Property.of("6622"))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
             .username(USERNAME)
             .password(PASSWORD)
-            .from(Property.of("/upload/trigger/"))
-            .action(Property.of(Downloads.Action.MOVE))
-            .moveDirectory(Property.of("/upload/trigger-move/"))
+            .from(Property.ofValue("/upload/trigger/"))
+            .action(Property.ofValue(Downloads.Action.MOVE))
+            .moveDirectory(Property.ofValue("/upload/trigger-move/"))
             .build();
 
         String out = FriendlyId.createFriendlyId();
@@ -66,11 +66,11 @@ public class TriggerTest extends AbstractFileTriggerTest {
             Download task = Download.builder()
                 .id(AbstractFileTriggerTest.class.getSimpleName())
                 .type(Download.class.getName())
-                .host(Property.of("localhost"))
-                .port(Property.of("6622"))
+                .host(Property.ofValue("localhost"))
+                .port(Property.ofValue("6622"))
             .username(USERNAME)
             .password(PASSWORD)
-                .from(Property.of(upload.getTo().toString()))
+                .from(Property.ofValue(upload.getTo().toString()))
                 .build();
 
             task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
@@ -79,11 +79,11 @@ public class TriggerTest extends AbstractFileTriggerTest {
         Download task = Download.builder()
             .id(AbstractFileTriggerTest.class.getSimpleName())
             .type(Download.class.getName())
-            .host(Property.of("localhost"))
-            .port(Property.of("6622"))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
             .username(USERNAME)
             .password(PASSWORD)
-            .from(Property.of("/upload/trigger" + "-move/" + out + ".yml"))
+            .from(Property.ofValue("/upload/trigger" + "-move/" + out + ".yml"))
             .build();
 
         io.kestra.plugin.fs.vfs.Download.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
