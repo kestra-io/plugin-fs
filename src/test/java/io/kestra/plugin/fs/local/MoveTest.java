@@ -46,9 +46,9 @@ class MoveTest {
         Move task = Move.builder()
             .id(MoveTest.class.getSimpleName())
             .type(Move.class.getName())
-            .from(Property.of(sourceFile.toAbsolutePath().toString()))
-            .to(Property.of(targetFile.toAbsolutePath().toString()))
-            .overwrite(Property.of(true))
+            .from(Property.ofValue(sourceFile.toAbsolutePath().toString()))
+            .to(Property.ofValue(targetFile.toAbsolutePath().toString()))
+            .overwrite(Property.ofValue(true))
             .build();
 
         VoidOutput output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
@@ -64,9 +64,9 @@ class MoveTest {
         Move task = Move.builder()
             .id(MoveTest.class.getSimpleName())
             .type(Move.class.getName())
-            .from(Property.of(sourceFile.toString()))
-            .to(Property.of(targetFile.toString()))
-            .overwrite(Property.of(false))
+            .from(Property.ofValue(sourceFile.toString()))
+            .to(Property.ofValue(targetFile.toString()))
+            .overwrite(Property.ofValue(false))
             .build();
 
         assertThrows(io.kestra.core.exceptions.KestraRuntimeException.class, () -> task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of())));

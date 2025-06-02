@@ -62,7 +62,7 @@ public class Move extends AbstractLocalTask implements RunnableTask<VoidOutput> 
         description = "If set to false, it will raise an exception if the destination folder or file already exists."
     )
     @Builder.Default
-    protected Property<Boolean> overwrite = Property.of(false);
+    protected Property<Boolean> overwrite = Property.ofValue(false);
 
     @Override
     public VoidOutput run(RunContext runContext) throws Exception {

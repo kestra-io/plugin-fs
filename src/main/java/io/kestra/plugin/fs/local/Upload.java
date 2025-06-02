@@ -69,7 +69,7 @@ public class Upload extends AbstractLocalTask implements RunnableTask<Upload.Out
         description = "If false, the task will throw an error if the target file already exists"
     )
     @Builder.Default
-    private Property<Boolean> overwrite = Property.of(true);
+    private Property<Boolean> overwrite = Property.ofValue(true);
 
     @Override
     public Output run(RunContext runContext) throws Exception {

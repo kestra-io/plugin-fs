@@ -38,9 +38,9 @@ class ListTest {
         List.ListBuilder<?, ?> builder = List.builder()
             .id(ListTest.class.getSimpleName())
             .type(ListTest.class.getName())
-            .from(Property.of("/upload" + dir))
-            .host(Property.of("localhost"))
-            .port(Property.of("6621"))
+            .from(Property.ofValue("/upload" + dir))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6621"))
             .username(USERNAME)
             .password(PASSWORD);
 
@@ -51,7 +51,7 @@ class ListTest {
         assertThat(run.getFiles().size(), is(7));
 
         task = builder
-            .regExp(Property.of(".*\\" + dir + "\\/" + lastFile + "\\.(yml|yaml)"))
+            .regExp(Property.ofValue(".*\\" + dir + "\\/" + lastFile + "\\.(yml|yaml)"))
             .build();
 
         run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
@@ -61,12 +61,12 @@ class ListTest {
         task = List.builder()
             .id(ListTest.class.getSimpleName())
             .type(ListTest.class.getName())
-            .from(Property.of("/upload" + dir))
-            .host(Property.of("localhost"))
-            .port(Property.of("6621"))
+            .from(Property.ofValue("/upload" + dir))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6621"))
             .username(USERNAME)
             .password(PASSWORD)
-            .recursive(Property.of(true)).build();
+            .recursive(Property.ofValue(true)).build();
 
         run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
@@ -75,12 +75,12 @@ class ListTest {
         task = List.builder()
             .id(ListTest.class.getSimpleName())
             .type(ListTest.class.getName())
-            .from(Property.of("/" + dir))
-            .host(Property.of("localhost"))
-            .port(Property.of("6621"))
+            .from(Property.ofValue("/" + dir))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6621"))
             .username(USERNAME)
             .password(PASSWORD)
-            .recursive(Property.of(true)).build();
+            .recursive(Property.ofValue(true)).build();
 
         run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 

@@ -50,7 +50,7 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
         title = "List file recursively"
     )
     @Builder.Default
-    private Property<Boolean> recursive = Property.of(false);
+    private Property<Boolean> recursive = Property.ofValue(false);
 
     public Output run(RunContext runContext) throws Exception {
         Logger logger = runContext.logger();

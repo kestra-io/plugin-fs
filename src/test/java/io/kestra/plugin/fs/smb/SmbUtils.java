@@ -16,8 +16,8 @@ import java.util.Map;
 public class SmbUtils extends AbstractUtils {
     public static final String SHARE_NAME = "upload";
     public static final String SECOND_SHARE_NAME = "another_upload";
-    public static final Property<String> USERNAME = Property.of("alice");
-    public static final Property<String> PASSWORD = Property.of("O7m)&H/0Em4/T8RqCa!Al=M@N6^;@+");
+    public static final Property<String> USERNAME = Property.ofValue("alice");
+    public static final Property<String> PASSWORD = Property.ofValue("O7m)&H/0Em4/T8RqCa!Al=M@N6^;@+");
 
     @Inject
     private RunContextFactory runContextFactory;
@@ -26,9 +26,9 @@ public class SmbUtils extends AbstractUtils {
         var task = Upload.builder()
             .id(SmbUtils.class.getSimpleName())
             .type(SmbUtils.class.getName())
-            .from(Property.of(source.toString()))
-            .to(Property.of(to))
-            .host(Property.of("localhost"))
+            .from(Property.ofValue(source.toString()))
+            .to(Property.ofValue(to))
+            .host(Property.ofValue("localhost"))
             .username(USERNAME)
             .password(PASSWORD)
             .build();
@@ -41,9 +41,9 @@ public class SmbUtils extends AbstractUtils {
         return io.kestra.plugin.fs.smb.List.builder()
             .id(TriggerTest.class.getSimpleName())
             .type(TriggerTest.class.getName())
-            .from(Property.of(dir))
-            .host(Property.of("localhost"))
-            .port(Property.of("445"))
+            .from(Property.ofValue(dir))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("445"))
             .username(USERNAME)
             .password(PASSWORD)
             .build()
@@ -55,8 +55,8 @@ public class SmbUtils extends AbstractUtils {
         var task = io.kestra.plugin.fs.smb.Delete.builder()
             .id(SmbUtils.class.getSimpleName())
             .type(SmbUtils.class.getName())
-            .uri(Property.of(file))
-            .host(Property.of("localhost"))
+            .uri(Property.ofValue(file))
+            .host(Property.ofValue("localhost"))
             .username(USERNAME)
             .password(PASSWORD)
             .build();

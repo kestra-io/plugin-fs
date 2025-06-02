@@ -49,9 +49,9 @@ class CopyTest {
         Copy task = Copy.builder()
             .id(CopyTest.class.getSimpleName())
             .type(Copy.class.getName())
-            .from(Property.of(sourceFile.toString()))
-            .to(Property.of(targetFile.toString()))
-            .overwrite(Property.of(true))
+            .from(Property.ofValue(sourceFile.toString()))
+            .to(Property.ofValue(targetFile.toString()))
+            .overwrite(Property.ofValue(true))
             .build();
 
         VoidOutput output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
@@ -67,9 +67,9 @@ class CopyTest {
         Copy task = Copy.builder()
             .id(CopyTest.class.getSimpleName())
             .type(Copy.class.getName())
-            .from(Property.of(sourceFile.toString()))
-            .to(Property.of(targetFile.toString()))
-            .overwrite(Property.of(false))
+            .from(Property.ofValue(sourceFile.toString()))
+            .to(Property.ofValue(targetFile.toString()))
+            .overwrite(Property.ofValue(false))
             .build();
 
         assertThrows(IllegalArgumentException.class, () -> task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of())));

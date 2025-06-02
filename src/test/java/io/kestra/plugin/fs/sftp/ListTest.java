@@ -38,12 +38,12 @@ class ListTest {
         List.ListBuilder<?, ?> builder = List.builder()
             .id(ListTest.class.getSimpleName())
             .type(ListTest.class.getName())
-            .from(Property.of("/upload/" + dir))
-            .host(Property.of("localhost"))
-            .port(Property.of("6622"))
+            .from(Property.ofValue("/upload/" + dir))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
             .username(USERNAME)
             .password(PASSWORD)
-            .rootDir(Property.of(false));
+            .rootDir(Property.ofValue(false));
 
         List task = builder.build();
 
@@ -53,7 +53,7 @@ class ListTest {
         run.getFiles().forEach(file -> assertThat(file.getSize(), is(greaterThan(0L))));
 
         task = builder
-            .regExp(Property.of(".*\\" + dir + "\\/" + lastFile + "\\.(yml|yaml)"))
+            .regExp(Property.ofValue(".*\\" + dir + "\\/" + lastFile + "\\.(yml|yaml)"))
             .build();
 
         run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));

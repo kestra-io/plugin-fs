@@ -40,10 +40,10 @@ class DownloadsTest {
         Downloads task = Downloads.builder()
             .id(DownloadsTest.class.getSimpleName())
             .type(DownloadsTest.class.getName())
-            .from(Property.of(toUploadDir))
-            .action(Property.of(Downloads.Action.DELETE))
-            .host(Property.of("localhost"))
-            .port(Property.of("445"))
+            .from(Property.ofValue(toUploadDir))
+            .action(Property.ofValue(Downloads.Action.DELETE))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("445"))
             .username(USERNAME)
             .password(PASSWORD)
             .build();
@@ -79,11 +79,11 @@ class DownloadsTest {
         Downloads task = Downloads.builder()
             .id(DownloadsTest.class.getSimpleName())
             .type(DownloadsTest.class.getName())
-            .from(Property.of(toUploadDir))
-            .moveDirectory(Property.of(archiveShareDirectory + dirDelimiter))
-            .action(Property.of(Downloads.Action.MOVE))
-            .host(Property.of("localhost"))
-            .port(Property.of("445"))
+            .from(Property.ofValue(toUploadDir))
+            .moveDirectory(Property.ofValue(archiveShareDirectory + dirDelimiter))
+            .action(Property.ofValue(Downloads.Action.MOVE))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("445"))
             .username(USERNAME)
             .password(PASSWORD)
             .build();
@@ -100,7 +100,7 @@ class DownloadsTest {
         assertThat(run.getFiles().isEmpty(), is(true));
 
         task = task.toBuilder()
-            .from(Property.of(archiveShareDirectory))
+            .from(Property.ofValue(archiveShareDirectory))
             .build();
         run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
         assertThat(run.getFiles().size(), is(2));
@@ -123,10 +123,10 @@ class DownloadsTest {
         Downloads task = Downloads.builder()
             .id(DownloadsTest.class.getSimpleName())
             .type(DownloadsTest.class.getName())
-            .from(Property.of(toUploadDir))
-            .action(Property.of(Downloads.Action.NONE))
-            .host(Property.of("localhost"))
-            .port(Property.of("445"))
+            .from(Property.ofValue(toUploadDir))
+            .action(Property.ofValue(Downloads.Action.NONE))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("445"))
             .username(USERNAME)
             .password(PASSWORD)
             .build();
@@ -154,10 +154,10 @@ class DownloadsTest {
         Downloads task = Downloads.builder()
             .id(DownloadsTest.class.getSimpleName())
             .type(DownloadsTest.class.getName())
-            .from(Property.of(toUploadDir))
-            .action(Property.of(Downloads.Action.NONE))
-            .host(Property.of("localhost"))
-            .port(Property.of("445"))
+            .from(Property.ofValue(toUploadDir))
+            .action(Property.ofValue(Downloads.Action.NONE))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("445"))
             .username(USERNAME)
             .password(PASSWORD)
             .build();
