@@ -40,7 +40,7 @@ import java.io.IOException;
                     host: localhost
                     port: "445"
                     username: foo
-                    password: pass
+                    password: "{{ secret('SMB_PASSWORD') }}"
                     from:
                       - "{{ inputs.file1 }}"
                       - "{{ inputs.file2 }}"

@@ -39,7 +39,7 @@ import java.net.Proxy;
                     host: localhost
                     port: 21
                     username: foo
-                    password: pass
+                    password: "{{ secret('FTP_PASSWORD') }}"
                     from: "{{ inputs.file }}"
                     to: "/upload/dir2/file.txt"
                 """

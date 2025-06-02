@@ -46,7 +46,7 @@ import java.util.concurrent.atomic.AtomicInteger;
                     port: "22"
                     authMethod: PASSWORD
                     username: foo
-                    password: pass
+                    password: "{{ secret('SSH_PASSWORD') }}"
                     commands:
                       - ls
                 """
@@ -82,7 +82,7 @@ import java.util.concurrent.atomic.AtomicInteger;
                     authMethod: OPEN_SSH
                     useOpenSSHConfig: true
                     host: localhost
-                    password: pass.
+                    password: "{{ secret('SSH_PASSWORD') }}"
                     commands:
                       - echo "Hello World\""""
         )
