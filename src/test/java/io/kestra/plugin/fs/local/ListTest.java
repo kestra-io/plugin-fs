@@ -51,9 +51,9 @@ class ListTest {
         List task = List.builder()
             .id(ListTest.class.getSimpleName())
             .type(List.class.getName())
-            .from(Property.of(tempDir.toString()))
-            .regExp(Property.of(".*\\.csv"))
-            .recursive(Property.of(true))
+            .from(Property.ofValue(tempDir.toString()))
+            .regExp(Property.ofValue(".*\\.csv"))
+            .recursive(Property.ofValue(true))
             .build();
 
         List.Output output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));

@@ -95,7 +95,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         io.kestra.plugin.fs.local.List listTask = io.kestra.plugin.fs.local.List.builder()
             .id(io.kestra.plugin.fs.local.List.class.getSimpleName())
             .type(io.kestra.plugin.fs.local.List.class.getName())
-            .from(Property.of(renderedFrom))
+            .from(Property.ofValue(renderedFrom))
             .regExp(this.regExp)
             .recursive(this.recursive)
             .build();
@@ -113,7 +113,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
                 Download downloadTask = Download.builder()
                     .id(Download.class.getSimpleName())
                     .type(Download.class.getName())
-                    .from(Property.of(fileItem.getLocalPath().toString()))
+                    .from(Property.ofValue(fileItem.getLocalPath().toString()))
                     .build();
 
                 Download.Output downloadOutput = downloadTask.run(runContext);
