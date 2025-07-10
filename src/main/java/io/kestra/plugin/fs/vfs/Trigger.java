@@ -1,5 +1,6 @@
 package io.kestra.plugin.fs.vfs;
 
+import com.jcraft.jsch.JSch;
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
@@ -69,6 +70,13 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
     @Builder.Default
     private Property<Boolean> recursive = Property.ofValue(false);
 
+    @Builder.Default
+    @Schema(
+        title = "Enable the disabled by default RSA/SHA1 algorithm"
+    )
+    @NotNull
+    private Property<Boolean> enableSshRsa1 = Property.ofValue(false);
+
     protected abstract FileSystemOptions fsOptions(RunContext runContext) throws IllegalVariableEvaluationException, IOException;
 
     protected abstract String scheme();
@@ -81,6 +89,21 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
 
         // connection options
         FileSystemOptions fileSystemOptions = this.fsOptions(runContext);
+
+        var renderedHost = runContext.render(this.host).as(String.class).orElseThrow();
+        var renderedPort = runContext.render(this.getPort()).as(String.class).orElseThrow();
+        var jsch = new JSch();
+        var session = jsch.getSession(
+            runContext.render(username).as(String.class).orElse(null),
+            renderedHost, Integer.parseInt(renderedPort)
+        );
+
+        // enable disabled by default weak RSA/SHA1 algorithm
+        if (runContext.render(enableSshRsa1).as(Boolean.class).orElseThrow()) {
+            runContext.logger().info("RSA/SHA1 is enabled, be advise that SHA1 is no longer considered secure by the general cryptographic community.");
+            session.setConfig("server_host_key", session.getConfig("server_host_key") + ",ssh-rsa");
+            session.setConfig("PubkeyAcceptedAlgorithms", session.getConfig("PubkeyAcceptedAlgorithms") + ",ssh-rsa");
+        }
 
         try (StandardFileSystemManager fsm = new KestraStandardFileSystemManager(runContext)) {
             fsm.setConfiguration(StandardFileSystemManager.class.getResource(KestraStandardFileSystemManager.CONFIG_RESOURCE));
