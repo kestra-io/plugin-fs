@@ -18,7 +18,10 @@ import lombok.experimental.SuperBuilder;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -149,20 +152,20 @@ public class Command extends Task implements SshInterface, RunnableTask<ScriptOu
 
         final AuthMethod renderedAuthMethod = runContext.render(this.authMethod).as(AuthMethod.class).orElseThrow();
         if (AuthMethod.PASSWORD.equals(renderedAuthMethod) && runContext.render(this.password).as(String.class).isEmpty()) {
-                throw new IllegalArgumentException("Password is necessary for given SSH auth method: " + AuthMethod.PASSWORD);
+            throw new IllegalArgumentException("Password is necessary for given SSH auth method: " + AuthMethod.PASSWORD);
         }
 
         if (AuthMethod.PUBLIC_KEY.equals(renderedAuthMethod) && runContext.render(this.privateKey).as(String.class).isEmpty()) {
-                throw new IllegalArgumentException("Private key is necessary for given SSH auth method: " + AuthMethod.PUBLIC_KEY);
+            throw new IllegalArgumentException("Private key is necessary for given SSH auth method: " + AuthMethod.PUBLIC_KEY);
         }
 
-        if(AuthMethod.OPEN_SSH.equals(renderedAuthMethod) &&
+        if (AuthMethod.OPEN_SSH.equals(renderedAuthMethod) &&
             (runContext.pluginConfiguration(ALLOW_OPEN_SSH_CONFIG).isEmpty() ||
-                Boolean.FALSE.equals(runContext.<Boolean>pluginConfiguration(ALLOW_OPEN_SSH_CONFIG).get()))) {
-                throw new IllegalArgumentException("You need to allow access to the host OpenSSH configuration via the plugin configuration `" + ALLOW_OPEN_SSH_CONFIG + "`");
+                !runContext.<Boolean>pluginConfiguration(ALLOW_OPEN_SSH_CONFIG).orElse(false))) {
+            throw new IllegalArgumentException("You need to allow access to the host OpenSSH configuration via the plugin configuration `" + ALLOW_OPEN_SSH_CONFIG + "`");
         }
 
-        try(
+        try (
             var outStream = new PipedOutputStream();
             var inStream = new PipedInputStream(outStream);
             var errStream = new PipedOutputStream();
@@ -171,7 +174,7 @@ public class Command extends Task implements SshInterface, RunnableTask<ScriptOu
             var renderedHost = runContext.render(host).as(String.class).orElseThrow();
             var renderedPort = runContext.render(port).as(String.class).orElse("22");
             List<String> renderedCommands = new ArrayList<>(commands.length);
-            for(String command: commands) {
+            for (String command : commands) {
                 renderedCommands.add(runContext.render(command));
             }
 
@@ -182,7 +185,7 @@ public class Command extends Task implements SshInterface, RunnableTask<ScriptOu
             );
 
             // enable disabled by default weak RSA/SHA1 algorithm
-            if (Boolean.TRUE.equals(runContext.render(enableSshRsa1).as(Boolean.class).orElseThrow())) {
+            if (runContext.render(enableSshRsa1).as(Boolean.class).orElseThrow()) {
                 runContext.logger().info("RSA/SHA1 is enabled, be advise that SHA1 is no longer considered secure by the general cryptographic community.");
                 session.setConfig("server_host_key", session.getConfig("server_host_key") + ",ssh-rsa");
                 session.setConfig("PubkeyAcceptedAlgorithms", session.getConfig("PubkeyAcceptedAlgorithms") + ",ssh-rsa");
@@ -219,7 +222,7 @@ public class Command extends Task implements SshInterface, RunnableTask<ScriptOu
             stdErr = Thread.ofVirtual().name("ssh-log-err").start(stdErrRunnable);
 
             final Map<String, String> renderedEnv = runContext.render(this.env).asMap(String.class, String.class);
-            for(var entry : renderedEnv.entrySet()) {
+            for (var entry : renderedEnv.entrySet()) {
                 channel.setEnv(runContext.render(entry.getKey()), runContext.render(entry.getValue()));
             }
 
@@ -233,7 +236,7 @@ public class Command extends Task implements SshInterface, RunnableTask<ScriptOu
             stdOut.join();
             stdErr.join();
 
-            if(channel.getExitStatus() != 0) {
+            if (channel.getExitStatus() != 0) {
                 throw new Exception("SSH command fails with exit status " + channel.getExitStatus());
             }
 
@@ -298,5 +301,4 @@ public class Command extends Task implements SshInterface, RunnableTask<ScriptOu
             }
         }
     }
-
 }
