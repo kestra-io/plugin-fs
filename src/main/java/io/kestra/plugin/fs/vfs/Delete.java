@@ -1,5 +1,6 @@
 package io.kestra.plugin.fs.vfs;
 
+import com.jcraft.jsch.JSch;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
@@ -29,7 +30,7 @@ public abstract class Delete extends AbstractVfsTask implements RunnableTask<Del
     private final Property<Boolean> errorOnMissing = Property.of(false);
 
     public Output run(RunContext runContext) throws Exception {
-        try (StandardFileSystemManager fsm = new KestraStandardFileSystemManager(runContext)) {
+        try (var fsm = new KestraStandardFileSystemManager(runContext)) {
             fsm.setConfiguration(StandardFileSystemManager.class.getResource(KestraStandardFileSystemManager.CONFIG_RESOURCE));
             fsm.init();
 

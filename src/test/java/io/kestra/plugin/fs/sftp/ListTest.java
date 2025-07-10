@@ -1,13 +1,18 @@
 package io.kestra.plugin.fs.sftp;
 
 import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.models.executions.LogEntry;
 import io.kestra.core.models.property.Property;
+import io.kestra.core.queues.QueueFactoryInterface;
+import io.kestra.core.queues.QueueInterface;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import jakarta.inject.Inject;
+import jakarta.inject.Named;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.Map;
 
 import static io.kestra.plugin.fs.sftp.SftpUtils.PASSWORD;
@@ -24,8 +29,16 @@ class ListTest {
     @Inject
     private SftpUtils sftpUtils;
 
+    @Inject
+    @Named(QueueFactoryInterface.WORKERTASKLOG_NAMED)
+    private QueueInterface<LogEntry> logQueue;
+
     @Test
     void all() throws Exception {
+        java.util.List<LogEntry> logs = new ArrayList<>();
+        var receive = TestsUtils.receive(logQueue, l -> logs.add(l.getLeft()));
+        String expectedEnabledRsaSha1Logs = "RSA/SHA1 is enabled, be advise that SHA1 is no longer considered secure by the general cryptographic community.";
+
         String dir = "/" + IdUtils.create();
         String lastFile = null;
         for (int i = 0; i < 6; i++) {
@@ -43,7 +56,8 @@ class ListTest {
             .port(Property.of("6622"))
             .username(USERNAME)
             .password(PASSWORD)
-            .rootDir(Property.of(false));
+            .rootDir(Property.of(false))
+            .enableSshRsa1(Property.ofValue(true));
 
         List task = builder.build();
 
@@ -59,5 +73,9 @@ class ListTest {
         run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(run.getFiles().size(), is(1));
+
+        TestsUtils.awaitLog(logs, log -> log.getMessage() != null && log.getMessage().contains(expectedEnabledRsaSha1Logs));
+        receive.blockLast();
+        assertThat(logs.stream().anyMatch(log -> log.getMessage() != null && log.getMessage().contains(expectedEnabledRsaSha1Logs)), is(true));
     }
 }
