@@ -72,7 +72,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
 
     @Builder.Default
     @Schema(
-        title = "Enable the disabled by default RSA/SHA1 algorithm"
+        title = "Enable the RSA/SHA1 algorithm (disabled by default)"
     )
     @NotNull
     private Property<Boolean> enableSshRsa1 = Property.ofValue(false);
@@ -100,7 +100,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
 
         // enable disabled by default weak RSA/SHA1 algorithm
         if (runContext.render(enableSshRsa1).as(Boolean.class).orElseThrow()) {
-            runContext.logger().info("RSA/SHA1 is enabled, be advise that SHA1 is no longer considered secure by the general cryptographic community.");
+            runContext.logger().info("RSA/SHA1 is enabled, be advised that SHA1 is no longer considered secure by the general cryptographic community.");
             session.setConfig("server_host_key", session.getConfig("server_host_key") + ",ssh-rsa");
             session.setConfig("PubkeyAcceptedAlgorithms", session.getConfig("PubkeyAcceptedAlgorithms") + ",ssh-rsa");
         }
