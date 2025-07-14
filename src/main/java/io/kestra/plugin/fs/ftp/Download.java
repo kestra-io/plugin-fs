@@ -36,7 +36,7 @@ import java.time.Duration;
                     host: localhost
                     port: 21
                     username: foo
-                    password: pass
+                    password: "{{ secret('FTP_PASSWORD') }}"
                     from: "/in/file.txt"
                 """
         )
