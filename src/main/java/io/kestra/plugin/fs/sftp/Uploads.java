@@ -40,7 +40,7 @@ import java.io.IOException;
                                 host: localhost
                                 port: "22"
                                 username: foo
-                                password: pass
+                                password: "{{ secret('SFTP_PASSWORD') }}"
                                 from:
                                   - "{{ inputs.file1 }}"
                                   - "{{ inputs.file2 }}"
