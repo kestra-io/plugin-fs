@@ -37,7 +37,7 @@ class ListTest {
     void all() throws Exception {
         java.util.List<LogEntry> logs = new ArrayList<>();
         var receive = TestsUtils.receive(logQueue, l -> logs.add(l.getLeft()));
-        String expectedEnabledRsaSha1Logs = "RSA/SHA1 is enabled, be advise that SHA1 is no longer considered secure by the general cryptographic community.";
+        String expectedEnabledRsaSha1Logs = "RSA/SHA1 is enabled, be advised that SHA1 is no longer considered secure by the general cryptographic community.";
 
         String dir = "/" + IdUtils.create();
         String lastFile = null;
