@@ -113,7 +113,6 @@ public abstract class VfsService {
 
             java.util.List<File> list = Stream.of(children)
                 .map(throwFunction(r -> File.of((AbstractFileObject<?>) r)))
-                .filter(r -> regExp == null || r.getPath().toString().matches(regExp))
                 .toList();
 
             runContext.logger().debug("Found '{}' files from '{}'", list.size(), VfsService.uriWithoutAuth(from));
