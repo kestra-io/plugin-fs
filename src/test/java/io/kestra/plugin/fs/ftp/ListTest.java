@@ -9,6 +9,7 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
+import java.util.UUID;
 
 import static io.kestra.plugin.fs.ftp.FtpUtils.PASSWORD;
 import static io.kestra.plugin.fs.ftp.FtpUtils.USERNAME;
@@ -85,5 +86,55 @@ class ListTest {
         run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(run.getFiles().size(), is(0));
+    }
+
+    @Test
+    void shouldMatchFileWithWhitespaceInName() throws Exception {
+        String dir = "/" + IdUtils.create();
+        String filenameWithSpace = "test Test_nbs_issuers_20250717.csv";
+        ftpUtils.upload("upload" + dir + "/" + filenameWithSpace);
+
+        List.ListBuilder<?, ?> builder = List.builder()
+            .id("ftp-list-" + UUID.randomUUID())
+            .type(List.class.getName())
+            .from(Property.ofValue("/upload" + dir))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6621"))
+            .username(USERNAME)
+            .password(PASSWORD);
+
+        // here we check using regex with a whitespace in file name
+        List task = builder
+            .regExp(Property.ofValue(".*test Test_nbs_issuers_.+\\.csv"))
+            .build();
+
+        List.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(run.getFiles().size(), is(1));
+        assertThat(run.getFiles().getFirst().getName(), is(filenameWithSpace));
+    }
+
+    @Test
+    void shouldMatchFileWithStandardName() throws Exception {
+        String dir = "/" + IdUtils.create();
+        String filename = "test_Test_nbs_issuers_20250717.csv";
+        ftpUtils.upload("upload" + dir + "/" + filename);
+
+        List.ListBuilder<?, ?> builder = List.builder()
+            .id("ftp-list-" + UUID.randomUUID())
+            .type(List.class.getName())
+            .from(Property.ofValue("/upload" + dir))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6621"))
+            .username(USERNAME)
+            .password(PASSWORD);
+
+        List task = builder
+            .regExp(Property.ofValue(".*test_Test_nbs_issuers_.+\\.csv"))
+            .build();
+
+        List.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+        assertThat(run.getFiles().size(), is(1));
+        assertThat(run.getFiles().getFirst().getName(), is(filename));
     }
 }
