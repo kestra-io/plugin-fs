@@ -80,7 +80,7 @@ public class List extends AbstractLocalTask implements RunnableTask<List.Output>
         int maxDepth = runContext.render(recursive).as(Boolean.class).orElse(false) ? Integer.MAX_VALUE : 1;
 
         java.util.List<File> files = Files.find(directoryPath, maxDepth, (path, basicFileAttributes) -> {
-                return basicFileAttributes.isRegularFile() && path.getFileName().toString().matches(fileRegex);
+                return basicFileAttributes.isRegularFile() && path.toString().matches(fileRegex);
             })
             .map(throwFunction(path -> {
                 BasicFileAttributes attrs = Files.readAttributes(path, BasicFileAttributes.class);

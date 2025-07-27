@@ -102,6 +102,10 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
         io.kestra.plugin.fs.local.List.Output listOutput = listTask.run(runContext);
 
+        if (listOutput.getFiles().isEmpty()) {
+            return Optional.empty();
+        }
+
         java.util.List<File> downloadedFiles = listOutput
             .getFiles()
             .stream()
@@ -126,8 +130,12 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             runContext.render(this.action).as(Downloads.Action.class).orElse(Downloads.Action.NONE) :
             Downloads.Action.NONE;
 
+        java.util.List<File> filesToProcess = downloadedFiles.stream()
+            .filter(file -> !file.isDirectory())
+            .toList();
+
         if (selectedAction != Downloads.Action.NONE) {
-            Downloads.performAction(renderedFrom, selectedAction, this.moveDirectory, runContext);
+            Downloads.performAction(filesToProcess, selectedAction, this.moveDirectory, runContext);
         }
 
         return Optional.of(TriggerService.generateExecution(
