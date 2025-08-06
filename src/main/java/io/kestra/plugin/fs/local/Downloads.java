@@ -125,14 +125,14 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
 
             String rMoveDirectory = runContext.render(moveDirectory).as(String.class).orElseThrow();
 
-            if (!renderedMoveDirectory.endsWith("/")) {
-                renderedMoveDirectory = renderedMoveDirectory + "/";
+            if (!rMoveDirectory.endsWith("/")) {
+                rMoveDirectory = rMoveDirectory + "/";
             }
 
             for (File file : files) {
                 if (!file.isDirectory()) {
                     String fileName = file.getLocalPath().getFileName().toString();
-                    String destinationPath = renderedMoveDirectory + fileName;
+                    String destinationPath = rMoveDirectory + fileName;
 
                     Move move = Move.builder()
                         .id(Move.class.getSimpleName())
