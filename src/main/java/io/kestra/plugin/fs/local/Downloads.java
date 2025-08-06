@@ -123,7 +123,7 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
                 throw new IllegalArgumentException("moveDirectory must be specified when action is MOVE");
             }
 
-            String renderedMoveDirectory = runContext.render(moveDirectory).as(String.class).orElseThrow();
+            String rMoveDirectory = runContext.render(moveDirectory).as(String.class).orElseThrow();
 
             if (!renderedMoveDirectory.endsWith("/")) {
                 renderedMoveDirectory = renderedMoveDirectory + "/";
