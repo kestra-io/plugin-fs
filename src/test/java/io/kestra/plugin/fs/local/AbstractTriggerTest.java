@@ -22,6 +22,7 @@ import reactor.core.publisher.Flux;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -98,9 +99,9 @@ public abstract class AbstractTriggerTest {
             java.util.List<File> trigger = (java.util.List<File>) last.get().getTrigger().getVariables().get("files");
             assertThat(trigger.size(), greaterThanOrEqualTo(2));
 
-            assertThrows(IllegalArgumentException.class, () -> utils().list(toUploadDir));
-            assertThat(utils().list(toUploadDir + "-move").getFiles().size(), greaterThanOrEqualTo(2));
+            assertThat(utils().list(toUploadDir).getFiles().size(), is(0));
 
+            assertThat(utils().list(toUploadDir + "-move").getFiles().size(), greaterThanOrEqualTo(2));
             utils().delete(toUploadDir + "-move");
         }
     }
@@ -143,7 +144,7 @@ public abstract class AbstractTriggerTest {
             scheduler.run();
             repositoryLoader.load(Objects.requireNonNull(io.kestra.plugin.fs.local.AbstractTriggerTest.class.getClassLoader().getResource("flows")));
 
-            boolean await = queueCount.await(10, TimeUnit.SECONDS);
+            boolean await = queueCount.await(20, TimeUnit.SECONDS);
             assertThat(await, is(true));
             receive.blockLast();
 

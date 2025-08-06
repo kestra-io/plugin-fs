@@ -87,29 +87,29 @@ public class Move extends AbstractLocalTask implements RunnableTask<VoidOutput> 
     }
 
     private void moveFile(Path source, Path target, boolean overwrite, RunContext runContext) throws IOException {
-        if (Files.isDirectory(target)) {
-            target = target.resolve(source.getFileName());
+        Path finalTarget;
+
+        if ((Files.exists(target) && Files.isDirectory(target)) || target.toString().endsWith(FileSystems.getDefault().getSeparator())) {
+            Files.createDirectories(target);
+            finalTarget = target.resolve(source.getFileName());
+        } else {
+            finalTarget = target;
         }
 
-        if (Files.exists(target) && !overwrite) {
+        if (Files.exists(finalTarget) && !overwrite) {
             throw new KestraRuntimeException(String.format(
-                """
-                Target file already exists : %s.
-                Set 'overwrite: true' to replace the existing file.
-                """,
-                target
-            ));
+                "Target file already exists : %s.\nSet 'overwrite: true' to replace the existing file.", finalTarget));
         }
 
-        Files.createDirectories(target.getParent());
+        Files.createDirectories(finalTarget.getParent());
 
         try {
-            Files.move(source, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+            Files.move(source, finalTarget, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
         } catch (AtomicMoveNotSupportedException e) {
-            Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
+            Files.move(source, finalTarget, StandardCopyOption.REPLACE_EXISTING);
         }
 
-        runContext.logger().info("Moved file from '{}' to '{}'", source, target);
+        runContext.logger().info("Moved file from '{}' to '{}'", source, finalTarget);
     }
 
     private void moveDirectory(Path sourceDir, Path targetDir, boolean overwrite, RunContext runContext) throws IOException {

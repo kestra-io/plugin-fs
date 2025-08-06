@@ -61,7 +61,12 @@ public class Download extends AbstractLocalTask implements RunnableTask<Download
             throw new IllegalArgumentException("Source file '" + sourcePath + "' does not exist");
         }
 
-        File tempFile = runContext.workingDir().createTempFile(FileUtils.getExtension(renderedFrom)).toFile();
+        String extension = FileUtils.getExtension(renderedFrom);
+        if (extension == null) {
+            extension = ".tmp";
+        }
+
+        File tempFile = runContext.workingDir().createTempFile(extension).toFile();
         Files.copy(sourcePath, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
 
         URI storageUri = runContext.storage().putFile(tempFile);

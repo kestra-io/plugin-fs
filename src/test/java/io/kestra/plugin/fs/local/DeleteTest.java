@@ -69,7 +69,7 @@ class DeleteTest {
     @Test
     void deleteNonExistentFileWithError() {
         Path nonExistentFile = testFile.getParent().resolve("non-existent.txt");
-        System.out.println(nonExistentFile.toUri());
+
         Delete task = Delete.builder()
             .id(DeleteTest.class.getSimpleName())
             .type(Delete.class.getName())

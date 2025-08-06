@@ -103,32 +103,47 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
     private Property<Boolean> recursive = Property.ofValue(false);
 
     static void performAction(
-        String from,
+        java.util.List<File> files,
         Action action,
         Property<String> moveDirectory,
         RunContext runContext) throws Exception {
         if (action == Action.DELETE) {
-
-            Delete delete = Delete.builder()
-                .id(Delete.class.getSimpleName())
-                .type(Delete.class.getName())
-                .from(Property.ofValue(from))
-                .recursive(Property.ofValue(true))
-                .build();
-            delete.run(runContext);
+            for (File file : files) {
+                if (!file.isDirectory()) {
+                    Delete delete = Delete.builder()
+                        .id(Delete.class.getSimpleName())
+                        .type(Delete.class.getName())
+                        .from(Property.ofValue(file.getLocalPath().toString()))
+                        .build();
+                    delete.run(runContext);
+                }
+            }
         } else if (action == Action.MOVE) {
             if (moveDirectory == null) {
                 throw new IllegalArgumentException("moveDirectory must be specified when action is MOVE");
             }
 
-            Move move = Move.builder()
-                .id(Move.class.getSimpleName())
-                .type(Move.class.getName())
-                .from(Property.ofValue(from))
-                .to(moveDirectory)
-                .overwrite(Property.ofValue(true))
-                .build();
-            move.run(runContext);
+            String rMoveDirectory = runContext.render(moveDirectory).as(String.class).orElseThrow();
+
+            if (!rMoveDirectory.endsWith("/")) {
+                rMoveDirectory = rMoveDirectory + "/";
+            }
+
+            for (File file : files) {
+                if (!file.isDirectory()) {
+                    String fileName = file.getLocalPath().getFileName().toString();
+                    String destinationPath = rMoveDirectory + fileName;
+
+                    Move move = Move.builder()
+                        .id(Move.class.getSimpleName())
+                        .type(Move.class.getName())
+                        .from(Property.ofValue(file.getLocalPath().toString()))
+                        .to(Property.ofValue(destinationPath))
+                        .overwrite(Property.ofValue(true))
+                        .build();
+                    move.run(runContext);
+                }
+            }
         }
     }
 
@@ -166,12 +181,16 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
             }))
             .toList();
 
+        java.util.List<File> filesToProcess = downloadedFiles.stream()
+            .filter(file -> !file.isDirectory())
+            .toList();
+
         Action selectedAction = this.action != null ?
             runContext.render(this.action).as(Action.class).orElse(Action.NONE) :
             Action.NONE;
 
         if (selectedAction != Action.NONE) {
-            performAction(renderedFrom, selectedAction, this.moveDirectory, runContext);
+            performAction(filesToProcess, selectedAction, this.moveDirectory, runContext);
         }
 
         Map<String, URI> outputFiles = downloadedFiles.stream()
