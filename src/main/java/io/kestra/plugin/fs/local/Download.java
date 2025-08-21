@@ -22,7 +22,21 @@ import java.nio.file.*;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Download a file from the local filesystem to the Kestra internal storage."
+    title = "Download a file from the local filesystem to the Kestra internal storage.",
+    description = """
+        Local filesystem access is disabled by default.
+        You must configure the plugin default `allowed-paths` in your Kestra configuration.
+
+        Example (Kestra config):
+        ```yaml
+        plugins:
+          configurations:
+            - type: io.kestra.plugin.fs.local.Download
+              values:
+                allowed-paths:
+                  - /data/files
+        ```
+        """
 )
 @Plugin(
     examples = {

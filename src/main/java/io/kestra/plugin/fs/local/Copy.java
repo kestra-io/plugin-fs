@@ -25,7 +25,21 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Copy files within the local file system."
+    title = "Copy files within the local file system.",
+    description = """
+        Local filesystem access is disabled by default.
+        You must configure the plugin default `allowed-paths` in your Kestra configuration.
+
+        Example (Kestra config):
+        ```yaml
+        plugins:
+          configurations:
+            - type: io.kestra.plugin.fs.local.Copy
+              values:
+                allowed-paths:
+                  - /data/files
+        ```
+        """
 )
 @Plugin(
     examples = {
