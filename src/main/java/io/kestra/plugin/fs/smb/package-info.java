@@ -1,4 +1,5 @@
 @PluginSubGroup(
+    title = "SMB (Server Message Block)",
     description = "This sub-group of plugins contains tasks for accessing files using the SMB protocol (Samba for eg.).",
     categories = PluginSubGroup.PluginCategory.STORAGE
 )

@@ -24,7 +24,21 @@ import java.nio.file.*;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Upload a file to a local filesystem."
+    title = "Upload a file to a local filesystem.",
+    description = """
+        Local filesystem access is disabled by default.
+        You must configure the plugin default `allowed-paths` in your Kestra configuration.
+
+        Example (Kestra config):
+        ```yaml
+        plugins:
+          configurations:
+            - type: io.kestra.plugin.fs.local.Upload
+              values:
+                allowed-paths:
+                  - /data/files
+        ```
+        """
 )
 @Plugin(
     examples = {

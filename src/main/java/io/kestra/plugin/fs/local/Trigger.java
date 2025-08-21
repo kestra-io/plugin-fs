@@ -24,7 +24,21 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Trigger a flow as soon as new files are detected in a given local file system's directory."
+    title = "Trigger a flow as soon as new files are detected in a given local file system's directory.",
+    description = """
+        Local filesystem access is disabled by default.
+        You must configure the plugin default `allowed-paths` in your Kestra configuration.
+
+        Example (Kestra config):
+        ```yaml
+        plugins:
+          configurations:
+            - type: io.kestra.plugin.fs.local
+              values:
+                allowed-paths:
+                  - /data/files
+        ```
+        """
 )
 @Plugin(
     examples = {
