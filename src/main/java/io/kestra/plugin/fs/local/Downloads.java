@@ -30,7 +30,21 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Download multiple files from a local filesystem directory to Kestra's internal storage."
+    title = "Download multiple files from a local filesystem directory to Kestra's internal storage.",
+    description = """
+        Local filesystem access is disabled by default.
+        You must configure the plugin default `allowed-paths` in your Kestra configuration.
+
+        Example (Kestra config):
+        ```yaml
+        plugins:
+          configurations:
+            - type: io.kestra.plugin.fs.local.Downloads
+              values:
+                allowed-paths:
+                  - /data/files
+        ```
+        """
 )
 @Plugin(
     examples = {
@@ -47,8 +61,6 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                     regExp: ".*.csv"
                     recursive: true
                     action: NONE
-                    allowedPaths:
-                      - /data/files
                 """
         ),
         @Example(
@@ -65,9 +77,6 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                     recursive: true
                     action: MOVE
                     moveDirectory: "/data/archive"
-                    allowedPaths:
-                      - /data/files
-                      - /data/archive
                 """
         )
     }

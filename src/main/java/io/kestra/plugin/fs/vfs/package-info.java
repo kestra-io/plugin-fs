@@ -1,4 +1,5 @@
 @PluginSubGroup(
+    title = "VFS",
     description = "This sub-group of plugins contains tasks for accessing files using the VFS protocol.",
     categories = PluginSubGroup.PluginCategory.STORAGE
 )
