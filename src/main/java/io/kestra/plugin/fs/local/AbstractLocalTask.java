@@ -27,8 +27,8 @@ public abstract class AbstractLocalTask extends Task {
         if (allowedPathConfig.isEmpty() || allowedPathConfig.get().isEmpty()) {
             throw new SecurityException(
                 "The 'allowed-paths' configuration is required to enable access to the local filesystem. " +
-                "You must define at least one allowed path in the plugin configuration. " +
-                "Refer to the documentation: https://kestra.io/docs/configuration#set-default-values"
+                "You must define at least one allowed path in the plugin configuration, `kestra.plugins.configurations`. " +
+                "Refer to the example in the plugin documentation."
             );
         }
 
