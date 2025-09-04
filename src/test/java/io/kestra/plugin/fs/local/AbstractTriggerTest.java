@@ -8,7 +8,7 @@ import io.kestra.core.queues.QueueInterface;
 import io.kestra.core.repositories.LocalFlowRepositoryLoader;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.runners.Worker;
-import io.kestra.core.schedulers.AbstractScheduler;
+import io.kestra.scheduler.AbstractScheduler;
 import io.kestra.core.services.FlowListenersInterface;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
@@ -22,7 +22,6 @@ import reactor.core.publisher.Flux;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -30,7 +29,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @KestraTest(rebuildContext = true)
 public abstract class AbstractTriggerTest {
