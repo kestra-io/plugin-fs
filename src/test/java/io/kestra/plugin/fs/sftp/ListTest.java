@@ -12,8 +12,8 @@ import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import static io.kestra.plugin.fs.sftp.SftpUtils.PASSWORD;
 import static io.kestra.plugin.fs.sftp.SftpUtils.USERNAME;
@@ -35,7 +35,7 @@ class ListTest {
 
     @Test
     void all() throws Exception {
-        java.util.List<LogEntry> logs = new ArrayList<>();
+        java.util.List<LogEntry> logs = new CopyOnWriteArrayList<>();
         var receive = TestsUtils.receive(logQueue, l -> logs.add(l.getLeft()));
         String expectedEnabledRsaSha1Logs = "RSA/SHA1 is enabled, be advised that SHA1 is no longer considered secure by the general cryptographic community.";
 
@@ -76,6 +76,6 @@ class ListTest {
 
         TestsUtils.awaitLog(logs, log -> log.getMessage() != null && log.getMessage().contains(expectedEnabledRsaSha1Logs));
         receive.blockLast();
-        assertThat(logs.stream().anyMatch(log -> log.getMessage() != null && log.getMessage().contains(expectedEnabledRsaSha1Logs)), is(true));
+        assertThat(java.util.List.copyOf(logs).stream().anyMatch(log -> log.getMessage() != null && log.getMessage().contains(expectedEnabledRsaSha1Logs)), is(true));
     }
 }
