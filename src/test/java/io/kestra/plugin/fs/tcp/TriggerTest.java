@@ -18,17 +18,17 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @KestraTest(startWorker = true)
-class TcpRealtimeTriggerTest {
+class TriggerTest {
 
     private static final int PORT = 6020;
 
     private static final CountDownLatch serverStarted = new CountDownLatch(1);
-    private static final List<TcpRealtimeTrigger.Output> emittedOutputs = new ArrayList<>();
+    private static final List<Trigger.Output> emittedOutputs = new ArrayList<>();
 
     /**
      * Custom subclass that captures emitted outputs
      */
-    static class TestTcpRealtimeTrigger extends TcpRealtimeTrigger {
+    static class TestTcpRealtimeTrigger extends Trigger {
 
         private final List<Output> captured;
         private final CountDownLatch startedSignal;
@@ -121,7 +121,7 @@ class TcpRealtimeTriggerTest {
 
         // Assertions
         assertEquals(1, emittedOutputs.size());
-        TcpRealtimeTrigger.Output output = emittedOutputs.get(0);
+        Trigger.Output output = emittedOutputs.get(0);
         assertEquals(PORT, output.getPort());
         assertEquals("Hello TCP Trigger!", output.getMessage());
         assertEquals("127.0.0.1", output.getRemoteAddress());

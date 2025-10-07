@@ -19,6 +19,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 
+@Setter
 @SuperBuilder
 @Getter
 @ToString
@@ -44,15 +45,11 @@ import java.nio.charset.StandardCharsets;
         )
     }
 )
-public class TcpRealtimeTrigger extends RealtimeTrigger<TcpRealtimeTrigger.Output> {
+public class Trigger extends RealtimeTrigger<Trigger.Output> {
     @PluginProperty
     private Integer port;
 
-    public void setPort(Integer port){
-        this.port = port;
-    }
-
-    public TcpRealtimeTrigger() {
+    public Trigger() {
         super();
     }
 

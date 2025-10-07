@@ -1,4 +1,4 @@
-package io.kestra.plugin.fs.tcp;
+package io.kestra.plugin.fs.udp;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
@@ -14,19 +14,19 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 
-import java.io.OutputStream;
-import java.net.InetSocketAddress;
-import java.net.Socket;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 
 @Plugin(
     examples = {
         @Example(
-            title = "Send a simple message to a TCP server",
+            title = "Send a simple message to a UDP server",
             code = {
                 "host: \"127.0.0.1\"",
                 "port: 5000",
-                "payload: \"Hello from Kestra!\""
+                "payload: \"Hello from Kestra UDP!\""
             }
         )
     }
@@ -36,7 +36,7 @@ import java.nio.charset.StandardCharsets;
 @EqualsAndHashCode
 @NoArgsConstructor
 @SuperBuilder
-public class TcpSend extends Task implements RunnableTask<TcpSend.Output> {
+public class Send extends Task implements RunnableTask<Send.Output> {
     @NotNull
     @PluginProperty
     private String host;
@@ -49,31 +49,25 @@ public class TcpSend extends Task implements RunnableTask<TcpSend.Output> {
     @PluginProperty
     private String payload;
 
-    @PluginProperty
-    @Builder.Default
-    private Integer timeoutMs = 5000;
-
     @Override
     public Output run(RunContext runContext) throws Exception {
         String renderedHost = runContext.render(this.host);
         String renderedPayload = runContext.render(this.payload);
 
-        try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress(renderedHost, port), timeoutMs);
+        byte[] messageBytes = renderedPayload.getBytes(StandardCharsets.UTF_8);
 
-            try (OutputStream out = socket.getOutputStream()) {
-                out.write((renderedPayload + "\n").getBytes(StandardCharsets.UTF_8));
-                out.flush();
-//                out.write(renderedPayload.getBytes(StandardCharsets.UTF_8));
-//                out.flush();
-            }
+        InetAddress address = InetAddress.getByName(renderedHost);
 
-            runContext.logger().info("Sent TCP message to {}:{} -> {}", renderedHost, port, renderedPayload);
+        try (DatagramSocket socket = new DatagramSocket()) {
+            DatagramPacket packet = new DatagramPacket(messageBytes, messageBytes.length, address, port);
+            socket.send(packet);
+
+            runContext.logger().info("Sent UDP message to {}:{} -> {}", renderedHost, port, renderedPayload);
 
             return Output.builder()
                 .host(renderedHost)
                 .port(port)
-                .sentBytes(renderedPayload.length())
+                .sentBytes(messageBytes.length)
                 .build();
         }
     }

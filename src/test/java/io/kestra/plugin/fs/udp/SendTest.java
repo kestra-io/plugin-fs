@@ -1,4 +1,4 @@
-package io.kestra.plugin.fs.tcp;
+package io.kestra.plugin.fs.udp;
 
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.runners.RunContext;
@@ -9,9 +9,9 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import java.io.*;
-import java.net.ServerSocket;
-import java.net.Socket;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.*;
@@ -19,9 +19,9 @@ import java.util.concurrent.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @KestraTest(startWorker = true)
-class TcpSendTest {
+class SendTest {
     private static int PORT;
-    private static ServerSocket serverSocket;
+    private static DatagramSocket serverSocket;
     private static ExecutorService executor;
     private static final BlockingQueue<String> receivedMessages = new LinkedBlockingQueue<>();
 
@@ -35,37 +35,25 @@ class TcpSendTest {
 
         executor.submit(() -> {
             try {
-                ServerSocket socket = new ServerSocket(0); // 0 = dynamic free port
+                DatagramSocket socket = new DatagramSocket(0); // bind to a free port
                 PORT = socket.getLocalPort();
                 serverSocket = socket;
-
                 serverReady.complete(null);
 
-                while (!Thread.currentThread().isInterrupted() && !serverSocket.isClosed()) {
-                    try {
-                        Socket client = serverSocket.accept();
-                        handleClient(client);
-                    } catch (IOException ignored) {}
+                byte[] buffer = new byte[4096];
+                while (!Thread.currentThread().isInterrupted() && !socket.isClosed()) {
+                    DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+                    socket.receive(packet);
+
+                    String message = new String(packet.getData(), 0, packet.getLength(), StandardCharsets.UTF_8);
+                    receivedMessages.add(message);
                 }
-            } catch (IOException e) {
+            } catch (Exception e) {
                 serverReady.completeExceptionally(e);
             }
         });
 
         serverReady.get(5, TimeUnit.SECONDS);
-    }
-
-    private static void handleClient(Socket socket) {
-        try (socket;
-             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
-             PrintWriter out = new PrintWriter(socket.getOutputStream(), true)) {
-
-            String message = in.readLine();
-            if (message != null) {
-                receivedMessages.add(message);
-                out.println("ECHO:" + message);
-            }
-        } catch (IOException ignored) {}
     }
 
     @AfterAll
@@ -79,26 +67,25 @@ class TcpSendTest {
     }
 
     @Test
-    void testTcpSend() throws Exception {
-        String payload = "Hello from TcpSend!";
+    void testUdpSend() throws Exception {
+        String payload = "Hello from UdpSend!";
 
-        TcpSend task = TcpSend.builder()
-            .id("tcp-send-task")
-            .type(TcpSend.class.getSimpleName())
+        Send task = Send.builder()
+            .id("udp-send-task")
+            .type(Send.class.getSimpleName())
             .host("127.0.0.1")
             .port(PORT)
-            .payload(payload + "\n") // newline for BufferedReader.readLine()
-            .timeoutMs(2000)
+            .payload(payload)
             .build();
 
         // Mock RunContext
         RunContext runContext = TestsUtils.mockRunContext(runContextFactory, task, Map.of());
 
-        TcpSend.Output output = task.run(runContext);
+        Send.Output output = task.run(runContext);
 
         // Verify output
         assertEquals(PORT, output.getPort());
-        assertEquals(payload.length() + 1, output.getSentBytes());
+        assertEquals(payload.length(), output.getSentBytes());
 
         // Verify server received it
         String received = receivedMessages.poll(2, TimeUnit.SECONDS);

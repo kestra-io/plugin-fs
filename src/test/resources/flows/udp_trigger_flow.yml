@@ -1,0 +1,12 @@
+id: udp_trigger_flow
+namespace: io.kestra.tests
+
+tasks:
+  - id: log_udp
+    type: io.kestra.plugin.core.debug.Return
+    format: "Received UDP message: {{ trigger.message }} from {{ trigger.remoteAddress }}"
+
+triggers:
+  - id: udp_listener
+    type: io.kestra.plugin.fs.udp.Trigger
+    port: 5000
