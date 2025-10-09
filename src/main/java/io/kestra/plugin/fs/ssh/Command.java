@@ -108,6 +108,24 @@ public class Command extends Task implements SshInterface, RunnableTask<ScriptOu
     @Builder.Default
     private Property<String> openSSHConfigDir = Property.ofValue("~/.ssh/config");
 
+    @Schema(
+        title = "SSH authentication configuration",
+        description = """
+            When the authentication method is set to `OPEN_SSH`, access to the local OpenSSH host configuration must be explicitly allowed.
+            This ensures that the plugin can use SSH settings (such as `Host`, `User`, `Port`, or `IdentityFile`) defined in the user's OpenSSH configuration file.
+
+            To enable this, configure the plugin using "allow-open-ssh-config" in the plugin configuration, as shown below:
+
+            ```yaml
+            kestra:
+              plugins:
+                configurations:
+                  - type: io.kestra.plugin.fs.ssh.Command
+                    values:
+                      allow-open-ssh-config: true
+            ```
+            """
+    )
     @Builder.Default
     private Property<AuthMethod> authMethod = Property.ofValue(AuthMethod.PASSWORD);
 
