@@ -121,9 +121,13 @@ import java.io.IOException;
 public class Trigger extends io.kestra.plugin.fs.vfs.Trigger implements SftpInterface {
     protected Property<String> keyfile;
     protected Property<String> passphrase;
+    @Deprecated
     protected Property<String> proxyHost;
+    protected Property<String> proxyAddress;
     protected Property<String> proxyPort;
+    @Deprecated
     protected Property<String> proxyUser;
+    protected Property<String> proxyUsername;
     protected Property<String> proxyPassword;
     protected Property<String> proxyType;
     @Builder.Default

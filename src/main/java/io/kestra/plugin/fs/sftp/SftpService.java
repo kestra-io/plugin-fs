@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
 public abstract class SftpService {
+    @SuppressWarnings("deprecation") // Required for backward compatibility with deprecated proxy properties
     public static FileSystemOptions fsOptions(RunContext runContext, SftpInterface sftpInterface) throws IOException, IllegalVariableEvaluationException {
         SftpFileSystemConfigBuilder instance = SftpFileSystemConfigBuilder.getInstance();
 
@@ -24,8 +25,11 @@ public abstract class SftpService {
         // see https://issues.apache.org/jira/browse/VFS-766
         instance.setDisableDetectExecChannel(options, true);
 
-        if (sftpInterface.getProxyType() != null && sftpInterface.getProxyHost() != null) {
-            if (sftpInterface.getProxyHost() != null) {
+        if (sftpInterface.getProxyType() != null && (sftpInterface.getProxyAddress() != null || sftpInterface.getProxyHost() != null)) {
+            // Use proxyAddress if available, otherwise fall back to deprecated proxyHost
+            if (sftpInterface.getProxyAddress() != null) {
+                instance.setProxyHost(options, runContext.render(sftpInterface.getProxyAddress()).as(String.class).orElseThrow());
+            } else if (sftpInterface.getProxyHost() != null) {
                 instance.setProxyHost(options, runContext.render(sftpInterface.getProxyHost()).as(String.class).orElseThrow());
             }
 
@@ -37,7 +41,10 @@ public abstract class SftpService {
                 instance.setProxyPort(options, Integer.parseInt(runContext.render(sftpInterface.getProxyPort()).as(String.class).orElseThrow()));
             }
 
-            if (sftpInterface.getProxyUser() != null) {
+            // Use proxyUsername if available, otherwise fall back to deprecated proxyUser
+            if (sftpInterface.getProxyUsername() != null) {
+                instance.setProxyUser(options, runContext.render(sftpInterface.getProxyUsername()).as(String.class).orElseThrow());
+            } else if (sftpInterface.getProxyUser() != null) {
                 instance.setProxyUser(options, runContext.render(sftpInterface.getProxyUser()).as(String.class).orElseThrow());
             }
 
