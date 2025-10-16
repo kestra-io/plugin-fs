@@ -15,20 +15,34 @@ public interface SftpInterface {
     )
     Property<String> getPassphrase();
 
+    @Deprecated
     @Schema(
-        title = "SFTP proxy host"
+        title = "SFTP proxy host",
+        description = "Use 'proxyAddress' instead. This property is deprecated and will be removed in a future version."
     )
     Property<String> getProxyHost();
+
+    @Schema(
+        title = "SFTP proxy address"
+    )
+    Property<String> getProxyAddress();
 
     @Schema(
         title = "SFTP proxy port"
     )
     Property<String> getProxyPort();
 
+    @Deprecated
     @Schema(
-        title = "SFTP proxy user"
+        title = "SFTP proxy user",
+        description = "Use 'proxyUsername' instead. This property is deprecated and will be removed in a future version."
     )
     Property<String> getProxyUser();
+
+    @Schema(
+        title = "SFTP proxy username"
+    )
+    Property<String> getProxyUsername();
 
     @Schema(
         title = "SFTP proxy password"
