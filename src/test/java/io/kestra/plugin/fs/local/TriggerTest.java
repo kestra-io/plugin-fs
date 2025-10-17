@@ -403,7 +403,7 @@ class TriggerTest extends AbstractTriggerTest {
             cleanup(dir);
         }
     }
-    
+
     private void cleanup(Path directory) {
         if (Files.exists(directory)) {
             try {
