@@ -1,5 +1,6 @@
 package io.kestra.plugin.fs.local;
 
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.conditions.ConditionContext;
@@ -13,9 +14,14 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
+import java.nio.file.Files;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
+import java.util.stream.Stream;
 
+import static io.kestra.core.models.triggers.StatefulTriggerService.*;
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
 @SuperBuilder
@@ -70,7 +76,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         )
     }
 )
-public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<Downloads.Output> {
+public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<List.Output>, StatefulTriggerInterface {
 
     @Schema(title = "The interval between checks")
     @Builder.Default
@@ -100,16 +106,24 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @Builder.Default
     private Property<Downloads.Action> action = Property.ofValue(Downloads.Action.NONE);
 
+    @Builder.Default private final Property<On> on = Property.ofValue(On.CREATE_OR_UPDATE);
+
+    private Property<String> stateKey;
+
+    private Property<Duration> stateTtl;
+
     @Override
     public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext triggerContext) throws Exception {
         RunContext runContext = conditionContext.getRunContext();
-
-        String renderedFrom = runContext.render(this.from).as(String.class).orElseThrow();
+        var rOn = runContext.render(on).as(On.class).orElse(On.CREATE_OR_UPDATE);
+        var rStateKey = runContext.render(stateKey).as(String.class).orElse(StatefulTriggerService.defaultKey(triggerContext.getNamespace(), triggerContext.getFlowId(), id));
+        var rStateTtl = runContext.render(stateTtl).as(Duration.class);
+        var rFrom = runContext.render(this.from).as(String.class).orElseThrow();
 
         io.kestra.plugin.fs.local.List listTask = io.kestra.plugin.fs.local.List.builder()
             .id(io.kestra.plugin.fs.local.List.class.getSimpleName())
             .type(io.kestra.plugin.fs.local.List.class.getName())
-            .from(Property.ofValue(renderedFrom))
+            .from(Property.ofValue(rFrom))
             .regExp(this.regExp)
             .recursive(this.recursive)
             .build();
@@ -120,31 +134,60 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             return Optional.empty();
         }
 
-        java.util.List<File> downloadedFiles = listOutput
-            .getFiles()
-            .stream()
-            .map(throwFunction(fileItem -> {
+        Map<String, StatefulTriggerService.Entry> state = readState(runContext, rStateKey, rStateTtl);
+
+        java.util.List<File> actionFiles = new ArrayList<>();
+
+        java.util.List<TriggeredFile> toFire = listOutput.getFiles().stream()
+            .flatMap(throwFunction(fileItem -> {
                 if (fileItem.isDirectory()) {
-                    return fileItem;
+                    return Stream.empty();
                 }
 
-                Download downloadTask = Download.builder()
-                    .id(Download.class.getSimpleName())
-                    .type(Download.class.getName())
-                    .from(Property.ofValue(fileItem.getLocalPath().toString()))
-                    .build();
+                var uri = Optional.ofNullable(fileItem.getUri().toString()).orElse(fileItem.getLocalPath().toUri().toString());
+                var attrs = Files.readAttributes(fileItem.getLocalPath(), BasicFileAttributes.class);
+                var modifiedAt = attrs.lastModifiedTime().toInstant();
+                var key = Optional.ofNullable(attrs.fileKey()).map(Object::toString).orElseGet(() -> fileItem.getLocalPath().toUri().toString());
+                var version = String.format("%s_%d_%s", key, modifiedAt.toEpochMilli(), uri);
 
-                Download.Output downloadOutput = downloadTask.run(runContext);
+                var candidate = StatefulTriggerService.Entry.candidate(key, version, modifiedAt);
 
-                return fileItem.withUri(downloadOutput.getUri());
+                var change = computeAndUpdateState(state, candidate, rOn);
+
+                if (change.fire()) {
+                    var changeType = change.isNew() ? ChangeType.CREATE : ChangeType.UPDATE;
+
+                    var downloadTask = Download.builder()
+                        .id(Download.class.getSimpleName())
+                        .type(Download.class.getName())
+                        .from(Property.ofValue(fileItem.getLocalPath().toString()))
+                        .build();
+
+                    var downloadOutput = downloadTask.run(runContext);
+                    var downloaded = fileItem.withUri(downloadOutput.getUri());
+
+                    actionFiles.add(fileItem);
+
+                    return Stream.of(TriggeredFile.builder()
+                        .file(downloaded)
+                        .changeType(changeType)
+                        .build());
+                }
+                return Stream.empty();
             }))
             .toList();
+
+        writeState(runContext, rStateKey, state, rStateTtl);
+
+        if (toFire.isEmpty()) {
+            return Optional.empty();
+        }
 
         Downloads.Action selectedAction = this.action != null ?
             runContext.render(this.action).as(Downloads.Action.class).orElse(Downloads.Action.NONE) :
             Downloads.Action.NONE;
 
-        java.util.List<File> filesToProcess = downloadedFiles.stream()
+        java.util.List<File> filesToProcess = actionFiles.stream()
             .filter(file -> !file.isDirectory())
             .toList();
 
@@ -152,12 +195,29 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             Downloads.performAction(filesToProcess, selectedAction, this.moveDirectory, runContext);
         }
 
-        return Optional.of(TriggerService.generateExecution(
-            this,
-            conditionContext,
-            triggerContext,
-            Downloads.Output.builder().files(downloadedFiles).build()
-        ));
+        return Optional.of(TriggerService.generateExecution(this, conditionContext, triggerContext, Output.builder().files(toFire).build()));
     }
+
+    public enum ChangeType {
+        CREATE,
+        UPDATE
+    }
+
+    @Getter
+    @AllArgsConstructor
+    @Builder
+    public static class TriggeredFile {
+        @JsonUnwrapped
+        private final File file;
+        private final ChangeType changeType;
+    }
+
+    @Builder
+    @Getter
+    public static class Output implements io.kestra.core.models.tasks.Output {
+        @Schema(title = "List of files that triggered the flow, each with its change type.")
+        private final java.util.List<TriggeredFile> files;
+    }
+
 }
 
