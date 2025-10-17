@@ -106,7 +106,17 @@ public class Command extends Task implements SshInterface, RunnableTask<ScriptOu
 
     // OpenSSH config
     @Builder.Default
+    @Schema(
+        title = "OpenSSH configuration directory (deprecated).",
+        description = "Deprecated. Use openSSHConfigPath instead."
+    )
+    @Deprecated
     private Property<String> openSSHConfigDir = Property.ofValue("~/.ssh/config");
+
+    @Schema(
+        title = "OpenSSH configuration file path used when the authentication method is `OPEN_SSH`."
+    )
+    private Property<String> openSSHConfigPath;
 
     @Schema(
         title = "SSH authentication configuration",
@@ -221,7 +231,14 @@ public class Command extends Task implements SshInterface, RunnableTask<ScriptOu
                     jsch.addIdentity("primary", privateKeyBytes, null, passphrase.map(String::getBytes).orElse(null));
                     break;
                 case OPEN_SSH:
-                    ConfigRepository configRepository = OpenSSHConfig.parseFile(runContext.render(openSSHConfigDir).as(String.class).orElseThrow());
+                    var rOpenSSHConfigPath = runContext.render(openSSHConfigPath).as(String.class);
+                    String configPath;
+                    if (rOpenSSHConfigPath.isPresent()) {
+                        configPath = rOpenSSHConfigPath.orElseThrow();
+                    } else {
+                        configPath = runContext.render(openSSHConfigDir).as(String.class).orElseThrow();
+                    }
+                    ConfigRepository configRepository = OpenSSHConfig.parseFile(configPath);
                     jsch.setConfigRepository(configRepository);
                     session.setPassword(runContext.render(password).as(String.class).orElseThrow());
                     break;
