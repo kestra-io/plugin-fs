@@ -148,7 +148,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
                 var attrs = Files.readAttributes(fileItem.getLocalPath(), BasicFileAttributes.class);
                 var modifiedAt = attrs.lastModifiedTime().toInstant();
                 var key = Optional.ofNullable(attrs.fileKey()).map(Object::toString).orElseGet(() -> fileItem.getLocalPath().toUri().toString());
-                var version = String.format("%s_%d_%s", key, modifiedAt.toEpochMilli(), uri);
+                var version = String.format("%d_%s", modifiedAt.toEpochMilli(), uri);
 
                 var candidate = StatefulTriggerService.Entry.candidate(key, version, modifiedAt);
 

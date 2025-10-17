@@ -3,6 +3,7 @@ package io.kestra.plugin.fs.local;
 import com.devskiller.friendly_id.FriendlyId;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
+import io.kestra.core.models.triggers.StatefulTriggerInterface;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.vfs.models.File;
 import jakarta.inject.Inject;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -315,6 +317,93 @@ class TriggerTest extends AbstractTriggerTest {
         }
     }
 
+    @Test
+    void shouldExecuteOnCreate() throws Exception {
+        Path dir = Paths.get("/tmp/local-on-create");
+        Files.createDirectories(dir);
+
+        try {
+            var trigger = io.kestra.plugin.fs.local.Trigger.builder()
+                .id("local-" + FriendlyId.createFriendlyId())
+                .type(io.kestra.plugin.fs.local.Trigger.class.getName())
+                .from(Property.ofValue(dir.toString()))
+                .on(Property.ofValue(StatefulTriggerInterface.On.CREATE))
+                .interval(Duration.ofSeconds(5))
+                .build();
+
+            Path file = dir.resolve("file.txt");
+            Files.writeString(file, "hello create");
+
+            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
+
+            assertThat(execution.isPresent(), is(true));
+        } finally {
+            cleanup(dir);
+        }
+    }
+
+    @Test
+    void shouldExecuteOnUpdate() throws Exception {
+        Path dir = Paths.get("/tmp/local-on-update");
+        Files.createDirectories(dir);
+
+        try {
+            var trigger = io.kestra.plugin.fs.local.Trigger.builder()
+                .id("local-" + FriendlyId.createFriendlyId())
+                .type(io.kestra.plugin.fs.local.Trigger.class.getName())
+                .from(Property.ofValue(dir.toString()))
+                .on(Property.ofValue(StatefulTriggerInterface.On.UPDATE))
+                .interval(Duration.ofSeconds(5))
+                .build();
+
+            Path file = dir.resolve("file.txt");
+            Files.writeString(file, "initial content");
+
+            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            trigger.evaluate(context.getKey(), context.getValue());
+
+            Thread.sleep(1000);
+            Files.writeString(file, "updated content");
+
+            Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
+            assertThat(execution.isPresent(), is(true));
+        } finally {
+            cleanup(dir);
+        }
+    }
+
+    @Test
+    void shouldExecuteOnCreateOrUpdate() throws Exception {
+        Path dir = Paths.get("/tmp/local-on-create-or-update");
+        Files.createDirectories(dir);
+
+        try {
+            var trigger = io.kestra.plugin.fs.local.Trigger.builder()
+                .id("local-" + FriendlyId.createFriendlyId())
+                .type(io.kestra.plugin.fs.local.Trigger.class.getName())
+                .from(Property.ofValue(dir.toString()))
+                .on(Property.ofValue(io.kestra.core.models.triggers.StatefulTriggerInterface.On.CREATE_OR_UPDATE))
+                .interval(Duration.ofSeconds(5))
+                .build();
+
+            Path file = dir.resolve("file.txt");
+            Files.writeString(file, "hello world");
+
+            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+
+            Optional<Execution> createExecution = trigger.evaluate(context.getKey(), context.getValue());
+            assertThat(createExecution.isPresent(), is(true));
+
+            Files.writeString(file, "new content");
+
+            Optional<Execution> updateExecution = trigger.evaluate(context.getKey(), context.getValue());
+            assertThat(updateExecution.isPresent(), is(true));
+        } finally {
+            cleanup(dir);
+        }
+    }
+    
     private void cleanup(Path directory) {
         if (Files.exists(directory)) {
             try {
