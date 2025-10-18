@@ -45,9 +45,16 @@ public interface SshInterface {
     Property<String> getPrivateKeyPassphrase();
 
     @Schema(
-        title = "OpenSSH configuration directory in case the authentication method is `OPEN_SSH`."
+        title = "OpenSSH configuration directory in case the authentication method is `OPEN_SSH`.",
+        description = "Deprecated. Use openSSHConfigPath instead."
     )
+    @Deprecated
     Property<String> getOpenSSHConfigDir();
+
+    @Schema(
+        title = "OpenSSH configuration file path in case the authentication method is `OPEN_SSH`."
+    )
+    Property<String> getOpenSSHConfigPath();
 
     enum AuthMethod {
         PASSWORD,
