@@ -1,5 +1,6 @@
 package io.kestra.plugin.fs.vfs;
 
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import com.jcraft.jsch.JSch;
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.conditions.ConditionContext;
@@ -22,8 +23,13 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Stream;
 
+import static io.kestra.core.models.triggers.StatefulTriggerService.*;
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
 @SuperBuilder
@@ -31,7 +37,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-public abstract class Trigger extends AbstractTrigger implements PollingTriggerInterface, AbstractVfsInterface, TriggerOutput<Downloads.Output> {
+public abstract class Trigger extends AbstractTrigger implements PollingTriggerInterface, AbstractVfsInterface, TriggerOutput<Trigger.Output>, StatefulTriggerInterface {
     @Schema(
         title = "The interval between test of triggers"
     )
@@ -77,6 +83,13 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
     @NotNull
     private Property<Boolean> enableSshRsa1 = Property.ofValue(false);
 
+    @Builder.Default
+    private Property<On> on =  Property.ofValue(On.CREATE_OR_UPDATE);
+
+    private Property<String> stateKey;
+
+    private Property<Duration> stateTtl;
+
     protected abstract FileSystemOptions fsOptions(RunContext runContext) throws IllegalVariableEvaluationException, IOException;
 
     protected abstract String scheme();
@@ -97,6 +110,9 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
             runContext.render(username).as(String.class).orElse(null),
             renderedHost, Integer.parseInt(renderedPort)
         );
+        var rOn = runContext.render(on).as(On.class).orElse(On.CREATE_OR_UPDATE);
+        var rStateKey = runContext.render(stateKey).as(String.class).orElse(StatefulTriggerService.defaultKey(context.getNamespace(), context.getFlowId(), id));
+        var rStateTtl = runContext.render(stateTtl).as(Duration.class);
 
         // enable disabled by default weak RSA/SHA1 algorithm
         if (runContext.render(enableSshRsa1).as(Boolean.class).orElseThrow()) {
@@ -134,37 +150,71 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                 .filter(file -> file.getFileType() == FileType.FILE)
                 .toList();
 
+            Map<String, StatefulTriggerService.Entry> state = readState(runContext, rStateKey, rStateTtl);
 
-            java.util.List<File> list = files
+            java.util.List<File> actionFiles = new ArrayList<>();
+
+            var toFire = files
                 .stream()
-                .map(throwFunction(file -> {
-                    Download.Output download = VfsService.download(
-                        runContext,
-                        fsm,
-                        fileSystemOptions,
-                        VfsService.uri(
+                .flatMap(throwFunction(file -> {
+                    if (file.getFileType().equals(FileType.FOLDER)) {
+                        return Stream.empty();
+                    }
+
+                    var remotePath = file.getServerPath().getPath();
+                    var updatedDate = Optional.ofNullable(file.getUpdatedDate()).orElse(Instant.EPOCH);
+                    var size = Optional.ofNullable(file.getSize()).orElse(0L);
+                    var version = String.format("%d_%d_%s", updatedDate.toEpochMilli(), size, remotePath);
+
+                    var candidate = Entry.candidate(remotePath, version, updatedDate);
+
+                    var change = computeAndUpdateState(state, candidate, rOn);
+
+                    if (change.fire()) {
+                        var changeType = change.isNew() ? ChangeType.CREATE : ChangeType.UPDATE;
+
+                        Download.Output download = VfsService.download(
                             runContext,
-                            this.scheme(),
-                            runContext.render(this.host).as(String.class).orElse(null),
-                            runContext.render(this.getPort()).as(String.class).orElse(null),
-                            runContext.render(this.username).as(String.class).orElse(null),
-                            runContext.render(this.password).as(String.class).orElse(null),
-                            file.getServerPath().getPath()
-                        )
-                    );
+                            fsm,
+                            fileSystemOptions,
+                            VfsService.uri(
+                                runContext,
+                                this.scheme(),
+                                runContext.render(this.host).as(String.class).orElse(null),
+                                runContext.render(this.getPort()).as(String.class).orElse(null),
+                                runContext.render(this.username).as(String.class).orElse(null),
+                                runContext.render(this.password).as(String.class).orElse(null),
+                                file.getServerPath().getPath()
+                            )
+                        );
 
-                    logger.debug("File '{}' download to '{}'", from.getPath(), download.getTo());
+                        logger.debug("File '{}' download to '{}'", from.getPath(), download.getTo());
 
-                    return file.withPath(download.getTo());
+                        var downloaded = file.withPath(download.getTo());
+
+                        actionFiles.add(downloaded);
+
+                        return Stream.of(TriggeredFile.builder()
+                            .file(downloaded)
+                            .changeType(changeType)
+                            .build());
+                    }
+                    return Stream.empty();
                 }))
                 .toList();
+
+            writeState(runContext, rStateKey, state, rStateTtl);
+
+            if (toFire.isEmpty()) {
+                return Optional.empty();
+            }
 
             if (this.action != null) {
                 VfsService.performAction(
                     runContext,
                     fsm,
                     fileSystemOptions,
-                    files,
+                    actionFiles,
                     runContext.render(this.action).as(Downloads.Action.class).orElse(null),
                     VfsService.uri(
                         runContext,
@@ -178,7 +228,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                 );
             }
 
-            Execution execution = TriggerService.generateExecution(this, conditionContext, context, Downloads.Output.builder().files(list).build());
+            Execution execution = TriggerService.generateExecution(this, conditionContext, context, Output.builder().files(toFire).build());
 
             return Optional.of(execution);
         }
@@ -194,5 +244,26 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
             runContext.render(this.password).as(String.class).orElse(null),
             runContext.render(this.from).as(String.class).orElseThrow()
         );
+    }
+
+    public enum ChangeType {
+        CREATE,
+        UPDATE
+    }
+
+    @Getter
+    @AllArgsConstructor
+    @Builder
+    public static class TriggeredFile {
+        @JsonUnwrapped
+        private final File file;
+        private final ChangeType changeType;
+    }
+
+    @Builder
+    @Getter
+    public static class Output implements io.kestra.core.models.tasks.Output {
+        @Schema(title = "List of files that triggered the flow, each with its change type.")
+        private final java.util.List<TriggeredFile> files;
     }
 }
