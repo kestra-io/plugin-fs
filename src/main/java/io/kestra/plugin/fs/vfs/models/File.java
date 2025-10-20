@@ -56,8 +56,8 @@ public class File {
                 .groupId(attrs.getGId())
                 .permissions(attrs.getPermissions())
                 .flags(attrs.getFlags())
-                .accessDate(Instant.ofEpochSecond(attrs.getMTime()))
-                .updatedDate(Instant.ofEpochSecond(attrs.getATime()));
+                .accessDate(Instant.ofEpochSecond(attrs.getATime()))
+                .updatedDate(Instant.ofEpochSecond(attrs.getMTime()));
         } catch (NoSuchFieldException ignored) {
         }
 
