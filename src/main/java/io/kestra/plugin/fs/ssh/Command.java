@@ -219,11 +219,11 @@ public class Command extends Task implements SshInterface, RunnableTask<ScriptOu
                 session.setConfig("PubkeyAcceptedAlgorithms", session.getConfig("PubkeyAcceptedAlgorithms") + ",ssh-rsa");
             }
 
-            var renderedPassword = runContext.render(this.password).as(String.class);
+            var rPassword = runContext.render(this.password).as(String.class);
             switch (renderedAuthMethod) {
                 case PASSWORD:
                     session.setConfig("PreferredAuthentications", "password");
-                    session.setPassword(renderedPassword.orElseThrow());
+                    session.setPassword(rPassword.orElseThrow());
                     break;
                 case PUBLIC_KEY:
                     session.setConfig("PreferredAuthentications", "publickey");
@@ -241,7 +241,7 @@ public class Command extends Task implements SshInterface, RunnableTask<ScriptOu
                     }
                     ConfigRepository configRepository = OpenSSHConfig.parseFile(configPath);
                     jsch.setConfigRepository(configRepository);
-                    renderedPassword.ifPresent(session::setPassword);
+                    rPassword.ifPresent(session::setPassword);
                     break;
             }
 
