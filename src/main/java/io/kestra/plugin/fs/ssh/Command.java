@@ -15,6 +15,7 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -220,6 +221,8 @@ public class Command extends Task implements SshInterface, RunnableTask<ScriptOu
             }
 
             var rPassword = runContext.render(this.password).as(String.class);
+            var rPrivateKeyPassphrase = runContext.render(this.privateKeyPassphrase).as(String.class);
+
             switch (renderedAuthMethod) {
                 case PASSWORD:
                     session.setConfig("PreferredAuthentications", "password");
@@ -228,8 +231,7 @@ public class Command extends Task implements SshInterface, RunnableTask<ScriptOu
                 case PUBLIC_KEY:
                     session.setConfig("PreferredAuthentications", "publickey");
                     var privateKeyBytes = runContext.render(this.privateKey).as(String.class).orElseThrow().getBytes();
-                    var passphrase = runContext.render(this.privateKeyPassphrase).as(String.class);
-                    jsch.addIdentity("primary", privateKeyBytes, null, passphrase.map(String::getBytes).orElse(null));
+                    jsch.addIdentity("primary", privateKeyBytes, null, rPrivateKeyPassphrase.map(String::getBytes).orElse(null));
                     break;
                 case OPEN_SSH:
                     var rOpenSSHConfigPath = runContext.render(openSSHConfigPath).as(String.class);
@@ -242,6 +244,9 @@ public class Command extends Task implements SshInterface, RunnableTask<ScriptOu
                     ConfigRepository configRepository = OpenSSHConfig.parseFile(configPath);
                     jsch.setConfigRepository(configRepository);
                     rPassword.ifPresent(session::setPassword);
+                    if (rPrivateKeyPassphrase.isPresent()) {
+                        session.setUserInfo(new BasicUserInfo(rPrivateKeyPassphrase.get()));
+                    }
                     break;
             }
 
@@ -300,6 +305,41 @@ public class Command extends Task implements SshInterface, RunnableTask<ScriptOu
             if (stdErr != null) {
                 stdErr.join();
             }
+        }
+    }
+
+    // Can be extended for Password AuthMethod as well
+    @Slf4j
+    private record BasicUserInfo(String passphrase) implements UserInfo {
+
+    @Override
+        public String getPassphrase() {
+            return passphrase;
+        }
+
+        @Override
+        public String getPassword() {
+            return null;
+        }
+
+        @Override
+        public boolean promptPassword(String message) {
+            return false;
+        }
+
+        @Override
+        public boolean promptPassphrase(String message) {
+            return true;
+        }
+
+        @Override
+        public boolean promptYesNo(String message) {
+            return false;
+        }
+
+        @Override
+        public void showMessage(String message) {
+            log.debug(message);
         }
     }
 
