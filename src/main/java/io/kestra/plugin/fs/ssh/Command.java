@@ -1,5 +1,7 @@
 package io.kestra.plugin.fs.ssh;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.jcraft.jsch.*;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
@@ -9,7 +11,6 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.models.tasks.runners.PluginUtilsService;
 import io.kestra.core.runners.RunContext;
-import io.kestra.plugin.scripts.exec.scripts.models.ScriptOutput;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -91,7 +92,7 @@ import java.util.concurrent.atomic.AtomicInteger;
         )
     }
 )
-public class Command extends Task implements SshInterface, RunnableTask<ScriptOutput> {
+public class Command extends Task implements SshInterface, RunnableTask<Command.Output> {
     private static final long SLEEP_DELAY_MS = 25L;
 
     private Property<String> host;
@@ -171,7 +172,7 @@ public class Command extends Task implements SshInterface, RunnableTask<ScriptOu
     private Property<Boolean> enableSshRsa1 = Property.ofValue(false);
 
     @Override
-    public ScriptOutput run(RunContext runContext) throws Exception {
+    public Output run(RunContext runContext) throws Exception {
         JSch jsch;
         Session session = null;
         ChannelExec channel = null;
@@ -288,7 +289,7 @@ public class Command extends Task implements SshInterface, RunnableTask<ScriptOu
             vars.putAll(stdOutRunnable.outputs);
             vars.putAll(stdErrRunnable.outputs);
 
-            return ScriptOutput
+            return Output
                 .builder()
                 .exitCode(channel.getExitStatus())
                 .stdOutLineCount(stdOutRunnable.count.get())
@@ -379,5 +380,27 @@ public class Command extends Task implements SshInterface, RunnableTask<ScriptOu
                 // silently fail if we cannot log a line
             }
         }
+    }
+
+    @Builder
+    @Getter
+    public static class Output implements io.kestra.core.models.tasks.Output {
+        @Schema(
+            title = "The values extracted from executed `commands` using the [Kestra outputs](https://kestra.io/docs/scripts/outputs-metrics#outputs-and-metrics-in-script-and-commands-tasks) format."
+        )
+        @JsonInclude(JsonInclude.Include.ALWAYS) // always include vars so it's easier to reason about in expressions
+        private final Map<String, Object> vars;
+
+        @Schema(
+            title = "The exit code of the entire flow execution."
+        )
+        @NotNull
+        private final int exitCode;
+
+        @JsonIgnore
+        private final int stdOutLineCount;
+
+        @JsonIgnore
+        private final int stdErrLineCount;
     }
 }
