@@ -208,6 +208,19 @@ public class Command extends Task implements SshInterface, RunnableTask<ScriptOu
             }
 
             jsch = new JSch();
+
+            if (AuthMethod.OPEN_SSH.equals(renderedAuthMethod)) {
+                var rOpenSSHConfigPath = runContext.render(openSSHConfigPath).as(String.class);
+                String configPath;
+                if (rOpenSSHConfigPath.isPresent()) {
+                    configPath = rOpenSSHConfigPath.orElseThrow();
+                } else {
+                    configPath = runContext.render(openSSHConfigDir).as(String.class).orElseThrow();
+                }
+                ConfigRepository configRepository = OpenSSHConfig.parseFile(configPath);
+                jsch.setConfigRepository(configRepository);
+            }
+
             session = jsch.getSession(
                 runContext.render(username).as(String.class).orElse(null),
                 renderedHost, Integer.parseInt(renderedPort)
@@ -234,15 +247,6 @@ public class Command extends Task implements SshInterface, RunnableTask<ScriptOu
                     jsch.addIdentity("primary", privateKeyBytes, null, rPrivateKeyPassphrase.map(String::getBytes).orElse(null));
                     break;
                 case OPEN_SSH:
-                    var rOpenSSHConfigPath = runContext.render(openSSHConfigPath).as(String.class);
-                    String configPath;
-                    if (rOpenSSHConfigPath.isPresent()) {
-                        configPath = rOpenSSHConfigPath.orElseThrow();
-                    } else {
-                        configPath = runContext.render(openSSHConfigDir).as(String.class).orElseThrow();
-                    }
-                    ConfigRepository configRepository = OpenSSHConfig.parseFile(configPath);
-                    jsch.setConfigRepository(configRepository);
                     rPassword.ifPresent(session::setPassword);
                     if (rPrivateKeyPassphrase.isPresent()) {
                         session.setUserInfo(new BasicUserInfo(rPrivateKeyPassphrase.get()));
@@ -312,7 +316,7 @@ public class Command extends Task implements SshInterface, RunnableTask<ScriptOu
     @Slf4j
     private record BasicUserInfo(String passphrase) implements UserInfo {
 
-    @Override
+        @Override
         public String getPassphrase() {
             return passphrase;
         }
