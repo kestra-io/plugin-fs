@@ -84,7 +84,6 @@ import java.util.concurrent.atomic.AtomicInteger;
                   - id: ssh
                     type: io.kestra.plugin.fs.ssh.Command
                     authMethod: OPEN_SSH
-                    useOpenSSHConfig: true
                     host: localhost
                     password: "{{ secret('SSH_PASSWORD') }}"
                     commands:
