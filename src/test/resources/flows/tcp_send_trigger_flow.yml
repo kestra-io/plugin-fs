@@ -1,0 +1,18 @@
+id: tcp_send_trigger_flow
+namespace: io.kestra.tests
+
+description: >
+  Demonstration of TCP realtime trigger and TCP sender working together.
+  The trigger listens on port 5000, and the Send task transmits a message.
+
+tasks:
+  - id: send_tcp_message
+    type: io.kestra.plugin.fs.tcp.Send
+    host: "127.0.0.1"
+    port: 5000
+    payload: "Hello from Kestra TCP Sender!"
+
+triggers:
+  - id: tcp_listener
+    type: io.kestra.plugin.fs.tcp.Trigger
+    port: 5000
