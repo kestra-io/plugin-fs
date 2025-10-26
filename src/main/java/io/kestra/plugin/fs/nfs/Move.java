@@ -6,7 +6,6 @@ import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
-// import io.kestra.plugin.fs.MoveInterface; // REMOVED
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -37,7 +36,7 @@ import java.nio.file.StandardCopyOption;
         )
     }
 )
-public class Move extends Task implements RunnableTask<Move.Output> { // REMOVED MoveInterface
+public class Move extends Task implements RunnableTask<Move.Output> { 
 
     @Schema(title = "The path to the file to move.")
     @PluginProperty(dynamic = true)
@@ -58,7 +57,6 @@ public class Move extends Task implements RunnableTask<Move.Output> { // REMOVED
 
         logger.info("Moving from {} to {}", fromPath, toPath);
 
-        // Ensure parent directory exists for 'to' path
         Path toParent = toPath.getParent();
         if (toParent != null && !Files.exists(toParent)) {
             Files.createDirectories(toParent);

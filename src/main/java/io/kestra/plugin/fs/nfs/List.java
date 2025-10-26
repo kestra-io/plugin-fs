@@ -6,7 +6,6 @@ import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
-// Removed non-existent import: import io.kestra.plugin.fs.ListInterface;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -43,7 +42,6 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         )
     }
 )
-// Removed non-existent interface: ListInterface
 public class List extends Task implements RunnableTask<List.Output> {
 
     @Schema(title = "The directory path to list from.")

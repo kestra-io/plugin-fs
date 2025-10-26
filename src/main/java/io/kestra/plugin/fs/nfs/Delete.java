@@ -6,7 +6,6 @@ import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
-// import io.kestra.plugin.fs.DeleteInterface; // REMOVED
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -37,7 +36,7 @@ import java.nio.file.Path;
         )
     }
 )
-public class Delete extends Task implements RunnableTask<Delete.Output> { // REMOVED DeleteInterface
+public class Delete extends Task implements RunnableTask<Delete.Output> { 
 
     @Schema(title = "The path to the file to delete.")
     @PluginProperty(dynamic = true)

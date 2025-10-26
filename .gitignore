@@ -15,3 +15,4 @@ out/
 .attach*
 src/test/resources/application-test.yml
 id_rsa*
+*.hprof

@@ -36,7 +36,7 @@ import java.nio.file.StandardCopyOption;
         )
     }
 )
-public class Copy extends Task implements RunnableTask<Copy.Output> { // REMOVED CopyInterface
+public class Copy extends Task implements RunnableTask<Copy.Output> { 
 
     @Schema(title = "The path to the file to copy.")
     @PluginProperty(dynamic = true)
