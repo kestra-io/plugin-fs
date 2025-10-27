@@ -12,7 +12,6 @@ import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 
 import java.net.URI;
 import java.util.List;
-import java.util.Map;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -21,10 +20,10 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Uploads.Output>, Data.From {
+public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Uploads.Output> {
     @Schema(
-        title = io.kestra.core.models.property.Data.From.TITLE,
-        description = io.kestra.core.models.property.Data.From.DESCRIPTION
+        title = "The files to upload",
+        description = "Must be Kestra internal storage URIs. Can be a single URI string, a list of URI strings, or an internal storage URI pointing to a file containing URIs."
     )
     @NotNull
     private Object from;
@@ -42,21 +41,13 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
 
             String renderedTo = runContext.render(this.to).as(String.class).orElseThrow();
 
-            List<Upload.Output> outputs = Data.from(from).read(runContext)
-                .map(throwFunction(row -> {
-                    String fromURI;
-                
-                    // Handle both structured (Map) and plain (String) data rows
-                    if (row instanceof Map<?, ?> map && map.containsKey("uri")) {
-                        fromURI = map.get("uri").toString();
-                    } else {
-                        fromURI = row.toString();
-                    }
-                
+            List<Upload.Output> outputs = Data.from(from)
+                .readAs(runContext, String.class, obj -> obj.toString())
+                .map(throwFunction(fromURI -> {
                     if (!fromURI.startsWith("kestra://")) {
                         throw new IllegalArgumentException("'from' must be a list of Kestra's internal storage URI");
                     }
-                
+
                     return VfsService.upload(
                         runContext,
                         fsm,
@@ -65,7 +56,6 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
                         this.uri(runContext, renderedTo + fromURI.substring(fromURI.lastIndexOf('/') + (renderedTo.endsWith("/") ? 1 : 0)))
                     );
                 }))
-
                 .collectList()
                 .block();
 
