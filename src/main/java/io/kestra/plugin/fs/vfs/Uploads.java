@@ -23,8 +23,8 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @NoArgsConstructor
 public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Uploads.Output>, Data.From {
     @Schema(
-            title = "The files to upload.",
-            description = "Must be Kestra internal storage URIs. Can be a single URI string, a list of URI strings, or an internal storage URI pointing to a file containing URIs."
+        title = io.kestra.core.models.property.Data.From.TITLE,
+        description = io.kestra.core.models.property.Data.From.DESCRIPTION
     )
     @NotNull
     private Object from;
