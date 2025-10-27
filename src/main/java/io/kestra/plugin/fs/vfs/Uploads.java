@@ -44,12 +44,19 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
 
             List<Upload.Output> outputs = Data.from(from).read(runContext)
                 .map(throwFunction(row -> {
-                    String fromURI = row.toString();
-                    
+                    String fromURI;
+                
+                    // Handle both structured (Map) and plain (String) data rows
+                    if (row instanceof Map<?, ?> map && map.containsKey("uri")) {
+                        fromURI = map.get("uri").toString();
+                    } else {
+                        fromURI = row.toString();
+                    }
+                
                     if (!fromURI.startsWith("kestra://")) {
                         throw new IllegalArgumentException("'from' must be a list of Kestra's internal storage URI");
                     }
-
+                
                     return VfsService.upload(
                         runContext,
                         fsm,
@@ -58,6 +65,7 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
                         this.uri(runContext, renderedTo + fromURI.substring(fromURI.lastIndexOf('/') + (renderedTo.endsWith("/") ? 1 : 0)))
                     );
                 }))
+
                 .collectList()
                 .block();
 
