@@ -9,6 +9,7 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.triggers.*;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.inject.Inject;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -26,8 +27,6 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 import static io.kestra.core.models.triggers.StatefulTriggerService.*;
-import static io.kestra.core.utils.Rethrow.throwFunction;
-
 
 
 @SuperBuilder
@@ -41,8 +40,8 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Plugin(
     examples = {
         @Example(
-            title = "Trigger a flow when a new CSV file arrives in an NFS directory.",
             full = true,
+            title = "Trigger a flow when a new CSV file arrives in an NFS directory.",
             code = """
                 id: nfs_listen
                 namespace: company.team
@@ -50,7 +49,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                 tasks:
                   - id: log_files
                     type: io.kestra.plugin.core.log.Log
-                    message: "Received {{ trigger.files | length }} files: {% for file in trigger.files %}{{ file.file.uri }} ({{ file.changeType }}){% endfor %}"
+                    message: "Received {{ trigger.files | length }} files"
 
                 triggers:
                   - id: watch_nfs
@@ -64,6 +63,13 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
     }
 )
 public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<Trigger.Output>, StatefulTriggerInterface {
+
+    @Inject
+    private transient NfsService nfsService;
+
+    public void setNfsService(NfsService nfsService) {
+        this.nfsService = nfsService;
+    }
 
     @Schema(title = "The directory path to watch.")
     @NotNull
@@ -101,7 +107,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         Logger logger = runContext.logger();
 
         String rFrom = runContext.render(this.from).as(String.class).orElseThrow(() -> new IllegalArgumentException("`from` cannot be null or empty"));
-        Path fromPath = NfsService.toNfsPath(rFrom);
+        Path fromPath = nfsService.toNfsPath(rFrom);
         String rRegExp = runContext.render(this.regExp).as(String.class).orElse(null);
         On rOn = runContext.render(on).as(On.class).orElse(On.CREATE_OR_UPDATE);
         String rStateKey = runContext.render(stateKey).as(String.class)
@@ -160,7 +166,6 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         return Optional.of(execution);
     }
 
-     // Use Fully Qualified Name (FQN) for the return type
      private io.kestra.plugin.fs.nfs.List.File mapToFile(Path path) throws IOException {
         BasicFileAttributes attrs = Files.readAttributes(path, BasicFileAttributes.class);
                          

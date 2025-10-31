@@ -7,6 +7,7 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.inject.Inject;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -35,17 +36,31 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Plugin(
     examples = {
         @Example(
+            full = true,
             title = "List files in an NFS directory.",
-            code = {
-                "from: /mnt/nfs/data",
-                "recursive: true",
-                "regExp: \".*\\.csv$\""
-            }
+            code = """
+                id: nfs_list
+                namespace: company.team
+
+                tasks:
+                  - id: list_files
+                    type: io.kestra.plugin.fs.nfs.List
+                    from: /mnt/nfs/shared/documents
+                    regExp: ".*\\.pdf$"
+                    recursive: true
+            """
         )
     }
     
 )
 public class List extends Task implements RunnableTask<List.Output> {
+
+    @Inject
+    private transient NfsService nfsService;
+
+    public void setNfsService(NfsService nfsService) {
+        this.nfsService = nfsService;
+    }
 
     @Schema(title = "The directory path to list from.")
     @NotNull
@@ -64,10 +79,10 @@ public class List extends Task implements RunnableTask<List.Output> {
 
         
         String rFrom = runContext.render(this.from).as(String.class).orElseThrow(() -> new IllegalArgumentException("'from' property is required"));
-        Optional<String> rRegExp = runContext.render(this.regExp).as(String.class); // Optional
+        Optional<String> rRegExp = runContext.render(this.regExp).as(String.class);
         boolean rRecursive = runContext.render(this.recursive).as(Boolean.class).orElse(false);
 
-        Path fromPath = NfsService.toNfsPath(rFrom);
+        Path fromPath = nfsService.toNfsPath(rFrom);
 
         logger.info("Listing files from '{}' (Recursive: {}, RegExp: '{}')", fromPath, rRecursive, rRegExp.orElse("None"));
 
@@ -82,7 +97,7 @@ public class List extends Task implements RunnableTask<List.Output> {
 
             
             if (rRegExp.isPresent()) {
-                String finalRegExp = rRegExp.get(); // Final for lambda
+                String finalRegExp = rRegExp.get(); 
                 filteredStream = filteredStream.filter(path -> path.toString().matches(finalRegExp));
             }
 
@@ -120,10 +135,11 @@ public class List extends Task implements RunnableTask<List.Output> {
         private final java.util.List<File> files;
     }
 
-    @SuperBuilder // Use SuperBuilder for inheritance if needed later
+    @SuperBuilder 
     @Getter
     @EqualsAndHashCode
     @ToString
+    @AllArgsConstructor
     public static class File {
         @Schema(title = "The name of the file.")
         private final String name;
@@ -132,7 +148,7 @@ public class List extends Task implements RunnableTask<List.Output> {
         private final URI uri;
 
         @Schema(title = "The java.nio.file.Path of the file.")
-        @ToString.Exclude // Avoid issues with Path serialization/toString
+        @ToString.Exclude
         private final Path localPath;
 
         @Schema(title = "Whether the file is a directory.")
@@ -157,4 +173,3 @@ public class List extends Task implements RunnableTask<List.Output> {
         private final Instant lastModifiedTime;
     }
 }
-

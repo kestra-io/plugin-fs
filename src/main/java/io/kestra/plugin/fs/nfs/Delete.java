@@ -7,6 +7,7 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.inject.Inject;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -29,10 +30,12 @@ import java.nio.file.Path;
 @Plugin(
     examples = {
         @Example(
+            full = true,
             title = "Delete a file from an NFS mount.",
             code = """
                 id: nfs_delete
                 namespace: company.team
+
                 tasks:
                   - id: delete_file
                     type: io.kestra.plugin.fs.nfs.Delete
@@ -44,6 +47,13 @@ import java.nio.file.Path;
 )
 public class Delete extends Task implements RunnableTask<Delete.Output> {
 
+    @Inject
+    private transient NfsService nfsService;
+
+    public void setNfsService(NfsService nfsService) {
+        this.nfsService = nfsService;
+    }
+    
     @Schema(title = "The path to the file to delete.")
     @NotNull
     private Property<String> uri;
@@ -57,7 +67,7 @@ public class Delete extends Task implements RunnableTask<Delete.Output> {
         Logger logger = runContext.logger();
         
         String rUri = runContext.render(this.uri).as(String.class).orElseThrow(() -> new IllegalArgumentException("`uri` cannot be null or empty"));
-        Path path = NfsService.toNfsPath(rUri);
+        Path path = nfsService.toNfsPath(rUri);
 
         logger.info("Deleting file at {}", path);
 

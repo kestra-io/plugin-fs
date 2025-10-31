@@ -7,6 +7,7 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.inject.Inject;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -26,18 +27,31 @@ import java.nio.file.Path;
 @Plugin(
     examples = {
         @Example(
-            title = "Check a specific NFS mount point.",
-            code = "path: /mnt/nfs/share"
+            full = true,
+            title = "Check if a path is a valid and accessible NFS mount.",
+            code = """
+                id: check_nfs_mount
+                namespace: dev
+
+                task: io.kestra.plugin.fs.nfs.CheckMount
+                inputs:
+                    - path: '/nfs/mount/point'
+                """ 
         )
     }
-
 )
 public class CheckMount extends Task implements RunnableTask<CheckMount.Output> {
+
+    @Inject
+    private transient NfsService nfsService;
+
+    public void setNfsService(NfsService nfsService) {
+        this.nfsService = nfsService;
+    }
 
     @Schema(
         title = "The NFS path to check."
     )
-    
     @NotNull
     private Property<String> path;
 
@@ -46,10 +60,10 @@ public class CheckMount extends Task implements RunnableTask<CheckMount.Output> 
         Logger logger = runContext.logger();
         
         String rPath = runContext.render(this.path).as(String.class).orElseThrow(() -> new IllegalArgumentException("`path` cannot be null or empty"));
-        Path nfsPath = NfsService.toNfsPath(rPath);
+        Path nfsPath = nfsService.toNfsPath(rPath); 
 
         try {
-            String storeType = NfsService.getFileStoreType(nfsPath);
+            String storeType = nfsService.getFileStoreType(nfsPath); 
             boolean isNfs = storeType.toLowerCase().contains("nfs");
 
             logger.info("Path {} is on a file store of type: {}. Is NFS: {}", nfsPath, storeType, isNfs);
@@ -69,14 +83,13 @@ public class CheckMount extends Task implements RunnableTask<CheckMount.Output> 
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
-    @Schema(title = "The path that was checked.")
+        @Schema(title = "The path that was checked.")
         private final String path;
 
         @Schema(title = "Whether the path is identified as an NFS mount.")
-    private final boolean isNfsMount;
+        private final boolean isNfsMount;
 
-    @Schema(title = "The type of the file store (e.g., 'nfs', 'nfs4', 'ext4').")
+        @Schema(title = "The type of the file store (e.g., 'nfs', 'nfs4', 'ext4').")
         private final String fileStoreType;
     }
 }
-

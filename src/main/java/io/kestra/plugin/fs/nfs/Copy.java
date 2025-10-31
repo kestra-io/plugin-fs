@@ -9,6 +9,7 @@ import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
+import jakarta.inject.Inject;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.slf4j.Logger;
@@ -29,30 +30,35 @@ import java.nio.file.StandardCopyOption;
 @Plugin(
     examples = {
         @Example(
+            full = true,
             title = "Copy a file from one location to another on an NFS mount.",
-            code = {
-                "id: nfs_copy",
-                "namespace: company.team",
-                "",
-                "tasks:",
-                "  - id: copy_file",
-                "    type: io.kestra.plugin.fs.nfs.Copy",
-                "    from: /mnt/nfs/shared/in/file.txt",
-                "    to: /mnt/nfs/shared/out/file_copy.txt"
-            }
+            code = """
+                id: nfs_copy
+                namespace: company.team
+
+                tasks:
+                  - id: copy_file
+                    type: io.kestra.plugin.fs.nfs.Copy
+                    from: /mnt/nfs/shared/in/file.txt
+                    to: /mnt/nfs/shared/out/file_copy.txt
+            """
         )
     }
-    
 )
 public class Copy extends Task implements RunnableTask<Copy.Output> {
 
+    @Inject
+    private transient NfsService nfsService;
+
+    public void setNfsService(NfsService nfsService) {
+        this.nfsService = nfsService;
+    }
+
     @Schema(title = "The path to the file to copy.")
-    
     @NotNull
     private Property<String> from;
 
     @Schema(title = "The destination path.")
-    
     @NotNull
     private Property<String> to;
 
@@ -64,8 +70,8 @@ public class Copy extends Task implements RunnableTask<Copy.Output> {
         String rFrom = runContext.render(this.from).as(String.class).orElseThrow(() -> new IllegalArgumentException("`from` cannot be null or empty"));
         String rTo = runContext.render(this.to).as(String.class).orElseThrow(() -> new IllegalArgumentException("`to` cannot be null or empty"));
 
-        Path fromPath = NfsService.toNfsPath(rFrom);
-        Path toPath = NfsService.toNfsPath(rTo);
+        Path fromPath = nfsService.toNfsPath(rFrom);
+        Path toPath = nfsService.toNfsPath(rTo);
 
         logger.info("Copying from {} to {}", fromPath, toPath);
 
@@ -94,4 +100,3 @@ public class Copy extends Task implements RunnableTask<Copy.Output> {
         private final URI to;
     }
 }
-

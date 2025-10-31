@@ -8,6 +8,7 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.inject.Inject;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -29,43 +30,49 @@ import java.nio.file.StandardCopyOption;
 @Plugin(
     examples = {
         @Example(
+            full = true,
             title = "Move a file from one location to another on an NFS mount.",
-            code = {
-                "id: nfs_move",
-                "namespace: company.team",
-                "",
-                "tasks:",
-                "  - id: move_file",
-                "    type: io.kestra.plugin.fs.nfs.Move",
-                "    from: /mnt/nfs/shared/in/file.txt",
-                "    to: /mnt/nfs/shared/archive/file.txt"
-            }
+            code = """
+                id: nfs_move
+                namespace: company.team
+
+                tasks:
+                  - id: move_file
+                    type: io.kestra.plugin.fs.nfs.Move
+                    from: /mnt/nfs/shared/in/file.txt
+                    to: /mnt/nfs/shared/archive/file.txt
+            """
         )
     }
     
 )
 public class Move extends Task implements RunnableTask<Move.Output> {
 
+    @Inject
+    private transient NfsService nfsService;
+
+    public void setNfsService(NfsService nfsService) {
+        this.nfsService = nfsService;
+    }
+
     @Schema(title = "The path to the file to move.")
-    
     @NotNull
     private Property<String> from;
 
     @Schema(title = "The destination path.")
-    
     @NotNull
     private Property<String> to;
 
     @Override
     public Output run(RunContext runContext) throws Exception {
+
         Logger logger = runContext.logger();
 
-        
         String rFrom = runContext.render(this.from).as(String.class).orElseThrow(() -> new IllegalArgumentException("`from` cannot be null or empty"));
         String rTo = runContext.render(this.to).as(String.class).orElseThrow(() -> new IllegalArgumentException("`to` cannot be null or empty"));
 
-        Path fromPath = NfsService.toNfsPath(rFrom);
-        Path toPath = NfsService.toNfsPath(rTo);
+        Path fromPath = nfsService.toNfsPath(rFrom);
+        Path toPath = nfsService.toNfsPath(rTo);
 
         logger.info("Moving from {} to {}", fromPath, toPath);
 
