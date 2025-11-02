@@ -32,8 +32,6 @@ class NfsTasksTest {
 
     @Inject
     private StorageInterface storageInterface;
-    
-    private NfsService nfsService = new NfsService();
 
     @TempDir
     private Path tempDirectory;
@@ -52,7 +50,6 @@ class NfsTasksTest {
             .type(CheckMount.class.getName())
             .path(Property.ofValue(nfsMountPoint.toString()))
             .build();
-        task.setNfsService(nfsService);
 
         RunContext runContext = TestsUtils.mockRunContext(runContextFactory, task, Map.of());
         CheckMount.Output run = task.run(runContext);
@@ -80,8 +77,8 @@ class NfsTasksTest {
            .type(io.kestra.plugin.fs.nfs.List.class.getName())
            .from(Property.ofValue(nfsMountPoint.toString()))
            .build();
-        baseTask.setNfsService(nfsService);
-        RunContext runContext = TestsUtils.mockRunContext(runContextFactory, baseTask, Map.of());
+
+           RunContext runContext = TestsUtils.mockRunContext(runContextFactory, baseTask, Map.of());
 
         io.kestra.plugin.fs.nfs.List task = io.kestra.plugin.fs.nfs.List.builder()
             .id(io.kestra.plugin.fs.nfs.List.class.getSimpleName())
@@ -89,7 +86,7 @@ class NfsTasksTest {
             .from(Property.ofValue(nfsMountPoint.toString()))
             .recursive(Property.ofValue(false))
             .build();
-        task.setNfsService(nfsService);
+
         io.kestra.plugin.fs.nfs.List.Output run = task.run(runContext);
         assertThat(run.getFiles(), hasSize(3));
 
@@ -100,7 +97,6 @@ class NfsTasksTest {
             .from(Property.ofValue(nfsMountPoint.toString()))
             .recursive(Property.ofValue(true))
             .build();
-        recursiveTask.setNfsService(nfsService);
 
         final Path finalFromPath = nfsMountPoint;
         List<io.kestra.plugin.fs.nfs.List.File> files;
@@ -119,7 +115,6 @@ class NfsTasksTest {
             .recursive(Property.ofValue(true))
             .regExp(Property.ofValue(".*\\.txt$"))
             .build();
-        task.setNfsService(nfsService);
         run = task.run(runContext);
         assertThat(run.getFiles(), hasSize(2));
         List<String> foundNames = run.getFiles().stream().map(io.kestra.plugin.fs.nfs.List.File::getName).collect(Collectors.toList());
@@ -139,7 +134,7 @@ class NfsTasksTest {
             .from(Property.ofValue(sourceFile.toString()))
             .to(Property.ofValue(copyDest.toString()))
             .build();
-        baseTask.setNfsService(nfsService);
+
         RunContext runContext = TestsUtils.mockRunContext(runContextFactory, baseTask, Map.of());
 
         Copy copyTask = Copy.builder()
@@ -148,7 +143,7 @@ class NfsTasksTest {
             .from(Property.ofValue(sourceFile.toString()))
             .to(Property.ofValue(copyDest.toString()))
             .build();
-        copyTask.setNfsService(nfsService);
+
         Copy.Output copyRun = copyTask.run(runContext);
         assertThat(Files.exists(copyDest), is(true));
         assertThat(Files.readString(copyDest), is("copy me"));
@@ -160,7 +155,7 @@ class NfsTasksTest {
             .from(Property.ofValue(copyDest.toString()))
             .to(Property.ofValue(moveDest.toString()))
             .build();
-        moveTask.setNfsService(nfsService);
+
         Move.Output moveRun = moveTask.run(runContext);
         assertThat(Files.exists(copyDest), is(false));
         assertThat(Files.exists(moveDest), is(true));
@@ -172,7 +167,7 @@ class NfsTasksTest {
             .type(Delete.class.getName())
             .uri(Property.ofValue(moveDest.toString()))
             .build();
-        deleteTask.setNfsService(nfsService);
+
         Delete.Output deleteRun = deleteTask.run(runContext);
         assertThat(Files.exists(moveDest), is(false));
         assertThat(deleteRun.isDeleted(), is(true));
@@ -183,7 +178,7 @@ class NfsTasksTest {
              .type(Delete.class.getName())
              .uri(Property.ofValue(sourceFile.toString()))
              .build();
-         deleteTask.setNfsService(nfsService);
+        
          deleteTask.run(runContext);
          assertThat(Files.exists(sourceFile), is(false));
     }

@@ -33,8 +33,6 @@ class NfsTriggerTest {
     @Inject
     private RunContextFactory runContextFactory;
     
-    private NfsService nfsService = new NfsService();
-
     private static final ObjectMapper objectMapper = JacksonMapper.ofJson();
 
     @TempDir
@@ -55,7 +53,6 @@ class NfsTriggerTest {
             .from(Property.ofValue(nfsMountPoint.toString()))
             .on(Property.ofValue(StatefulTriggerInterface.On.CREATE))
             .build();
-        nfsTrigger.setNfsService(nfsService);
 
         Map.Entry<ConditionContext, Trigger> context = TestsUtils.mockTrigger(runContextFactory, nfsTrigger);
 
@@ -107,7 +104,6 @@ class NfsTriggerTest {
             .from(Property.ofValue(nfsMountPoint.toString()))
             .on(Property.ofValue(StatefulTriggerInterface.On.UPDATE))
             .build();
-        nfsTrigger.setNfsService(nfsService);
 
         Map.Entry<ConditionContext, Trigger> context = TestsUtils.mockTrigger(runContextFactory, nfsTrigger);
 
@@ -148,7 +144,6 @@ class NfsTriggerTest {
             .from(Property.ofValue(nfsMountPoint.toString()))
             .on(Property.ofValue(StatefulTriggerInterface.On.CREATE_OR_UPDATE))
             .build();
-        nfsTrigger.setNfsService(nfsService);
 
         Map.Entry<ConditionContext, Trigger> context = TestsUtils.mockTrigger(runContextFactory, nfsTrigger);
 

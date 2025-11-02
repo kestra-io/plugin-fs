@@ -10,6 +10,13 @@ import java.nio.file.Paths;
 @Singleton
 public class NfsService {
 
+    private NfsService() {
+    }
+
+    public static NfsService getInstance() {
+        return new NfsService();
+    }
+
     public Path toNfsPath(String path) throws IOException {
         if (path == null || path.isEmpty()) {
             throw new IOException("Path cannot be null or empty");
@@ -22,4 +29,3 @@ public class NfsService {
         return store.type();
     }
 }
-

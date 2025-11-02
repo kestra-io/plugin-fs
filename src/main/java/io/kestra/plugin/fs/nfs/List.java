@@ -7,7 +7,6 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.inject.Inject;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -55,13 +54,6 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 )
 public class List extends Task implements RunnableTask<List.Output> {
 
-    @Inject
-    private transient NfsService nfsService;
-
-    public void setNfsService(NfsService nfsService) {
-        this.nfsService = nfsService;
-    }
-
     @Schema(title = "The directory path to list from.")
     @NotNull
     private Property<String> from;
@@ -75,9 +67,9 @@ public class List extends Task implements RunnableTask<List.Output> {
 
     @Override
     public Output run(RunContext runContext) throws Exception {
-    Logger logger = runContext.logger();
+        Logger logger = runContext.logger();
 
-        
+        NfsService nfsService = NfsService.getInstance();
         String rFrom = runContext.render(this.from).as(String.class).orElseThrow(() -> new IllegalArgumentException("'from' property is required"));
         Optional<String> rRegExp = runContext.render(this.regExp).as(String.class);
         boolean rRecursive = runContext.render(this.recursive).as(Boolean.class).orElse(false);
@@ -90,11 +82,9 @@ public class List extends Task implements RunnableTask<List.Output> {
         try (Stream<Path> stream = rRecursive ? Files.walk(fromPath) : Files.list(fromPath)) {
             Stream<Path> filteredStream = stream;
 
-            
             if (rRecursive) {
                 filteredStream = filteredStream.filter(path -> !path.equals(fromPath));
             }
-
             
             if (rRegExp.isPresent()) {
                 String finalRegExp = rRegExp.get(); 
@@ -111,7 +101,6 @@ public class List extends Task implements RunnableTask<List.Output> {
         return Output.builder().files(files).build();
     }
 
-    
     File mapToFile(Path path) throws IOException {
         BasicFileAttributes attrs = Files.readAttributes(path, BasicFileAttributes.class);
         return File.builder()

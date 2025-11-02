@@ -8,7 +8,6 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.inject.Inject;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -47,14 +46,7 @@ import java.nio.file.StandardCopyOption;
     
 )
 public class Move extends Task implements RunnableTask<Move.Output> {
-
-    @Inject
-    private transient NfsService nfsService;
-
-    public void setNfsService(NfsService nfsService) {
-        this.nfsService = nfsService;
-    }
-
+ 
     @Schema(title = "The path to the file to move.")
     @NotNull
     private Property<String> from;
@@ -67,6 +59,7 @@ public class Move extends Task implements RunnableTask<Move.Output> {
     public Output run(RunContext runContext) throws Exception {
 
         Logger logger = runContext.logger();
+        NfsService nfsService = NfsService.getInstance();
 
         String rFrom = runContext.render(this.from).as(String.class).orElseThrow(() -> new IllegalArgumentException("`from` cannot be null or empty"));
         String rTo = runContext.render(this.to).as(String.class).orElseThrow(() -> new IllegalArgumentException("`to` cannot be null or empty"));
@@ -76,7 +69,6 @@ public class Move extends Task implements RunnableTask<Move.Output> {
 
         logger.info("Moving from {} to {}", fromPath, toPath);
 
-        
         Path toParent = toPath.getParent();
         if (toParent != null && !Files.exists(toParent)) {
             Files.createDirectories(toParent);
@@ -101,4 +93,3 @@ public class Move extends Task implements RunnableTask<Move.Output> {
         private final URI to;
     }
 }
-

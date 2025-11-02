@@ -7,7 +7,6 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.inject.Inject;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -32,22 +31,15 @@ import java.nio.file.Path;
             code = """
                 id: check_nfs_mount
                 namespace: dev
-
-                task: io.kestra.plugin.fs.nfs.CheckMount
-                inputs:
-                    - path: '/nfs/mount/point'
+                tasks:
+                  - id: check_mount
+                    type: io.kestra.plugin.fs.nfs.CheckMount
+                    path: /mnt/nfs/data
                 """ 
         )
     }
 )
 public class CheckMount extends Task implements RunnableTask<CheckMount.Output> {
-
-    @Inject
-    private transient NfsService nfsService;
-
-    public void setNfsService(NfsService nfsService) {
-        this.nfsService = nfsService;
-    }
 
     @Schema(
         title = "The NFS path to check."
@@ -57,13 +49,14 @@ public class CheckMount extends Task implements RunnableTask<CheckMount.Output> 
 
     @Override
     public Output run(RunContext runContext) throws Exception {
-        Logger logger = runContext.logger();
+        NfsService nfsService = NfsService.getInstance();
         
+        Logger logger = runContext.logger();
         String rPath = runContext.render(this.path).as(String.class).orElseThrow(() -> new IllegalArgumentException("`path` cannot be null or empty"));
-        Path nfsPath = nfsService.toNfsPath(rPath); 
+        Path nfsPath = nfsService.toNfsPath(rPath);
 
         try {
-            String storeType = nfsService.getFileStoreType(nfsPath); 
+            String storeType = nfsService.getFileStoreType(nfsPath);
             boolean isNfs = storeType.toLowerCase().contains("nfs");
 
             logger.info("Path {} is on a file store of type: {}. Is NFS: {}", nfsPath, storeType, isNfs);

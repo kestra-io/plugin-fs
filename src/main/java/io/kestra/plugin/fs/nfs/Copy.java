@@ -9,7 +9,6 @@ import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
-import jakarta.inject.Inject;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.slf4j.Logger;
@@ -47,13 +46,6 @@ import java.nio.file.StandardCopyOption;
 )
 public class Copy extends Task implements RunnableTask<Copy.Output> {
 
-    @Inject
-    private transient NfsService nfsService;
-
-    public void setNfsService(NfsService nfsService) {
-        this.nfsService = nfsService;
-    }
-
     @Schema(title = "The path to the file to copy.")
     @NotNull
     private Property<String> from;
@@ -66,7 +58,8 @@ public class Copy extends Task implements RunnableTask<Copy.Output> {
     public Output run(RunContext runContext) throws Exception {
         Logger logger = runContext.logger();
 
-        
+        NfsService nfsService = NfsService.getInstance();
+
         String rFrom = runContext.render(this.from).as(String.class).orElseThrow(() -> new IllegalArgumentException("`from` cannot be null or empty"));
         String rTo = runContext.render(this.to).as(String.class).orElseThrow(() -> new IllegalArgumentException("`to` cannot be null or empty"));
 
