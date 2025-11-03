@@ -9,6 +9,7 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.triggers.*;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.inject.Inject;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -62,6 +63,10 @@ import static io.kestra.core.models.triggers.StatefulTriggerService.*;
 )
 public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<Trigger.Output>, StatefulTriggerInterface {
 
+    @Inject
+    @Builder.Default
+    private NfsService nfsService = NfsService.getInstance();
+    
     @Schema(title = "The directory path to watch.")
     @NotNull
     private Property<String> from;
@@ -96,7 +101,6 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext triggerContext) throws Exception {
         RunContext runContext = conditionContext.getRunContext();
         Logger logger = runContext.logger();
-        NfsService nfsService = NfsService.getInstance();
 
         String rFrom = runContext.render(this.from).as(String.class).orElseThrow(() -> new IllegalArgumentException("`from` cannot be null or empty"));
         Path fromPath = nfsService.toNfsPath(rFrom);

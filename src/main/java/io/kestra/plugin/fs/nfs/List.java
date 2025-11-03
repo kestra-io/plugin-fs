@@ -7,6 +7,7 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.inject.Inject;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -54,6 +55,10 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 )
 public class List extends Task implements RunnableTask<List.Output> {
 
+    @Inject
+    @Builder.Default
+    private NfsService nfsService = NfsService.getInstance();
+    
     @Schema(title = "The directory path to list from.")
     @NotNull
     private Property<String> from;
@@ -69,7 +74,6 @@ public class List extends Task implements RunnableTask<List.Output> {
     public Output run(RunContext runContext) throws Exception {
         Logger logger = runContext.logger();
 
-        NfsService nfsService = NfsService.getInstance();
         String rFrom = runContext.render(this.from).as(String.class).orElseThrow(() -> new IllegalArgumentException("'from' property is required"));
         Optional<String> rRegExp = runContext.render(this.regExp).as(String.class);
         boolean rRecursive = runContext.render(this.recursive).as(Boolean.class).orElse(false);

@@ -7,6 +7,7 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.inject.Inject;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
@@ -40,6 +41,10 @@ import java.nio.file.Path;
     }
 )
 public class CheckMount extends Task implements RunnableTask<CheckMount.Output> {
+    
+    @Inject
+    @Builder.Default
+    private NfsService nfsService = NfsService.getInstance();
 
     @Schema(
         title = "The NFS path to check."
@@ -49,8 +54,7 @@ public class CheckMount extends Task implements RunnableTask<CheckMount.Output> 
 
     @Override
     public Output run(RunContext runContext) throws Exception {
-        NfsService nfsService = NfsService.getInstance();
-        
+                
         Logger logger = runContext.logger();
         String rPath = runContext.render(this.path).as(String.class).orElseThrow(() -> new IllegalArgumentException("`path` cannot be null or empty"));
         Path nfsPath = nfsService.toNfsPath(rPath);
