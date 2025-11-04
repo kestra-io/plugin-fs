@@ -10,11 +10,16 @@ import java.nio.file.Paths;
 @Singleton
 public class NfsService {
 
+    private static NfsService instance;
+
     private NfsService() {
     }
 
     public static NfsService getInstance() {
-        return new NfsService();
+        if (instance == null) {
+            instance = new NfsService();
+        }
+        return instance;
     }
 
     public Path toNfsPath(String path) throws IOException {
