@@ -164,7 +164,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
      private io.kestra.plugin.fs.nfs.List.File mapToFile(Path path) throws IOException {
         BasicFileAttributes attrs = Files.readAttributes(path, BasicFileAttributes.class);
-                         
+
         return io.kestra.plugin.fs.nfs.List.File.builder()
             .name(path.getFileName().toString())
             .uri(path.toUri())

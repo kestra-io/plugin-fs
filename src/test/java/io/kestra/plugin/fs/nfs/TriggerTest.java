@@ -28,7 +28,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
 @KestraTest
-class NfsTriggerTest {
+class TriggerTest {
 
     @Inject
     private RunContextFactory runContextFactory;
