@@ -54,7 +54,7 @@ dependencies {
     api group: 'org.apache.commons', name: 'commons-vfs2', version: '2.10.0'
     // SMB VFS with SMB2/3 support
     api group: 'com.github.new-proimage', name: 'vfs-jcifs-smb', version: '0.9.3'
-    api group: 'com.github.mwiede', name: 'jsch', version: '2.27.5'
+    api group: 'com.github.mwiede', name: 'jsch', version: '2.27.6'
     api 'commons-net:commons-net:3.12.0'
     api group: 'org.codelibs', name: 'jcifs', version: '2.1.40'
 
