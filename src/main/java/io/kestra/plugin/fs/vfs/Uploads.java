@@ -53,24 +53,22 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
             String[] renderedFrom = parseFromProperty(runContext);
 
             List<Upload.Output> outputs = Arrays.stream(renderedFrom).map(throwFunction(fromURI -> {
-                System.out.println(fromURI);
-                    String renderedTo = runContext.render(this.to).as(String.class).orElseThrow();
-                    return VfsService.upload(
-                        runContext,
-                        fsm,
-                        this.fsOptions(runContext),
-                        URI.create(fromURI),
-                        this.uri(runContext, renderedTo + fromURI.substring(fromURI.lastIndexOf('/') + (renderedTo.endsWith("/") ? 1 : 0)))
-                    );
-                }
-            )).toList();
+                var rTo = runContext.render(this.to).as(String.class).orElseThrow();
+                return VfsService.upload(
+                    runContext,
+                    fsm,
+                    this.fsOptions(runContext),
+                    URI.create(fromURI),
+                    this.uri(runContext, rTo + fromURI.substring(fromURI.lastIndexOf('/') + (rTo.endsWith("/") ? 1 : 0)))
+                );
+            })).toList();
 
             return Output.builder()
-                    .files(outputs.stream()
-                            .map(Upload.Output::getTo)
-                            .toList()
-                    )
-                    .build();
+                .files(outputs.stream()
+                    .map(Upload.Output::getTo)
+                    .toList()
+                )
+                .build();
         }
     }
 
@@ -85,12 +83,11 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
 
         return Objects.requireNonNull(Data.from(this.from)
                 .readAs(runContext, String.class, Object::toString)
-                .map(throwFunction(inline -> runContext.render(inline)))
+                .map(throwFunction(runContext::render))
                 .collectList()
                 .block())
             .toArray(String[]::new);
     }
-
 
     @Builder
     @Getter
