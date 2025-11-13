@@ -49,7 +49,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
                   - id: log_message
                     type: io.kestra.plugin.core.log.Log
                     message: "📩 Received UDP: {{ trigger.payload }} from {{ trigger.sourceIp }}:{{ trigger.sourcePort }}"
-            """
+                """
         )
     }
 )
@@ -115,11 +115,10 @@ public class RealtimeTrigger extends AbstractTrigger
                         emitter.next(TriggerService.generateRealtimeExecution(this, conditionContext, context, output));
 
                     } catch (SocketException se) {
-                        // ✅ Expected during shutdown; suppress noisy error
                         if (active.get()) {
                             logger.warn("Socket exception while active: {}", se.getMessage());
                         }
-                        break; // exit the receive loop
+                        break; 
                     } catch (Exception e) {
                         if (active.get()) {
                             logger.error("Error while receiving UDP packet: {}", e.getMessage(), e);

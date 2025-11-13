@@ -42,7 +42,7 @@ import java.time.Duration;
                     host: 127.0.0.1
                     port: 9090
                     payload: \"Hello from Kestra\"
-            """
+                """
         )
     }
 )

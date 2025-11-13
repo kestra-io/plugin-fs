@@ -54,7 +54,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
                   - id: log_message
                     type: io.kestra.plugin.core.log.Log
                     message: "Received {{ trigger.payload }} from {{ trigger.sourceIp }}"
-            """
+                """
         )
     }
 )

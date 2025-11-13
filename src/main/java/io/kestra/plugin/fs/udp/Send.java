@@ -40,7 +40,7 @@ import java.nio.charset.StandardCharsets;
                     host: 127.0.0.1
                     port: 8081
                     payload: "Hello via UDP"
-            """
+                """
         )
     }
 )
