@@ -9,7 +9,6 @@ import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.AbstractUtils;
 import io.micronaut.context.annotation.Prototype;
 import jakarta.inject.Inject;
-import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -18,7 +17,6 @@ import java.util.Map;
 import java.util.Objects;
 
 
-@Slf4j
 @Prototype
 public class LocalUtils {
 
