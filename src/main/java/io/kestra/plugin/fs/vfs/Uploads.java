@@ -1,6 +1,7 @@
 package io.kestra.plugin.fs.vfs;
 
 import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.property.Data;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
@@ -14,6 +15,8 @@ import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -22,15 +25,17 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Uploads.Output> {
-    @PluginProperty(dynamic = true, internalStorageURI = true)
+public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Uploads.Output>, Data.From {
     @Schema(
-            title = "The files to upload, must be internal storage URIs, must be a list of URIs or a pebble template that returns a list of URIs",
-            anyOf = {
-                    String.class,
-                    String[].class
-            }
+        title = "The files to upload, must be internal storage URIs, must be a list of URIs or a pebble template that returns a list of URIs",
+        anyOf = {
+            String.class,
+            List.class,
+            Map.class
+        },
+        description = "Must be Kestra internal storage URIs. Can be a single URI string, a list of URI strings, or an internal storage URI pointing to a file containing URIs."
     )
+    @PluginProperty(dynamic = true, internalStorageURI = true)
     @NotNull
     private Object from;
 
@@ -45,34 +50,43 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
             fsm.setConfiguration(StandardFileSystemManager.class.getResource(KestraStandardFileSystemManager.CONFIG_RESOURCE));
             fsm.init();
 
-            String[] renderedFrom;
-            if (this.from instanceof List<?> fromURIs) {
-                renderedFrom = fromURIs.stream().map(throwFunction(from -> runContext.render((String) from))).toArray(String[]::new);
-            } else {
-                renderedFrom = JacksonMapper.ofJson().readValue(runContext.render((String) this.from), String[].class);
-            }
+            String[] renderedFrom = parseFromProperty(runContext);
+
             List<Upload.Output> outputs = Arrays.stream(renderedFrom).map(throwFunction(fromURI -> {
-                if (!fromURI.startsWith("kestra://")) {
-                    throw new IllegalArgumentException("'from' must be a list of Kestra's internal storage URI");
-                }
-                String renderedTo = runContext.render(this.to).as(String.class).orElseThrow();
+                var rTo = runContext.render(this.to).as(String.class).orElseThrow();
                 return VfsService.upload(
                     runContext,
                     fsm,
                     this.fsOptions(runContext),
                     URI.create(fromURI),
-                    this.uri(runContext, renderedTo + fromURI.substring(fromURI.lastIndexOf('/') + (renderedTo.endsWith("/") ? 1 : 0)))
+                    this.uri(runContext, rTo + fromURI.substring(fromURI.lastIndexOf('/') + (rTo.endsWith("/") ? 1 : 0)))
                 );
-            }
-            )).toList();
+            })).toList();
 
             return Output.builder()
-                    .files(outputs.stream()
-                            .map(Upload.Output::getTo)
-                            .toList()
-                    )
-                    .build();
+                .files(outputs.stream()
+                    .map(Upload.Output::getTo)
+                    .toList()
+                )
+                .build();
         }
+    }
+
+    private String[] parseFromProperty(RunContext runContext) throws Exception {
+        if (this.from instanceof String from) {
+            var rFrom = runContext.render(from).trim();
+
+            if (rFrom.startsWith("[") && rFrom.endsWith("]")) {
+                return JacksonMapper.ofJson().readValue(rFrom, String[].class);
+            }
+        }
+
+        return Objects.requireNonNull(Data.from(this.from)
+                .readAs(runContext, String.class, Object::toString)
+                .map(throwFunction(runContext::render))
+                .collectList()
+                .block())
+            .toArray(String[]::new);
     }
 
     @Builder
