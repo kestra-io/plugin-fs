@@ -1,0 +1,8 @@
+group: io.kestra.plugin.fs
+name: "fs"
+title: "File system"
+description: "Perform file system tasks in Kestra data orchestration pipelines."
+body: ""
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"

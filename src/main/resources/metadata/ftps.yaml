@@ -1,0 +1,8 @@
+group: io.kestra.plugin.fs.ftps
+name: "ftps"
+title: "FTPS (File Transfer Protocol Secure)"
+description: "This sub-group of plugins contains tasks for accessing files using the FTPS protocol."
+body: ""
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"

@@ -1,0 +1,8 @@
+group: io.kestra.plugin.fs.ftp
+name: "ftp"
+title: "FTP (File Transfer Protocol)"
+description: "This sub-group of plugins contains tasks for accessing files using the FTP protocol."
+body: ""
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"
