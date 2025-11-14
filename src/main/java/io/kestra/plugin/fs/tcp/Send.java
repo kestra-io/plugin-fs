@@ -38,7 +38,7 @@ import java.time.Duration;
 
                 tasks:
                   - id: send_tcp
-                    type: io.kestra.plugin.fs.tcp.TcpSend
+                    type: io.kestra.plugin.fs.tcp.Send
                     host: 127.0.0.1
                     port: 9090
                     payload: \"Hello from Kestra\"
