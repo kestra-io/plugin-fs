@@ -106,7 +106,7 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
     private Property<String> regExp;
 
     @Schema(
-        title = "List file recursively"
+        title = "List files recursively"
     )
     @Builder.Default
     private Property<Boolean> recursive = Property.ofValue(false);

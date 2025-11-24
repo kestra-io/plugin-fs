@@ -5,13 +5,13 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 public interface SftpInterface {
     @Schema(
-        title = "Private keyfile in the PEM file format to connect to a remote server using SSH",
-        description = "To generate a PEM format key from OpenSSH, use the following command: `ssh-keygen -m PEM`"
+        title = "Private key file in the PEM format to connect to a remote server using SSH",
+        description = "To generate a PEM-format key from OpenSSH, use the following command: `ssh-keygen -m PEM`"
     )
     Property<String> getKeyfile();
 
     @Schema(
-        title = "Passphrase of the ssh key"
+        title = "Passphrase for the SSH key"
     )
     Property<String> getPassphrase();
 
@@ -55,12 +55,12 @@ public interface SftpInterface {
     Property<String> getProxyType();
 
     @Schema(
-        title = "Is the path relative to the users home directory"
+        title = "Is the path relative to the user's home directory"
     )
     Property<Boolean> getRootDir();
 
     @Schema(
-        title = "Configures Key exchange algorithm explicitly e. g diffie-hellman-group14-sha1, diffie-hellman-group-exchange-sha256, diffie-hellman-group-exchange-sha1, diffie-hellman-group1-sha1."
+        title = "Configures the key exchange algorithm explicitly (e.g., diffie-hellman-group14-sha1, diffie-hellman-group-exchange-sha256, diffie-hellman-group-exchange-sha1, diffie-hellman-group1-sha1)."
     )
     Property<String> getKeyExchangeAlgorithm();
 }

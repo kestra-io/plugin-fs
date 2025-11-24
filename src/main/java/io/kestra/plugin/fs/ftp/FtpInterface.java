@@ -26,7 +26,7 @@ public interface FtpInterface {
     Property<Proxy.Type> getProxyType();
 
     @Schema(
-        title = "Is the path relative to the users home directory"
+        title = "Is the path relative to the user's home directory"
     )
     Property<Boolean> getRootDir();
 
@@ -36,7 +36,7 @@ public interface FtpInterface {
     Property<Boolean> getPassiveMode();
 
     @Schema(
-        title = "Control that the server ip that emit the request is the same than send response."
+        title = "Ensure the server IP responding matches the one that received the request."
     )
     Property<Boolean> getRemoteIpVerification();
 
@@ -65,15 +65,15 @@ public interface FtpInterface {
         Property<Duration> socketTimeout = Property.ofValue(Duration.ofSeconds(30));
 
         @Schema(
-            title = "the control keep alive timeout.",
-            description = "to ensure the socket be alive after download huge file."
+            title = "The control keep-alive timeout.",
+            description = "Ensures the socket stays alive after downloading a large file."
         )
         @Builder.Default
         Property<Duration> controlKeepAliveTimeout = Property.ofValue(Duration.ofSeconds(30));
 
         @Schema(
-            title = "The control keep alive reply timeout.",
-            description = "to ensure the socket be alive after download huge file."
+            title = "The control keep-alive reply timeout.",
+            description = "Ensures the socket stays alive after downloading a large file."
         )
         @Builder.Default
         Property<Duration> controlKeepAliveReplyTimeout = Property.ofValue(Duration.ofSeconds(30));
