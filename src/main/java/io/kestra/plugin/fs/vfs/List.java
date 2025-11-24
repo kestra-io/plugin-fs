@@ -17,7 +17,7 @@ import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 @NoArgsConstructor
 public abstract class List extends AbstractVfsTask implements RunnableTask<List.Output> {
     @Schema(
-        title = "The fully-qualified URIs that point to path"
+        title = "The fully-qualified URIs that point to a path"
     )
     @NotNull
     protected Property<String> from;
@@ -28,7 +28,7 @@ public abstract class List extends AbstractVfsTask implements RunnableTask<List.
     private Property<String> regExp;
 
     @Schema(
-        title = "List file recursively"
+        title = "List files recursively"
     )
     @Builder.Default
     private Property<Boolean> recursive = Property.ofValue(false);

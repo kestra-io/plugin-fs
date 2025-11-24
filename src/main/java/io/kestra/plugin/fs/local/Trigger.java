@@ -89,7 +89,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     private Property<String> from;
 
     @Schema(
-        title = "The destination directory in case off `MOVE` "
+        title = "The destination directory in case of `MOVE`"
     )
     private Property<String> moveDirectory;
 
@@ -101,7 +101,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     private Property<Boolean> recursive = Property.ofValue(false);
 
     @Schema(
-        title = "The action to do on downloaded files"
+        title = "The action to take on downloaded files"
     )
     @Builder.Default
     private Property<Downloads.Action> action = Property.ofValue(Downloads.Action.NONE);
@@ -220,4 +220,3 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     }
 
 }
-

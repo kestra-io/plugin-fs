@@ -32,7 +32,7 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
     private Property<String> from;
 
     @Schema(
-        title = "The action to do on downloaded files"
+        title = "The action to take on downloaded files"
     )
     private Property<Downloads.Action> action;
 
@@ -47,7 +47,7 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
     private Property<String> regExp;
 
     @Schema(
-        title = "List file recursively"
+        title = "List files recursively"
     )
     @Builder.Default
     private Property<Boolean> recursive = Property.ofValue(false);

@@ -39,7 +39,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @NoArgsConstructor
 public abstract class Trigger extends AbstractTrigger implements PollingTriggerInterface, AbstractVfsInterface, TriggerOutput<Trigger.Output>, StatefulTriggerInterface {
     @Schema(
-        title = "The interval between test of triggers"
+        title = "The interval between trigger checks"
     )
     @Builder.Default
     private final Duration interval = Duration.ofSeconds(60);
@@ -61,7 +61,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
     private Property<Downloads.Action> action;
 
     @Schema(
-        title = "The destination directory in case off `MOVE` "
+        title = "The destination directory in case of `MOVE`"
     )
     private Property<String> moveDirectory;
 
@@ -71,7 +71,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
     private Property<String> regExp;
 
     @Schema(
-        title = "List file recursively"
+        title = "List files recursively"
     )
     @Builder.Default
     private Property<Boolean> recursive = Property.ofValue(false);

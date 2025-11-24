@@ -27,7 +27,7 @@ import java.net.Proxy;
 @Plugin(
     examples = {
         @Example(
-            title = "Download a list of files and move it to an archive folders",
+            title = "Download a list of files and move them to an archive folder",
             full = true,
             code = """
                 id: fs_ftps_downloads
