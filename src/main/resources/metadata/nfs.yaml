@@ -1,0 +1,8 @@
+group: io.kestra.plugin.fs.nfs
+name: "nfs"
+title: "NFS"
+description: "This sub-group of plugins contains tasks for interacting with Network File System (NFS) mounts."
+body: ""
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"

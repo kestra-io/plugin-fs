@@ -1,0 +1,8 @@
+group: io.kestra.plugin.fs.ssh
+name: "ssh"
+title: "SSH (Secure Shell)"
+description: "This sub-group of plugins contains tasks for sending SSH commands."
+body: ""
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"

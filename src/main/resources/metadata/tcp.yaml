@@ -1,0 +1,8 @@
+group: io.kestra.plugin.fs.tcp
+name: "tcp"
+title: "TCP"
+description: "This sub-group of plugins provides tasks and triggers for interacting with TCP socket connections — including sending and receiving data over TCP."
+body: ""
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"
