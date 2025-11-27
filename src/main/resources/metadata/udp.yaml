@@ -1,0 +1,8 @@
+group: io.kestra.plugin.fs.udp
+name: "udp"
+title: "DP"
+description: "This sub-group of plugins provides tasks and triggers for interacting with UDP socket connections — including sending and receiving data over UDP."
+body: ""
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"

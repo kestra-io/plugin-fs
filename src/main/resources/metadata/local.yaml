@@ -1,0 +1,8 @@
+group: io.kestra.plugin.fs.local
+name: "local"
+title: "Local"
+description: "This sub-group of plugins contains tasks for accessing files using the local file system."
+body: ""
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"
