@@ -1,8 +1,8 @@
 group: io.kestra.plugin.fs.smb
 name: "smb"
 title: "SMB (Server Message Block)"
-description: "This sub-group of plugins contains tasks for accessing files using the SMB protocol (Samba, for example)."
-body: ""
+description: "Tasks that exchange files over SMB/CIFS shares."
+body: "Set the SMB share URL, domain/user credentials, and remote/local paths to list, upload, download, move, or delete files; supports NTLM auth options so workflows can interact with Samba or Windows shares."
 videos: []
 createdBy: "Kestra Core Team"
 managedBy: "Kestra Core Team"

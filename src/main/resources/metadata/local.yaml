@@ -1,8 +1,8 @@
 group: io.kestra.plugin.fs.local
 name: "local"
 title: "Local"
-description: "This sub-group of plugins contains tasks for accessing files using the local file system."
-body: ""
+description: "Tasks that manipulate files on the local file system."
+body: "Use local path inputs to upload, download, list, copy, move, or delete files and enable the polling trigger to react to new or modified files in directories."
 videos: []
 createdBy: "Kestra Core Team"
 managedBy: "Kestra Core Team"

@@ -1,8 +1,8 @@
 group: io.kestra.plugin.fs.sftp
 name: "sftp"
 title: "SFTP (SSH File Transfer Protocol)"
-description: "This sub-group of plugins contains tasks for accessing files using the SFTP protocol."
-body: ""
+description: "Tasks that manage files over SFTP with SSH authentication."
+body: "Provide host/port plus username and password or private key, then list, upload, download, move, or delete files and enable triggers for new remote files using remote/local paths and optional host key settings."
 videos: []
 createdBy: "Kestra Core Team"
 managedBy: "Kestra Core Team"
