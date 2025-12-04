@@ -1,8 +1,8 @@
 group: io.kestra.plugin.fs.ftp
 name: "ftp"
 title: "FTP (File Transfer Protocol)"
-description: "This sub-group of plugins contains tasks for accessing files using the FTP protocol."
-body: ""
+description: "Tasks that list, transfer, move, delete, and watch files over FTP."
+body: "Provide FTP host/port, username/password (and passive/binary options) with remote and local paths to upload or download single or multiple files, move or delete them, and use the trigger to start flows when new files arrive."
 videos: []
 createdBy: "Kestra Core Team"
 managedBy: "Kestra Core Team"
