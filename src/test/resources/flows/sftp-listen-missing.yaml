@@ -1,4 +1,4 @@
-id: sftp-listen
+id: sftp-listen-missing
 namespace: io.kestra.tests
 
 triggers:
@@ -8,7 +8,7 @@ triggers:
     port: 6622
     username: foo
     password: pass*+=
-    from: "/upload/trigger/missing/sftp-listen"
+    from: "/upload/trigger/missing/sftp-listen/"
     interval: PT10S
     action: MOVE
     moveDirectory: "/upload/trigger-move/"

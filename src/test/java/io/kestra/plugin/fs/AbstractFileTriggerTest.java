@@ -179,18 +179,16 @@ public abstract class AbstractFileTriggerTest {
                 }
             });
 
+            String file = FriendlyId.createFriendlyId();
+            utils().upload("/upload/trigger/missing/" + triggeringFlowId() + "/" + file);
 
             worker.run();
             scheduler.run();
             repositoryLoader.load(Objects.requireNonNull(AbstractFileTriggerTest.class.getClassLoader().getResource("flows")));
 
-            Thread.sleep(1000);
-
-            String file = FriendlyId.createFriendlyId();
-            utils().upload("/upload/trigger/missing/" + triggeringFlowId() + "/" + file);
-
             boolean await = queueCount.await(10, TimeUnit.SECONDS);
             assertThat(await, is(true));
+            receive.blockLast();
 
             @SuppressWarnings("unchecked")
             java.util.List<URI> trigger = (java.util.List<URI>) last.get().getTrigger().getVariables().get("files");
