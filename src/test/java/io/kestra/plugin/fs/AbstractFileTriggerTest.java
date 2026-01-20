@@ -180,7 +180,7 @@ public abstract class AbstractFileTriggerTest {
             });
 
             String file = FriendlyId.createFriendlyId();
-            utils().upload("/upload/trigger/missing/" + triggeringFlowId() + "/" + file);
+            utils().upload("/upload/trigger-missing/" + file);
 
             worker.run();
             scheduler.run();
@@ -195,7 +195,7 @@ public abstract class AbstractFileTriggerTest {
 
             assertThat(trigger.size(), is(1));
 
-            utils().delete("/upload/trigger/missing/" + file);
+            utils().delete("/upload/trigger-missing/" + file);
         }
     }
 }

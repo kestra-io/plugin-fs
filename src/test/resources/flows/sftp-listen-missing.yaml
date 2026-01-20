@@ -8,10 +8,10 @@ triggers:
     port: 6622
     username: foo
     password: pass*+=
-    from: "/upload/trigger/missing/sftp-listen/"
+    from: "/upload/trigger-missing/"
     interval: PT10S
     action: MOVE
-    moveDirectory: "/upload/trigger-move/"
+    moveDirectory: "/upload/trigger-move-missing/"
 
 tasks:
   - id: end
