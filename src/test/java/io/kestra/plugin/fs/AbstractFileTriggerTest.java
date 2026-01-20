@@ -157,11 +157,11 @@ public abstract class AbstractFileTriggerTest {
     }
 
     @Test
-    @Disabled("don't work on github action")
     void missing() throws Exception {
         // mock flow listeners
         CountDownLatch queueCount = new CountDownLatch(1);
 
+        AtomicReference<Execution> last = new AtomicReference<>();
         // scheduler
         try (
             AbstractScheduler scheduler = new JdbcScheduler(
@@ -172,8 +172,11 @@ public abstract class AbstractFileTriggerTest {
         ) {
             // wait for execution
             Flux<Execution> receive = TestsUtils.receive(executionQueue, execution -> {
-                queueCount.countDown();
-                assertThat(execution.getLeft().getFlowId(), is("sftp-listen"));
+                if (execution.getLeft().getFlowId().equals(triggeringFlowId())){
+                    last.set(execution.getLeft());
+
+                    queueCount.countDown();
+                }
             });
 
 
@@ -190,7 +193,7 @@ public abstract class AbstractFileTriggerTest {
             assertThat(await, is(true));
 
             @SuppressWarnings("unchecked")
-            java.util.List<URI> trigger = (java.util.List<URI>) receive.blockLast().getTrigger().getVariables().get("files");
+            java.util.List<URI> trigger = (java.util.List<URI>) last.get().getTrigger().getVariables().get("files");
 
             assertThat(trigger.size(), is(1));
 
