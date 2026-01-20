@@ -157,11 +157,11 @@ public abstract class AbstractFileTriggerTest {
     }
 
     @Test
-    @Disabled("don't work on github action")
     void missing() throws Exception {
         // mock flow listeners
         CountDownLatch queueCount = new CountDownLatch(1);
 
+        AtomicReference<Execution> last = new AtomicReference<>();
         // scheduler
         try (
             AbstractScheduler scheduler = new JdbcScheduler(
@@ -172,29 +172,30 @@ public abstract class AbstractFileTriggerTest {
         ) {
             // wait for execution
             Flux<Execution> receive = TestsUtils.receive(executionQueue, execution -> {
-                queueCount.countDown();
-                assertThat(execution.getLeft().getFlowId(), is("sftp-listen"));
+                if (execution.getLeft().getFlowId().equals(triggeringFlowId() + "-missing")){
+                    last.set(execution.getLeft());
+
+                    queueCount.countDown();
+                }
             });
 
+            String file = FriendlyId.createFriendlyId();
+            utils().upload("/upload/trigger-missing/" + file);
 
             worker.run();
             scheduler.run();
             repositoryLoader.load(Objects.requireNonNull(AbstractFileTriggerTest.class.getClassLoader().getResource("flows")));
 
-            Thread.sleep(1000);
-
-            String out1 = FriendlyId.createFriendlyId();
-            utils().upload("/upload/trigger/" + out1);
-
             boolean await = queueCount.await(10, TimeUnit.SECONDS);
             assertThat(await, is(true));
+            receive.blockLast();
 
             @SuppressWarnings("unchecked")
-            java.util.List<URI> trigger = (java.util.List<URI>) receive.blockLast().getTrigger().getVariables().get("files");
+            java.util.List<URI> trigger = (java.util.List<URI>) last.get().getTrigger().getVariables().get("files");
 
             assertThat(trigger.size(), is(1));
 
-            utils().delete("/upload/trigger/" + out1);
+            utils().delete("/upload/trigger-missing/" + file);
         }
     }
 }
