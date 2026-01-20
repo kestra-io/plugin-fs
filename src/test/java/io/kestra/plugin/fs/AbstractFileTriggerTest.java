@@ -172,7 +172,7 @@ public abstract class AbstractFileTriggerTest {
         ) {
             // wait for execution
             Flux<Execution> receive = TestsUtils.receive(executionQueue, execution -> {
-                if (execution.getLeft().getFlowId().equals(triggeringFlowId())){
+                if (execution.getLeft().getFlowId().equals(triggeringFlowId() + "-missing")){
                     last.set(execution.getLeft());
 
                     queueCount.countDown();
@@ -187,8 +187,7 @@ public abstract class AbstractFileTriggerTest {
             Thread.sleep(1000);
 
             String file = FriendlyId.createFriendlyId();
-            String dir = FriendlyId.createFriendlyId();
-            utils().upload("/upload/trigger/" + dir  + "/" + file);
+            utils().upload("/upload/trigger/missing/" + triggeringFlowId() + "/" + file);
 
             boolean await = queueCount.await(10, TimeUnit.SECONDS);
             assertThat(await, is(true));
@@ -198,7 +197,7 @@ public abstract class AbstractFileTriggerTest {
 
             assertThat(trigger.size(), is(1));
 
-            utils().delete("/upload/trigger/" + dir + "/" + file);
+            utils().delete("/upload/trigger/missing/" + file);
         }
     }
 }
