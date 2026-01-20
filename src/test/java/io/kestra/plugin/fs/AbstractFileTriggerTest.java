@@ -186,8 +186,9 @@ public abstract class AbstractFileTriggerTest {
 
             Thread.sleep(1000);
 
-            String out1 = FriendlyId.createFriendlyId();
-            utils().upload("/upload/trigger/" + out1);
+            String file = FriendlyId.createFriendlyId();
+            String dir = FriendlyId.createFriendlyId();
+            utils().upload("/upload/trigger/" + dir  + "/" + file);
 
             boolean await = queueCount.await(10, TimeUnit.SECONDS);
             assertThat(await, is(true));
@@ -197,7 +198,7 @@ public abstract class AbstractFileTriggerTest {
 
             assertThat(trigger.size(), is(1));
 
-            utils().delete("/upload/trigger/" + out1);
+            utils().delete("/upload/trigger/" + dir + "/" + file);
         }
     }
 }
