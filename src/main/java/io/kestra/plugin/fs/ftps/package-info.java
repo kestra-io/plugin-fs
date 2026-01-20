@@ -1,7 +1,6 @@
 @PluginSubGroup(
     title = "FTPS (File Transfer Protocol Secure)",
     description = "This sub-group of plugins contains tasks for accessing files using the FTPS protocol.",
-    categories = PluginSubGroup.PluginCategory.STORAGE,
     categories = {
         PluginSubGroup.PluginCategory.DATA,
         PluginSubGroup.PluginCategory.INFRASTRUCTURE
