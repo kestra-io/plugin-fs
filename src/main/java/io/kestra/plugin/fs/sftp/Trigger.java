@@ -28,7 +28,7 @@ import java.io.IOException;
             code = """
                 id: sftp_trigger_flow
                 namespace: company.team
-                
+
                 tasks:
                   - id: for_each_file
                     type: io.kestra.plugin.core.flow.ForEach
@@ -37,7 +37,7 @@ import java.io.IOException;
                       - id: return
                         type: io.kestra.plugin.core.debug.Return
                         format: "{{ taskrun.value | jq('.path') }}"
-                
+
                 triggers:
                   - id: watch
                     type: io.kestra.plugin.fs.sftp.Trigger
@@ -57,7 +57,7 @@ import java.io.IOException;
             code = """
                 id: sftp_trigger_flow
                 namespace: company.team
-                
+
                 tasks:
                   - id: for_each_file
                     type: io.kestra.plugin.core.flow.ForEach
@@ -71,16 +71,16 @@ import java.io.IOException;
                         host: localhost
                         port: 6622
                         username: foo
-                        password: bar
+                        password: "{{ secret('SFTP_PASSWORD') }}"
                         uri: "/in/{{ taskrun.value }}"
-                
+
                 triggers:
                   - id: watch
                     type: io.kestra.plugin.fs.sftp.Trigger
                     host: localhost
                     port: 6622
                     username: foo
-                    password: bar
+                    password: "{{ secret('SFTP_PASSWORD') }}"
                     from: "/in/"
                     interval: PT10S
                     action: NONE
@@ -101,21 +101,21 @@ import java.io.IOException;
                       - id: return
                         type: io.kestra.plugin.core.debug.Return
                         format: "{{ taskrun.value | jq('.path') }}"
-                
+
                 triggers:
                   - id: watch
                     type: io.kestra.plugin.fs.sftp.Trigger
                     host: localhost
                     port: "6622"
                     username: foo
-                    password: bar
+                    password: "{{ secret('SFTP_PASSWORD') }}"
                     from: "mydir/"
                     regExp: ".*.csv"
                     action: MOVE
                     moveDirectory: "archive/"
-                    interval: PTS
+                    interval: PT10S
                 """
-        )          
+        )
     }
 )
 public class Trigger extends io.kestra.plugin.fs.vfs.Trigger implements SftpInterface {

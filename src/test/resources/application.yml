@@ -24,6 +24,10 @@ kestra:
         values:
           allowed-paths:
             - /tmp
+      - type: io.kestra.plugin.fs.local.Downloads
+        values:
+          allowed-paths:
+            - /tmp
       - type: io.kestra.plugin.fs.local.Upload
         values:
           allowed-paths:

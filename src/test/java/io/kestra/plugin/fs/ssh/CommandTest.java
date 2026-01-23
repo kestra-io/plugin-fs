@@ -32,7 +32,7 @@ class CommandTest {
     void run_passwordMethod() throws Exception {
         Command command = Command.builder()
             .id(IdUtils.create())
-            .type(CommandTest.class.getName())
+            .type(Command.class.getName())
             .host(Property.ofValue("localhost"))
             .username(USERNAME)
             .authMethod(Property.ofValue(AuthMethod.PASSWORD))
@@ -70,7 +70,7 @@ class CommandTest {
 
         Command command = Command.builder()
             .id(IdUtils.create())
-            .type(CommandTest.class.getName())
+            .type(Command.class.getName())
             .host(Property.ofValue("localhost"))
             .username(USERNAME)
             .authMethod(Property.ofValue(AuthMethod.PUBLIC_KEY))
@@ -97,12 +97,12 @@ class CommandTest {
     }
 
     @Test
-    @Disabled("Cannot work on CI")
     void run_openSSHMethod() throws Exception {
         Command command = Command.builder()
-            .id(CommandTest.class.getName())
-            .type(CommandTest.class.getName())
+            .id(IdUtils.create())
+            .type(Command.class.getName())
             .host(Property.ofValue("localhost"))
+            .openSSHConfigPath(Property.ofValue("src/test/resources/ssh/config"))
             .password(PASSWORD)
             .authMethod(Property.ofValue(AuthMethod.OPEN_SSH))
             .port(Property.ofValue("2222"))
