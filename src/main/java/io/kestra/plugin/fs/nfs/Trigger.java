@@ -92,6 +92,12 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @Schema(title = "Time-to-live for the trigger state.")
     private Property<Duration> stateTtl;
 
+    @Builder.Default
+    @Schema(
+        title = "The maximum number of files to retrieve at once"
+    )
+    private Property<Integer> maxFiles = Property.ofValue(25);
+
     @Override
     public Duration getInterval() {
         return this.interval;
@@ -154,6 +160,11 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
         if (toFire.isEmpty()) {
             logger.debug("No new or updated files found.");
+            return Optional.empty();
+        }
+
+        if (toFire.size() > runContext.render(this.maxFiles).as(Integer.class).orElse(25)) {
+            logger.warn("Too many files to process, skipping");
             return Optional.empty();
         }
 

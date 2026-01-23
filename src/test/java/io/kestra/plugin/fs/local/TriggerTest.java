@@ -149,6 +149,31 @@ class TriggerTest extends AbstractTriggerTest {
     }
 
     @Test
+    void maxFilesShouldSkipExecution() throws Exception {
+        Path sourceDir = Paths.get("/tmp/trigger-maxfiles");
+        Files.createDirectories(sourceDir);
+
+        try {
+            Files.writeString(sourceDir.resolve("file1.txt"), "file1");
+            Files.writeString(sourceDir.resolve("file2.txt"), "file2");
+
+            io.kestra.plugin.fs.local.Trigger trigger = io.kestra.plugin.fs.local.Trigger.builder()
+                .id(TriggerTest.class.getSimpleName())
+                .type(io.kestra.plugin.fs.local.Trigger.class.getName())
+                .from(Property.ofValue(sourceDir.toString()))
+                .maxFiles(Property.ofValue(1))
+                .build();
+
+            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
+
+            assertThat(execution.isEmpty(), is(true));
+        } finally {
+            cleanup(sourceDir);
+        }
+    }
+
+    @Test
     void moveWithRegexAndRecursiveShouldPreserveDirectoryStructure() throws Exception {
         Path sourceDir = Paths.get("/tmp/test-recursive");
         Path subDir1 = sourceDir.resolve("subdir1");

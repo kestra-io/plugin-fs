@@ -111,6 +111,12 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
     @Builder.Default
     private Property<Boolean> recursive = Property.ofValue(false);
 
+    @Builder.Default
+    @Schema(
+        title = "The maximum number of files to retrieve at once"
+    )
+    private Property<Integer> maxFiles = Property.ofValue(25);
+
     static void performAction(
         java.util.List<File> files,
         Action action,
@@ -166,9 +172,19 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
             .from(Property.ofValue(renderedFrom))
             .regExp(this.regExp)
             .recursive(this.recursive)
+            .maxFiles(this.maxFiles)
             .build();
 
         io.kestra.plugin.fs.local.List.Output listOutput = listTask.run(runContext);
+
+        int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
+        if (listOutput.getFiles().size() > rMaxFiles) {
+            runContext.logger().warn("Too many files to process, skipping");
+            return Output.builder()
+                .files(java.util.List.of())
+                .outputFiles(Map.of())
+                .build();
+        }
 
         List<File> downloadedFiles = listOutput
             .getFiles()

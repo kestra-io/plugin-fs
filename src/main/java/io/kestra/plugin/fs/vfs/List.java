@@ -33,12 +33,18 @@ public abstract class List extends AbstractVfsTask implements RunnableTask<List.
     @Builder.Default
     private Property<Boolean> recursive = Property.ofValue(false);
 
+    @Builder.Default
+    @Schema(
+        title = "The maximum number of files to retrieve at once"
+    )
+    private Property<Integer> maxFiles = Property.ofValue(25);
+
     public Output run(RunContext runContext) throws Exception {
         try (StandardFileSystemManager fsm = new KestraStandardFileSystemManager(runContext)) {
             fsm.setConfiguration(StandardFileSystemManager.class.getResource(KestraStandardFileSystemManager.CONFIG_RESOURCE));
             fsm.init();
 
-            return VfsService.list(
+            Output output = VfsService.list(
                 runContext,
                 fsm,
                 this.fsOptions(runContext),
@@ -46,6 +52,16 @@ public abstract class List extends AbstractVfsTask implements RunnableTask<List.
                 runContext.render(this.regExp).as(String.class).orElse(null),
                 runContext.render(this.recursive).as(Boolean.class).orElse(false)
             );
+
+            int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
+            if (output.getFiles().size() > rMaxFiles) {
+                runContext.logger().warn("Too many files to process, skipping");
+                return Output.builder()
+                    .files(java.util.List.of())
+                    .build();
+            }
+
+            return output;
         }
     }
 

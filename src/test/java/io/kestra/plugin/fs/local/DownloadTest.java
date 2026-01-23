@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
+import java.util.Comparator;
 import java.util.Map;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -71,5 +72,35 @@ class DownloadTest {
             IllegalArgumentException.class,
             () -> task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()))
         );
+    }
+
+    @Test
+    void downloadsWithMaxFiles() throws Exception {
+        Path tempDir = Files.createTempDirectory(Path.of(Paths.get("/tmp").toAbsolutePath().toUri()), "kestra-test-downloads-");
+        try {
+            Files.writeString(tempDir.resolve("file1.txt"), "content1");
+            Files.writeString(tempDir.resolve("file2.txt"), "content2");
+
+            Downloads task = Downloads.builder()
+                .id(DownloadTest.class.getSimpleName())
+                .type(Downloads.class.getName())
+                .from(Property.ofValue(tempDir.toString()))
+                .maxFiles(Property.ofValue(1))
+                .build();
+
+            Downloads.Output output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+            assertThat(output.getFiles().isEmpty(), is(true));
+            assertThat(output.getOutputFiles().isEmpty(), is(true));
+        } finally {
+            Files.walk(tempDir)
+                .sorted(Comparator.reverseOrder())
+                .forEach(path -> {
+                    try {
+                        Files.deleteIfExists(path);
+                    } catch (IOException ignored) {
+                    }
+                });
+        }
     }
 }

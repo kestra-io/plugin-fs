@@ -112,9 +112,16 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
     private Property<Duration> stateTtl;
 
+    @Builder.Default
+    @Schema(
+        title = "The maximum number of files to retrieve at once"
+    )
+    private Property<Integer> maxFiles = Property.ofValue(25);
+
     @Override
     public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext triggerContext) throws Exception {
         RunContext runContext = conditionContext.getRunContext();
+        var logger = runContext.logger();
         var rOn = runContext.render(on).as(On.class).orElse(On.CREATE_OR_UPDATE);
         var rStateKey = runContext.render(stateKey).as(String.class).orElse(StatefulTriggerService.defaultKey(triggerContext.getNamespace(), triggerContext.getFlowId(), id));
         var rStateTtl = runContext.render(stateTtl).as(Duration.class);
@@ -126,6 +133,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .from(Property.ofValue(rFrom))
             .regExp(this.regExp)
             .recursive(this.recursive)
+            .maxFiles(this.maxFiles)
             .build();
 
         io.kestra.plugin.fs.local.List.Output listOutput = listTask.run(runContext);
@@ -180,6 +188,11 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         writeState(runContext, rStateKey, state, rStateTtl);
 
         if (toFire.isEmpty()) {
+            return Optional.empty();
+        }
+
+        if (toFire.size() > runContext.render(this.maxFiles).as(Integer.class).orElse(25)) {
+            logger.warn("Too many files to process, skipping");
             return Optional.empty();
         }
 
