@@ -3,20 +3,15 @@ package io.kestra.plugin.fs.local;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.property.Property;
-import io.kestra.core.models.tasks.*;
+import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
-import io.kestra.core.utils.FileUtils;
 import io.kestra.plugin.fs.local.models.File;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
-import java.io.IOException;
 import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.AbstractMap;
 import java.util.List;
 import java.util.Map;
@@ -111,6 +106,11 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
     @Builder.Default
     private Property<Boolean> recursive = Property.ofValue(false);
 
+    @Schema(
+        title = "The maximum number of files to retrieve at once"
+    )
+    private Property<Integer> maxFiles;
+
     static void performAction(
         java.util.List<File> files,
         Action action,
@@ -166,12 +166,20 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
             .from(Property.ofValue(renderedFrom))
             .regExp(this.regExp)
             .recursive(this.recursive)
+            .maxFiles(this.maxFiles)
             .build();
 
         io.kestra.plugin.fs.local.List.Output listOutput = listTask.run(runContext);
 
-        List<File> downloadedFiles = listOutput
-            .getFiles()
+        Integer rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(null);
+        List<File> listFiles = listOutput.getFiles();
+        if (rMaxFiles != null && listFiles.size() > rMaxFiles) {
+            runContext.logger().warn("Too many files to process ({}), limiting to {}", listFiles.size(), rMaxFiles);
+            int limit = Math.min(rMaxFiles, listFiles.size());
+            listFiles = listFiles.subList(0, limit);
+        }
+
+        List<File> downloadedFiles = listFiles
             .stream()
             .map(throwFunction(fileItem -> {
                 if (fileItem.isDirectory()) {

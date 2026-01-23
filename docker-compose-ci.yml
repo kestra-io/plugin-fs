@@ -52,7 +52,7 @@ services:
       - 2222:2222
     restart: unless-stopped
     volumes:
-      - ${PWD}/src/test/resources/ssh/id_ed25519.pub:/app/ssh/id_ed25519.pub
+      - ${PWD}/src/test/resources/ssh/id_rsa.pub:/app/ssh/id_rsa.pub
 
   samba:
     image: elswork/samba

@@ -14,7 +14,7 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 
 import java.time.Duration;
-import java.util.*;
+import java.util.Optional;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -100,6 +100,11 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @Builder.Default
     private Property<Downloads.Action> action = Property.ofValue(Downloads.Action.NONE);
 
+    @Schema(
+        title = "The maximum number of files to retrieve at once"
+    )
+    private Property<Integer> maxFiles;
+
     @Override
     public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext triggerContext) throws Exception {
         RunContext runContext = conditionContext.getRunContext();
@@ -112,6 +117,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .from(Property.ofValue(renderedFrom))
             .regExp(this.regExp)
             .recursive(this.recursive)
+            .maxFiles(this.maxFiles)
             .build();
 
         io.kestra.plugin.fs.local.List.Output listOutput = listTask.run(runContext);

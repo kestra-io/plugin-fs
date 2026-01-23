@@ -40,18 +40,31 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
     @NotNull
     private Property<String> to;
 
+    @Schema(
+        title = "The maximum number of files to retrieve at once"
+    )
+    private Property<Integer> maxFiles;
+
     public Output run(RunContext runContext) throws Exception {
         try (StandardFileSystemManager fsm = new KestraStandardFileSystemManager(runContext)) {
             fsm.setConfiguration(StandardFileSystemManager.class.getResource(KestraStandardFileSystemManager.CONFIG_RESOURCE));
             fsm.init();
-
             String[] renderedFrom;
             if (this.from instanceof List<?> fromURIs) {
                 renderedFrom = fromURIs.stream().map(throwFunction(from -> runContext.render((String) from))).toArray(String[]::new);
             } else {
                 renderedFrom = JacksonMapper.ofJson().readValue(runContext.render((String) this.from), String[].class);
             }
-            List<Upload.Output> outputs = Arrays.stream(renderedFrom).map(throwFunction(fromURI -> {
+
+            Integer rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(null);
+            String[] limitedFrom = renderedFrom;
+            if (rMaxFiles != null && renderedFrom.length > rMaxFiles) {
+                runContext.logger().warn("Too many files to process ({}), limiting to {}", renderedFrom.length, rMaxFiles);
+                int limit = Math.min(rMaxFiles, renderedFrom.length);
+                limitedFrom = Arrays.copyOfRange(renderedFrom, 0, limit);
+            }
+
+            List<Upload.Output> outputs = Arrays.stream(limitedFrom).map(throwFunction(fromURI -> {
                 if (!fromURI.startsWith("kestra://")) {
                     throw new IllegalArgumentException("'from' must be a list of Kestra's internal storage URI");
                 }

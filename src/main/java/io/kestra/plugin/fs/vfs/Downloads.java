@@ -52,6 +52,11 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
     @Builder.Default
     private Property<Boolean> recursive = Property.ofValue(false);
 
+    @Schema(
+        title = "The maximum number of files to retrieve at once"
+    )
+    private Property<Integer> maxFiles;
+
     public Output run(RunContext runContext) throws Exception {
         Logger logger = runContext.logger();
 
@@ -80,7 +85,15 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
                 .filter(file -> file.getFileType() == FileType.FILE)
                 .toList();
 
-            java.util.List<io.kestra.plugin.fs.vfs.models.File> list = files
+            Integer rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(null);
+            java.util.List<io.kestra.plugin.fs.vfs.models.File> limitedFiles = files;
+            if (rMaxFiles != null && files.size() > rMaxFiles) {
+                logger.warn("Too many files to process ({}), limiting to {}", files.size(), rMaxFiles);
+                int limit = Math.min(rMaxFiles, files.size());
+                limitedFiles = files.subList(0, limit);
+            }
+
+            java.util.List<io.kestra.plugin.fs.vfs.models.File> list = limitedFiles
                 .stream()
                 .map(throwFunction(file -> {
                     Download.Output download = VfsService.download(
@@ -114,7 +127,7 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
                     runContext,
                     fsm,
                     fileSystemOptions,
-                    files,
+                    limitedFiles,
                     runContext.render(this.action).as(Downloads.Action.class).orElse(null),
                     this.uri(runContext, runContext.render(this.moveDirectory).as(String.class).orElse(null))
                 );

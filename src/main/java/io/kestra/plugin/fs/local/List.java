@@ -7,15 +7,14 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.fs.local.models.File;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
-import jakarta.validation.constraints.NotNull;
-
-import java.nio.file.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.Objects;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -80,6 +79,11 @@ public class List extends AbstractLocalTask implements RunnableTask<List.Output>
     @Builder.Default
     private Property<Boolean> recursive = Property.ofValue(false);
 
+    @Schema(
+        title = "The maximum number of files to retrieve at once"
+    )
+    private Property<Integer> maxFiles;
+
     @Override
     public Output run(RunContext runContext) throws Exception {
         String resolvedDirectory = runContext.render(this.from).as(String.class).orElseThrow();
@@ -93,19 +97,25 @@ public class List extends AbstractLocalTask implements RunnableTask<List.Output>
         String fileRegex = this.regExp != null ? runContext.render(this.regExp).as(String.class).orElseThrow() : ".*";
         int maxDepth = runContext.render(recursive).as(Boolean.class).orElse(false) ? Integer.MAX_VALUE : 1;
 
-        java.util.List<File> files = Files.find(directoryPath, maxDepth, (path, basicFileAttributes) -> {
-                return basicFileAttributes.isRegularFile() && path.toString().matches(fileRegex);
-            })
+        java.util.List<File> files = Files.find(directoryPath, maxDepth, (path, basicFileAttributes) -> basicFileAttributes.isRegularFile() && path.toString().matches(fileRegex))
             .map(throwFunction(path -> {
                 BasicFileAttributes attrs = Files.readAttributes(path, BasicFileAttributes.class);
                 return File.from(path, attrs);
             }))
             .filter(Objects::nonNull)
-            .collect(Collectors.toList());
+            .toList();
+
+        Integer rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(null);
+        java.util.List<File> limitedFiles = files;
+        if (rMaxFiles != null && files.size() > rMaxFiles) {
+            runContext.logger().warn("Too many files to process ({}), limiting to {}", files.size(), rMaxFiles);
+            int limit = Math.min(rMaxFiles, files.size());
+            limitedFiles = files.subList(0, limit);
+        }
 
         return Output.builder()
-            .files(files)
-            .count(files.size())
+            .files(limitedFiles)
+            .count(limitedFiles.size())
             .build();
     }
 

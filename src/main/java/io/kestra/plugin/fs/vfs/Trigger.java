@@ -77,6 +77,11 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
     @NotNull
     private Property<Boolean> enableSshRsa1 = Property.ofValue(false);
 
+    @Schema(
+        title = "The maximum number of files to retrieve at once"
+    )
+    private Property<Integer> maxFiles;
+
     protected abstract FileSystemOptions fsOptions(RunContext runContext) throws IllegalVariableEvaluationException, IOException;
 
     protected abstract String scheme();
@@ -134,7 +139,6 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                 .filter(file -> file.getFileType() == FileType.FILE)
                 .toList();
 
-
             java.util.List<File> list = files
                 .stream()
                 .map(throwFunction(file -> {
@@ -159,6 +163,14 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                 }))
                 .toList();
 
+            Integer rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(null);
+            java.util.List<File> limitedList = list;
+            if (rMaxFiles != null && list.size() > rMaxFiles) {
+                logger.warn("Too many files to process ({}), limiting to {}", list.size(), rMaxFiles);
+                int limit = Math.min(rMaxFiles, list.size());
+                limitedList = list.subList(0, limit);
+            }
+
             if (this.action != null) {
                 VfsService.performAction(
                     runContext,
@@ -178,7 +190,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                 );
             }
 
-            Execution execution = TriggerService.generateExecution(this, conditionContext, context, Downloads.Output.builder().files(list).build());
+            Execution execution = TriggerService.generateExecution(this, conditionContext, context, Downloads.Output.builder().files(limitedList).build());
 
             return Optional.of(execution);
         }

@@ -68,8 +68,8 @@ public class TriggerTest extends AbstractFileTriggerTest {
                 .type(Download.class.getName())
                 .host(Property.ofValue("localhost"))
                 .port(Property.ofValue("6622"))
-            .username(USERNAME)
-            .password(PASSWORD)
+                .username(USERNAME)
+                .password(PASSWORD)
                 .from(Property.ofValue(upload.getTo().toString()))
                 .build();
 

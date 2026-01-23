@@ -61,7 +61,7 @@ class CommandTest {
 
     @Test
     void run_pubkeyMethod() throws Exception {
-        File file = new File("src/test/resources/ssh/id_ed25519");
+        File file = new File("src/test/resources/ssh/id_rsa");
         byte[] data;
         try (FileInputStream fis = new FileInputStream(file)) {
             data = new byte[(int) file.length()];

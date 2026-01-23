@@ -7,13 +7,12 @@ import io.kestra.core.queues.QueueFactoryInterface;
 import io.kestra.core.queues.QueueInterface;
 import io.kestra.core.repositories.LocalFlowRepositoryLoader;
 import io.kestra.core.runners.RunContextFactory;
-import io.kestra.core.runners.Worker;
-import io.kestra.scheduler.AbstractScheduler;
 import io.kestra.core.services.FlowListenersInterface;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.jdbc.runner.JdbcScheduler;
 import io.kestra.plugin.fs.vfs.models.File;
+import io.kestra.scheduler.AbstractScheduler;
 import io.kestra.worker.DefaultWorker;
 import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Inject;
@@ -72,16 +71,17 @@ public abstract class AbstractFileTriggerTest {
 
             // wait for execution
             Flux<Execution> receive = TestsUtils.receive(executionQueue, execution -> {
-                if (execution.getLeft().getFlowId().equals(triggeringFlowId())){
+                if (execution.getLeft().getFlowId().equals(triggeringFlowId())) {
                     last.set(execution.getLeft());
 
                     queueCount.countDown();
                 }
             });
 
-
             String out1 = FriendlyId.createFriendlyId();
             String toUploadDir = "/upload/trigger";
+            cleanupRemoteDir(toUploadDir);
+            cleanupRemoteDir(toUploadDir + "-move");
             utils().upload(toUploadDir + "/" + out1);
             String out2 = FriendlyId.createFriendlyId();
             utils().upload(toUploadDir + "/" + out2);
@@ -114,25 +114,25 @@ public abstract class AbstractFileTriggerTest {
         // scheduler
         try (
             AbstractScheduler scheduler = new JdbcScheduler(
-            this.applicationContext,
-            this.flowListenersService
-        );
+                this.applicationContext,
+                this.flowListenersService
+            );
             DefaultWorker worker = applicationContext.createBean(DefaultWorker.class, IdUtils.create(), 8, null)
         ) {
             AtomicReference<Execution> last = new AtomicReference<>();
 
             // wait for execution
             Flux<Execution> receive = TestsUtils.receive(executionQueue, execution -> {
-                if (execution.getLeft().getFlowId().equals(triggeringFlowId() + "-none-action")){
+                if (execution.getLeft().getFlowId().equals(triggeringFlowId() + "-none-action")) {
                     last.set(execution.getLeft());
 
                     queueCount.countDown();
                 }
             });
 
-
             String out1 = FriendlyId.createFriendlyId();
             String toUploadDir = "/upload/trigger-none";
+            cleanupRemoteDir(toUploadDir);
             utils().upload(toUploadDir + "/" + out1);
             String out2 = FriendlyId.createFriendlyId();
             utils().upload(toUploadDir + "/" + out2);
@@ -176,6 +176,9 @@ public abstract class AbstractFileTriggerTest {
                 assertThat(execution.getLeft().getFlowId(), is("sftp-listen"));
             });
 
+            String file = FriendlyId.createFriendlyId();
+            cleanupRemoteDir("/upload/trigger-missing");
+            utils().upload("/upload/trigger-missing/" + file);
 
             worker.run();
             scheduler.run();
@@ -195,6 +198,19 @@ public abstract class AbstractFileTriggerTest {
             assertThat(trigger.size(), is(1));
 
             utils().delete("/upload/trigger/" + out1);
+        }
+    }
+
+    private void cleanupRemoteDir(String dir) {
+        try {
+            var list = utils().list(dir);
+            for (File file : list.getFiles()) {
+                String deletePath = file.getServerPath() != null ?
+                    file.getServerPath().getPath() :
+                    file.getPath().toString();
+                utils().delete(deletePath);
+            }
+        } catch (Exception ignored) {
         }
     }
 }
