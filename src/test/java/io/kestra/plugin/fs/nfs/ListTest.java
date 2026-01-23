@@ -80,7 +80,7 @@ class ListTest {
             files = stream
                 .filter(path -> !path.equals(nfsMountPoint))
                 .map(throwFunction(recursiveTask::mapToFile))
-                .collect(Collectors.toList());
+                .toList();
         }
         assertThat(files, hasSize(4));
 
@@ -96,7 +96,25 @@ class ListTest {
         assertThat(run.getFiles(), hasSize(2));
         List<String> foundNames = run.getFiles().stream()
             .map(io.kestra.plugin.fs.nfs.List.File::getName)
-            .collect(Collectors.toList());
+            .toList();
         assertThat(foundNames, Matchers.containsInAnyOrder("file1.txt", "file3.txt"));
+    }
+
+    @Test
+    void list_files_with_max_files() throws Exception {
+        Files.createFile(nfsMountPoint.resolve("file1.txt"));
+        Files.createFile(nfsMountPoint.resolve("file2.txt"));
+
+        io.kestra.plugin.fs.nfs.List task = io.kestra.plugin.fs.nfs.List.builder()
+            .id("list-max-files")
+            .type(io.kestra.plugin.fs.nfs.List.class.getName())
+            .from(Property.ofValue(nfsMountPoint.toString()))
+            .maxFiles(Property.ofValue(1))
+            .build();
+
+        RunContext runContext = TestsUtils.mockRunContext(runContextFactory, task, Map.of());
+        io.kestra.plugin.fs.nfs.List.Output run = task.run(runContext);
+
+        assertThat(run.getFiles(), is(List.of()));
     }
 }

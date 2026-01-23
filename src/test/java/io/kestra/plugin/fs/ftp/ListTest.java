@@ -137,4 +137,26 @@ class ListTest {
         assertThat(run.getFiles().size(), is(1));
         assertThat(run.getFiles().getFirst().getName(), is(filename));
     }
+
+    @Test
+    void maxFilesShouldSkip() throws Exception {
+        String dir = "/" + IdUtils.create();
+        ftpUtils.upload("upload" + dir + "/file1.yaml");
+        ftpUtils.upload("upload" + dir + "/file2.yaml");
+
+        List task = List.builder()
+            .id(ListTest.class.getSimpleName())
+            .type(ListTest.class.getName())
+            .from(Property.ofValue("/upload" + dir))
+            .maxFiles(Property.ofValue(1))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6621"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+
+        List.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(run.getFiles().size(), is(0));
+    }
 }

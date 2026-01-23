@@ -82,7 +82,7 @@ import java.net.Proxy;
                     regExp: ".*.csv"
                     action: MOVE
                     moveDirectory: "archive/"
-                    interval: PTS
+                    interval: PT10S
                 """
         )
     }

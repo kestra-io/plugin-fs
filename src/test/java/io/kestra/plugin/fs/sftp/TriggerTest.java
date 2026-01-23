@@ -71,8 +71,8 @@ public class TriggerTest extends AbstractFileTriggerTest {
                 .type(Download.class.getName())
                 .host(Property.ofValue("localhost"))
                 .port(Property.ofValue("6622"))
-            .username(USERNAME)
-            .password(PASSWORD)
+                .username(USERNAME)
+                .password(PASSWORD)
                 .from(Property.ofValue(upload.getTo().toString()))
                 .build();
 
@@ -170,5 +170,32 @@ public class TriggerTest extends AbstractFileTriggerTest {
 
         Optional<Execution> second = trigger.evaluate(context.getKey(), context.getValue());
         assertThat(second.isPresent(), is(true));
+    }
+
+    @Test
+    void shouldNotTriggerWhenTooManyFiles() throws Exception {
+        var trigger = Trigger.builder()
+            .id("sftp-too-many-files-" + IdUtils.create())
+            .type(Trigger.class.getName())
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .action(Property.ofValue(Downloads.Action.NONE))
+            .from(Property.ofValue("/upload/trigger/too-many-files/"))
+            .maxFiles(Property.ofValue(10)) // important
+            .interval(Duration.ofSeconds(5))
+            .build();
+
+        // upload 26 files > maxFiles (10 as defined above)
+        for (int i = 0; i < 26; i++) {
+            utils().upload("/upload/trigger/too-many-files/" + FriendlyId.createFriendlyId() + "-" + i + ".yml");
+        }
+
+        var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
+
+        // should then skip the execution
+        assertThat(execution.isPresent(), is(false));
     }
 }

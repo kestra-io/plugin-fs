@@ -72,7 +72,7 @@ import java.net.Proxy;
                         host: localhost
                         port: 21
                         username: foo
-                        password: bar
+                        password: "{{ secret('FTP_PASSWORD') }}"
                         uri: "/in/{{ taskrun.value | jq('.name') }}"
 
                 triggers:
@@ -81,7 +81,7 @@ import java.net.Proxy;
                     host: localhost
                     port: 21
                     username: foo
-                    password: bar
+                    password: "{{ secret('FTP_PASSWORD') }}"
                     from: "/in/"
                     interval: PT10S
                     action: NONE
@@ -109,12 +109,12 @@ import java.net.Proxy;
                     host: localhost
                     port: "21"
                     username: foo
-                    password: bar
+                    password: "{{ secret('FTP_PASSWORD') }}"
                     from: "mydir/"
                     regExp: ".*.csv"
                     action: MOVE
                     moveDirectory: "archive/"
-                    interval: PTS
+                    interval: PT10S
                 """
         )
     }

@@ -90,6 +90,12 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
 
     private Property<Duration> stateTtl;
 
+    @Builder.Default
+    @Schema(
+        title = "The maximum number of files to retrieve at once"
+    )
+    private Property<Integer> maxFiles = Property.ofValue(25);
+
     protected abstract FileSystemOptions fsOptions(RunContext runContext) throws IllegalVariableEvaluationException, IOException;
 
     protected abstract String scheme();
@@ -206,6 +212,11 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
             writeState(runContext, rStateKey, state, rStateTtl);
 
             if (toFire.isEmpty()) {
+                return Optional.empty();
+            }
+
+            if (toFire.size() > runContext.render(this.maxFiles).as(Integer.class).orElse(25)) {
+                logger.warn("Too many files to process, skipping");
                 return Optional.empty();
             }
 
