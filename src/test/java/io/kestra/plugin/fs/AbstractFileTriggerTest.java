@@ -29,9 +29,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
-// FIXME Remove once Worker closing has been reworked (Micronaut 4 PR)
-//  We need to rebuild the context for each tests as currently Workers can't be closed properly (they keep listening to queues they shouldn't)
-@KestraTest(rebuildContext = true)
+@KestraTest
 public abstract class AbstractFileTriggerTest {
     @Inject
     private ApplicationContext applicationContext;
