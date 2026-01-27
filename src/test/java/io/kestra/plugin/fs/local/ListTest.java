@@ -74,7 +74,7 @@ class ListTest {
 
         List.Output output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
-        assertThat(output.getFiles(), is(empty()));
-        assertThat(output.getCount(), is(0));
+        assertThat(output.getFiles(), hasSize(2));
+        assertThat(output.getCount(), is(2));
     }
 }

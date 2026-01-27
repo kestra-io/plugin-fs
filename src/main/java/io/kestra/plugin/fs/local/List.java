@@ -108,11 +108,8 @@ public class List extends AbstractLocalTask implements RunnableTask<List.Output>
 
         int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
         if (files.size() > rMaxFiles) {
-            runContext.logger().warn("Too many files to process, skipping");
-            return Output.builder()
-                .files(java.util.List.of())
-                .count(0)
-                .build();
+            runContext.logger().warn("Too many files to process ({}), limiting to {}", files.size(), rMaxFiles);
+            files = files.subList(0, rMaxFiles);
         }
 
         return Output.builder()

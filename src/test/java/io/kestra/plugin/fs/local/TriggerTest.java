@@ -149,7 +149,7 @@ class TriggerTest extends AbstractTriggerTest {
     }
 
     @Test
-    void maxFilesShouldSkipExecution() throws Exception {
+    void maxFilesShouldLimitExecution() throws Exception {
         Path sourceDir = Paths.get("/tmp/trigger-maxfiles");
         Files.createDirectories(sourceDir);
 
@@ -167,7 +167,11 @@ class TriggerTest extends AbstractTriggerTest {
             var context = TestsUtils.mockTrigger(runContextFactory, trigger);
             Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
 
-            assertThat(execution.isEmpty(), is(true));
+            assertThat(execution.isPresent(), is(true));
+            @SuppressWarnings("unchecked")
+            java.util.List<Object> rawFiles =
+                (java.util.List<Object>) execution.get().getTrigger().getVariables().get("files");
+            assertThat(rawFiles, hasSize(1));
         } finally {
             cleanup(sourceDir);
         }

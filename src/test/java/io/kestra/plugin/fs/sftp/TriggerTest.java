@@ -21,8 +21,7 @@ import java.util.Optional;
 import static io.kestra.plugin.fs.sftp.SftpUtils.PASSWORD;
 import static io.kestra.plugin.fs.sftp.SftpUtils.USERNAME;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class TriggerTest extends AbstractFileTriggerTest {
@@ -173,7 +172,7 @@ public class TriggerTest extends AbstractFileTriggerTest {
     }
 
     @Test
-    void shouldNotTriggerWhenTooManyFiles() throws Exception {
+    void shouldLimitWhenTooManyFiles() throws Exception {
         var trigger = Trigger.builder()
             .id("sftp-too-many-files-" + IdUtils.create())
             .type(Trigger.class.getName())
@@ -195,7 +194,10 @@ public class TriggerTest extends AbstractFileTriggerTest {
         var context = TestsUtils.mockTrigger(runContextFactory, trigger);
         Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
 
-        // should then skip the execution
-        assertThat(execution.isPresent(), is(false));
+        assertThat(execution.isPresent(), is(true));
+        @SuppressWarnings("unchecked")
+        java.util.List<Object> rawFiles =
+            (java.util.List<Object>) execution.get().getTrigger().getVariables().get("files");
+        assertThat(rawFiles, hasSize(10));
     }
 }

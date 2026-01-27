@@ -86,7 +86,7 @@ class UploadsTest {
     }
 
     @Test
-    void run_maxFilesShouldSkip() throws Exception {
+    void run_maxFilesShouldLimit() throws Exception {
         URI uri1 = ftpUtils.uploadToStorage();
         URI uri2 = ftpUtils.uploadToStorage();
 
@@ -103,6 +103,6 @@ class UploadsTest {
 
         Uploads.Output uploadsRun = uploadsTask.run(TestsUtils.mockRunContext(runContextFactory, uploadsTask, Map.of()));
 
-        assertThat(uploadsRun.getFiles().size(), is(0));
+        assertThat(uploadsRun.getFiles().size(), is(1));
     }
 }

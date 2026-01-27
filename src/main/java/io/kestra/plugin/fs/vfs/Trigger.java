@@ -215,8 +215,17 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                 return Optional.empty();
             }
 
-            if (toFire.size() > runContext.render(this.maxFiles).as(Integer.class).orElse(25)) {
-                logger.warn("Too many files to process, skipping");
+            int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
+            java.util.List<TriggeredFile> limitedToFire = toFire;
+            java.util.List<File> limitedActionFiles = actionFiles;
+            if (toFire.size() > rMaxFiles) {
+                logger.warn("Too many files to process ({}), limiting to {}", toFire.size(), rMaxFiles);
+                int limit = Math.min(rMaxFiles, toFire.size());
+                limitedToFire = toFire.subList(0, limit);
+                limitedActionFiles = actionFiles.subList(0, Math.min(limit, actionFiles.size()));
+            }
+
+            if (limitedToFire.isEmpty()) {
                 return Optional.empty();
             }
 
@@ -225,7 +234,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                     runContext,
                     fsm,
                     fileSystemOptions,
-                    actionFiles,
+                    limitedActionFiles,
                     runContext.render(this.action).as(Downloads.Action.class).orElse(null),
                     VfsService.uri(
                         runContext,
@@ -239,7 +248,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                 );
             }
 
-            Execution execution = TriggerService.generateExecution(this, conditionContext, context, Output.builder().files(toFire).build());
+            Execution execution = TriggerService.generateExecution(this, conditionContext, context, Output.builder().files(limitedToFire).build());
 
             return Optional.of(execution);
         }

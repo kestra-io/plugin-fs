@@ -90,8 +90,8 @@ class DownloadTest {
 
             Downloads.Output output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
-            assertThat(output.getFiles().isEmpty(), is(true));
-            assertThat(output.getOutputFiles().isEmpty(), is(true));
+            assertThat(output.getFiles().size(), is(1));
+            assertThat(output.getOutputFiles().size(), is(1));
         } finally {
             Files.walk(tempDir)
                 .sorted(Comparator.reverseOrder())
