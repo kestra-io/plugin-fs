@@ -60,10 +60,8 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
 
             int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
             if (renderedFrom.length > rMaxFiles) {
-                runContext.logger().warn("Too many files to process, skipping");
-                return Output.builder()
-                    .files(List.of())
-                    .build();
+                runContext.logger().warn("Too many files to process ({}), limiting to {}", renderedFrom.length, rMaxFiles);
+                renderedFrom = Arrays.copyOf(renderedFrom, rMaxFiles);
             }
 
             List<Upload.Output> outputs = Arrays.stream(renderedFrom).map(throwFunction(fromURI -> {

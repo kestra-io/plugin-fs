@@ -177,17 +177,14 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
 
         io.kestra.plugin.fs.local.List.Output listOutput = listTask.run(runContext);
 
+        List<File> listedFiles = listOutput.getFiles();
         int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
-        if (listOutput.getFiles().size() > rMaxFiles) {
-            runContext.logger().warn("Too many files to process, skipping");
-            return Output.builder()
-                .files(java.util.List.of())
-                .outputFiles(Map.of())
-                .build();
+        if (listedFiles.size() > rMaxFiles) {
+            runContext.logger().warn("Too many files to process ({}), limiting to {}", listedFiles.size(), rMaxFiles);
+            listedFiles = listedFiles.subList(0, rMaxFiles);
         }
 
-        List<File> downloadedFiles = listOutput
-            .getFiles()
+        List<File> downloadedFiles = listedFiles
             .stream()
             .map(throwFunction(fileItem -> {
                 if (fileItem.isDirectory()) {

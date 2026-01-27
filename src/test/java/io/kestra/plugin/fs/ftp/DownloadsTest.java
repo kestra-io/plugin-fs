@@ -85,7 +85,7 @@ class DownloadsTest {
     }
 
     @Test
-    void run_MaxFilesShouldSkip() throws Exception {
+    void run_MaxFilesShouldLimit() throws Exception {
         String toUploadDir = "/upload/" + random + "-maxfiles";
         String out1 = FriendlyId.createFriendlyId();
         ftpUtils.upload(toUploadDir + "/" + out1 + ".txt");
@@ -106,8 +106,8 @@ class DownloadsTest {
 
         Downloads.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
-        assertThat(run.getFiles().size(), is(0));
-        assertThat(run.getOutputFiles().size(), is(0));
+        assertThat(run.getFiles().size(), is(1));
+        assertThat(run.getOutputFiles().size(), is(1));
         assertThat(ftpUtils.list(toUploadDir).getFiles().size(), is(2));
     }
 }

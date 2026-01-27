@@ -115,6 +115,6 @@ class ListTest {
         RunContext runContext = TestsUtils.mockRunContext(runContextFactory, task, Map.of());
         io.kestra.plugin.fs.nfs.List.Output run = task.run(runContext);
 
-        assertThat(run.getFiles(), is(List.of()));
+        assertThat(run.getFiles(), hasSize(1));
     }
 }
