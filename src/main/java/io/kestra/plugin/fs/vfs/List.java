@@ -53,15 +53,17 @@ public abstract class List extends AbstractVfsTask implements RunnableTask<List.
                 runContext.render(this.recursive).as(Boolean.class).orElse(false)
             );
 
+            java.util.List<File> files = output.getFiles();
+
             int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
-            if (output.getFiles().size() > rMaxFiles) {
-                runContext.logger().warn("Too many files to process, skipping");
-                return Output.builder()
-                    .files(java.util.List.of())
-                    .build();
+            if (files.size() > rMaxFiles) {
+                runContext.logger().warn("Too many files to process ({}), limiting to {}", files.size(), rMaxFiles);
+                files = files.subList(0, rMaxFiles);
             }
 
-            return output;
+            return Output.builder()
+                .files(files)
+                .build();
         }
     }
 

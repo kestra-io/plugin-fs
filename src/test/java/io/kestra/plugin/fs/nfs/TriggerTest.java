@@ -25,7 +25,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.*;
 
 @KestraTest
 class TriggerTest {
@@ -184,7 +184,7 @@ class TriggerTest {
     }
 
     @Test
-    void trigger_maxFiles_should_skip_execution() throws Exception {
+    void trigger_maxFiles_should_limit_execution() throws Exception {
         Files.writeString(nfsMountPoint.resolve("file1.txt"), "content1");
         Files.writeString(nfsMountPoint.resolve("file2.txt"), "content2");
 
@@ -199,6 +199,9 @@ class TriggerTest {
         Map.Entry<ConditionContext, Trigger> context = TestsUtils.mockTrigger(runContextFactory, nfsTrigger);
 
         Optional<Execution> execution = nfsTrigger.evaluate(context.getKey(), context.getValue());
-        assertThat(execution.isEmpty(), is(true));
+        assertThat(execution.isPresent(), is(true));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> rawFiles = (List<Map<String, Object>>) execution.get().getTrigger().getVariables().get("files");
+        assertThat(rawFiles, hasSize(1));
     }
 }

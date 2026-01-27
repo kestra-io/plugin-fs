@@ -139,7 +139,7 @@ class ListTest {
     }
 
     @Test
-    void maxFilesShouldSkip() throws Exception {
+    void maxFilesShouldLimit() throws Exception {
         String dir = "/" + IdUtils.create();
         ftpUtils.upload("upload" + dir + "/file1.yaml");
         ftpUtils.upload("upload" + dir + "/file2.yaml");
@@ -157,6 +157,6 @@ class ListTest {
 
         List.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
-        assertThat(run.getFiles().size(), is(0));
+        assertThat(run.getFiles().size(), is(1));
     }
 }

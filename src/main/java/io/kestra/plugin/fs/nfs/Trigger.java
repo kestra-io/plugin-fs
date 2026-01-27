@@ -163,8 +163,13 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             return Optional.empty();
         }
 
-        if (toFire.size() > runContext.render(this.maxFiles).as(Integer.class).orElse(25)) {
-            logger.warn("Too many files to process, skipping");
+        int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
+        if (toFire.size() > rMaxFiles) {
+            logger.warn("Too many files to process ({}), limiting to {}", toFire.size(), rMaxFiles);
+            toFire = toFire.subList(0, Math.min(rMaxFiles, toFire.size()));
+        }
+
+        if (toFire.isEmpty()) {
             return Optional.empty();
         }
 

@@ -88,11 +88,8 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
 
             int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
             if (files.size() > rMaxFiles) {
-                logger.warn("Too many files to process, skipping");
-                return Output.builder()
-                    .files(java.util.List.of())
-                    .outputFiles(Map.of())
-                    .build();
+                logger.warn("Too many files to process ({}), limiting to {}", files.size(), rMaxFiles);
+                files = files.subList(0, rMaxFiles);
             }
 
             java.util.List<io.kestra.plugin.fs.vfs.models.File> list = files
