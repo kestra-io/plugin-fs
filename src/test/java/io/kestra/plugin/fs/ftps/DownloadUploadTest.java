@@ -13,9 +13,14 @@ import io.kestra.plugin.fs.vfs.models.File;
 import jakarta.inject.Inject;
 import org.apache.commons.io.IOUtils;
 import org.hamcrest.Matchers;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.Socket;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
@@ -35,6 +40,11 @@ class DownloadUploadTest {
 
     @Inject
     private StorageInterface storageInterface;
+
+    @BeforeAll
+    static void waitForFtps() throws Exception {
+        waitForPort("127.0.0.1", 6990, Duration.ofSeconds(30));
+    }
 
     @Test
     void run() throws Exception {
@@ -110,5 +120,19 @@ class DownloadUploadTest {
         assertThat(uploadsRun.getFiles().stream().map(URI::getPath).toList(), Matchers.everyItem(
                 Matchers.is(Matchers.in(remoteFileUris))
         ));
+    }
+
+    private static void waitForPort(String host, int port, Duration timeout) throws Exception {
+        long deadline = System.nanoTime() + timeout.toNanos();
+        while (System.nanoTime() < deadline) {
+            try (Socket socket = new Socket()) {
+                socket.connect(new InetSocketAddress(host, port), 500);
+                return;
+            } catch (IOException ignored) {
+                Thread.sleep(200);
+            }
+        }
+
+        throw new IllegalStateException("Timed out waiting for FTPS server on " + host + ":" + port);
     }
 }
