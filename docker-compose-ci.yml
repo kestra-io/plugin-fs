@@ -11,7 +11,7 @@ services:
       - "6622:22"
     command: "foo:pass*+=:1001:1001:upload"
     volumes:
-      - ${PWD}/src/test/resources/ssh/id_rsa.pub:/home/foo/.ssh/authorized_keys
+      - ${PWD}/src/test/resources/ssh/id_ed25519.pub:/home/foo/.ssh/authorized_keys
 
   # https://github.com/fauria/docker-vsftpd/issues/41
   ftp:

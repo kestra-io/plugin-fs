@@ -98,6 +98,18 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     )
     private Property<Integer> maxFiles = Property.ofValue(25);
 
+    private static class PendingFile {
+        private final Path path;
+        private final Entry candidate;
+        private final ChangeType changeType;
+
+        private PendingFile(Path path, Entry candidate, ChangeType changeType) {
+            this.path = path;
+            this.candidate = candidate;
+            this.changeType = changeType;
+        }
+    }
+
     @Override
     public Duration getInterval() {
         return this.interval;
@@ -117,7 +129,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         Optional<Duration> rStateTtl = runContext.render(stateTtl).as(Duration.class);
 
         Map<String, StatefulTriggerService.Entry> state = readState(runContext, rStateKey, rStateTtl);
-        List<TriggeredFile> toFire = new ArrayList<>();
+        List<PendingFile> pendingFiles = new ArrayList<>();
 
         logger.debug("Evaluating trigger for path: {}", fromPath);
 
@@ -127,49 +139,57 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
                 .filter(path -> rRegExp == null || path.toString().matches(rRegExp))
                 .toList();
 
-            for(Path path: paths) {
-                 try {
-                     BasicFileAttributes attrs = Files.readAttributes(path, BasicFileAttributes.class);
-                     var modifiedAt = attrs.lastModifiedTime().toInstant();
-                     var key = path.toUri().toString();
-                     var version = String.format("%d_%d", modifiedAt.toEpochMilli(), attrs.size());
+            for (Path path : paths) {
+                try {
+                    BasicFileAttributes attrs = Files.readAttributes(path, BasicFileAttributes.class);
+                    var modifiedAt = attrs.lastModifiedTime().toInstant();
+                    var key = path.toUri().toString();
+                    var version = String.format("%d_%d", modifiedAt.toEpochMilli(), attrs.size());
+                    var candidate = StatefulTriggerService.Entry.candidate(key, version, modifiedAt);
+                    var prev = state.get(key);
 
-                     var candidate = StatefulTriggerService.Entry.candidate(key, version, modifiedAt);
-                     var change = computeAndUpdateState(state, candidate, rOn);
+                    if (!shouldFire(prev, version, rOn)) {
+                        computeAndUpdateState(state, candidate, rOn);
+                        continue;
+                    }
 
-                     if (change.fire()) {
-                         var changeType = change.isNew() ? ChangeType.CREATE : ChangeType.UPDATE;
-                         
-                         io.kestra.plugin.fs.nfs.List.File fileModel = mapToFile(path);
-                         toFire.add(TriggeredFile.builder()
-                             .file(fileModel)
-                             .changeType(changeType)
-                             .build());
-                         logger.info("File {} detected with change type: {}", path, changeType);
-                     }
-                 } catch (IOException e) {
-                     logger.warn("Error processing path {}: {}", path, e.getMessage(), e);
-                 }
+                    var changeType = prev == null ? ChangeType.CREATE : ChangeType.UPDATE;
+                    pendingFiles.add(new PendingFile(path, candidate, changeType));
+                } catch (IOException e) {
+                    logger.warn("Error processing path {}: {}", path, e.getMessage(), e);
+                }
             }
         } catch (IOException e) {
             logger.error("Error walking/listing path {}: {}", fromPath, e.getMessage(), e);
             return Optional.empty();
         }
 
+        int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
+        if (pendingFiles.size() > rMaxFiles) {
+            logger.warn("Too many files to process ({}), limiting to {}", pendingFiles.size(), rMaxFiles);
+            pendingFiles = pendingFiles.subList(0, Math.min(rMaxFiles, pendingFiles.size()));
+        }
+
+        List<TriggeredFile> toFire = new ArrayList<>();
+
+        for (PendingFile pending : pendingFiles) {
+            try {
+                io.kestra.plugin.fs.nfs.List.File fileModel = mapToFile(pending.path);
+                computeAndUpdateState(state, pending.candidate, rOn);
+                toFire.add(TriggeredFile.builder()
+                    .file(fileModel)
+                    .changeType(pending.changeType)
+                    .build());
+                logger.info("File {} detected with change type: {}", pending.path, pending.changeType);
+            } catch (IOException e) {
+                logger.warn("Error processing path {}: {}", pending.path, e.getMessage(), e);
+            }
+        }
+
         writeState(runContext, rStateKey, state, rStateTtl);
 
         if (toFire.isEmpty()) {
             logger.debug("No new or updated files found.");
-            return Optional.empty();
-        }
-
-        int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
-        if (toFire.size() > rMaxFiles) {
-            logger.warn("Too many files to process ({}), limiting to {}", toFire.size(), rMaxFiles);
-            toFire = toFire.subList(0, Math.min(rMaxFiles, toFire.size()));
-        }
-
-        if (toFire.isEmpty()) {
             return Optional.empty();
         }
 
