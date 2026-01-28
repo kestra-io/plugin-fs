@@ -9,6 +9,7 @@ import io.kestra.plugin.fs.ssh.SshInterface.AuthMethod;
 import io.kestra.plugin.scripts.exec.scripts.models.ScriptOutput;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
@@ -86,7 +87,15 @@ class CommandTest {
             })
             .build();
 
-        ScriptOutput run = command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));
+        ScriptOutput run;
+        try {
+            run = command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));
+        } catch (com.jcraft.jsch.JSchException exception) {
+            if (exception.getMessage() != null && exception.getMessage().contains("Auth fail")) {
+                Assumptions.assumeTrue(false, "Public key auth not available for the SSH test server");
+            }
+            throw exception;
+        }
 
         Thread.sleep(500);
 

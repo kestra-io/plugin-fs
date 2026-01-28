@@ -31,10 +31,10 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
-public abstract class Trigger extends AbstractTrigger implements PollingTriggerInterface, AbstractVfsInterface, TriggerOutput<Downloads.Output> {
-    @Schema(
-        title = "The interval between test of triggers"
-    )
+public abstract class Trigger extends AbstractTrigger
+    implements PollingTriggerInterface, AbstractVfsInterface, TriggerOutput<Downloads.Output> {
+
+    @Schema(title = "The interval between test of triggers")
     @Builder.Default
     private final Duration interval = Duration.ofSeconds(60);
 
@@ -42,9 +42,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
     protected Property<String> username;
     protected Property<String> password;
 
-    @Schema(
-        title = "The directory to list"
-    )
+    @Schema(title = "The directory to list")
     @NotNull
     private Property<String> from;
 
@@ -54,92 +52,107 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
     @NotNull
     private Property<Downloads.Action> action;
 
-    @Schema(
-        title = "The destination directory in case off `MOVE` "
-    )
+    @Schema(title = "The destination directory in case off `MOVE` ")
     private Property<String> moveDirectory;
 
-    @Schema(
-        title = "A regexp to filter on full path"
-    )
+    @Schema(title = "A regexp to filter on full path")
     private Property<String> regExp;
 
-    @Schema(
-        title = "List file recursively"
-    )
+    @Schema(title = "List file recursively")
     @Builder.Default
     private Property<Boolean> recursive = Property.ofValue(false);
 
     @Builder.Default
-    @Schema(
-        title = "Enable the RSA/SHA1 algorithm (disabled by default)"
-    )
+    @Schema(title = "Enable the RSA/SHA1 algorithm (disabled by default)")
     @NotNull
     private Property<Boolean> enableSshRsa1 = Property.ofValue(false);
 
-    @Schema(
-        title = "The maximum number of files to retrieve at once"
-    )
+    @Schema(title = "The maximum number of files to retrieve at once")
     private Property<Integer> maxFiles;
 
-    protected abstract FileSystemOptions fsOptions(RunContext runContext) throws IllegalVariableEvaluationException, IOException;
+    protected abstract FileSystemOptions fsOptions(RunContext runContext)
+        throws IllegalVariableEvaluationException, IOException;
 
     protected abstract String scheme();
 
     @Override
-    public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
+    public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext context)
+        throws Exception {
+
         RunContext runContext = conditionContext.getRunContext();
         Logger logger = runContext.logger();
-        URI from = createUri(runContext);
+        URI fromUri = createUri(runContext);
 
-        // connection options
         FileSystemOptions fileSystemOptions = this.fsOptions(runContext);
 
         var renderedHost = runContext.render(this.host).as(String.class).orElseThrow();
         var renderedPort = runContext.render(this.getPort()).as(String.class).orElseThrow();
+
         var jsch = new JSch();
         var session = jsch.getSession(
             runContext.render(username).as(String.class).orElse(null),
-            renderedHost, Integer.parseInt(renderedPort)
+            renderedHost,
+            Integer.parseInt(renderedPort)
         );
 
-        // enable disabled by default weak RSA/SHA1 algorithm
         if (runContext.render(enableSshRsa1).as(Boolean.class).orElseThrow()) {
-            runContext.logger().info("RSA/SHA1 is enabled, be advised that SHA1 is no longer considered secure by the general cryptographic community.");
+            logger.info("RSA/SHA1 is enabled, be advised that SHA1 is no longer considered secure.");
             session.setConfig("server_host_key", session.getConfig("server_host_key") + ",ssh-rsa");
-            session.setConfig("PubkeyAcceptedAlgorithms", session.getConfig("PubkeyAcceptedAlgorithms") + ",ssh-rsa");
+            session.setConfig(
+                "PubkeyAcceptedAlgorithms",
+                session.getConfig("PubkeyAcceptedAlgorithms") + ",ssh-rsa"
+            );
         }
 
         try (StandardFileSystemManager fsm = new KestraStandardFileSystemManager(runContext)) {
-            fsm.setConfiguration(StandardFileSystemManager.class.getResource(KestraStandardFileSystemManager.CONFIG_RESOURCE));
+            fsm.setConfiguration(
+                StandardFileSystemManager.class.getResource(
+                    KestraStandardFileSystemManager.CONFIG_RESOURCE
+                )
+            );
             fsm.init();
 
-            List.Output run;
+            List.Output listed;
             try {
-                run = VfsService.list(
+                listed = VfsService.list(
                     runContext,
                     fsm,
                     fileSystemOptions,
-                    from,
+                    fromUri,
                     runContext.render(this.regExp).as(String.class).orElse(null),
                     runContext.render(this.recursive).as(Boolean.class).orElse(false)
                 );
-            } catch (FileNotFolderException fileNotFolderException) {
-                logger.debug("From path doesn't exist '{}'", String.join(", ", fileNotFolderException.getInfo()));
+            } catch (FileNotFolderException e) {
+                logger.debug("From path doesn't exist '{}'", String.join(", ", e.getInfo()));
                 return Optional.empty();
             }
 
-            if (run.getFiles().isEmpty()) {
+            if (listed.getFiles().isEmpty()) {
                 return Optional.empty();
             }
 
-            java.util.List<File> files = run
-                .getFiles()
+            java.util.List<File> files = listed.getFiles()
                 .stream()
                 .filter(file -> file.getFileType() == FileType.FILE)
                 .toList();
 
-            java.util.List<File> list = files
+            if (files.isEmpty()) {
+                return Optional.empty();
+            }
+
+            Integer rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(null);
+            java.util.List<File> selectedFiles = files;
+
+            if (rMaxFiles != null && files.size() > rMaxFiles) {
+                logger.warn(
+                    "Too many files to process ({}), limiting to {}",
+                    files.size(),
+                    rMaxFiles
+                );
+                selectedFiles = files.subList(0, rMaxFiles);
+            }
+
+            java.util.List<File> downloadedFiles = selectedFiles
                 .stream()
                 .map(throwFunction(file -> {
                     Download.Output download = VfsService.download(
@@ -157,27 +170,25 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                         )
                     );
 
-                    logger.debug("File '{}' download to '{}'", from.getPath(), download.getTo());
+                    logger.debug(
+                        "File '{}' downloaded to '{}'",
+                        file.getServerPath(),
+                        download.getTo()
+                    );
 
                     return file.withPath(download.getTo());
                 }))
                 .toList();
-
-            Integer rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(null);
-            java.util.List<File> limitedList = list;
-            if (rMaxFiles != null && list.size() > rMaxFiles) {
-                logger.warn("Too many files to process ({}), limiting to {}", list.size(), rMaxFiles);
-                int limit = Math.min(rMaxFiles, list.size());
-                limitedList = list.subList(0, limit);
-            }
 
             if (this.action != null) {
                 VfsService.performAction(
                     runContext,
                     fsm,
                     fileSystemOptions,
-                    files,
-                    runContext.render(this.action).as(Downloads.Action.class).orElse(null),
+                    selectedFiles,
+                    runContext.render(this.action)
+                        .as(Downloads.Action.class)
+                        .orElse(null),
                     VfsService.uri(
                         runContext,
                         this.scheme(),
@@ -190,13 +201,22 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                 );
             }
 
-            Execution execution = TriggerService.generateExecution(this, conditionContext, context, Downloads.Output.builder().files(limitedList).build());
+            Execution execution = TriggerService.generateExecution(
+                this,
+                conditionContext,
+                context,
+                Downloads.Output.builder()
+                    .files(downloadedFiles)
+                    .build()
+            );
 
             return Optional.of(execution);
         }
     }
 
-    private URI createUri(RunContext runContext) throws IllegalVariableEvaluationException, URISyntaxException {
+    private URI createUri(RunContext runContext)
+        throws IllegalVariableEvaluationException, URISyntaxException {
+
         return VfsService.uri(
             runContext,
             this.scheme(),

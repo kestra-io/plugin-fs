@@ -24,39 +24,16 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Trigger a flow as soon as new files are detected in a given local file system's directory.",
-    description = """
-        Local filesystem access is disabled by default.
-        You must configure the plugin default `allowed-paths` in your Kestra configuration.
-
-        Example (Kestra config):
-        ```yaml
-        plugins:
-          configurations:
-            - type: io.kestra.plugin.fs.local
-              values:
-                allowed-paths:
-                  - /data/files
-        ```
-        """
+    title = "Trigger a flow as soon as new files are detected in a given local file system's directory."
 )
 @Plugin(
     examples = {
         @Example(
-            title = "Wait for one or more files in a given local file system's directory and process each of these files sequentially.",
+            title = "Wait for one or more files in a given local file system's directory.",
             full = true,
             code = """
                 id: local_trigger_flow
                 namespace: company.team
-
-                tasks:
-                  - id: for_each_file
-                    type: io.kestra.plugin.core.flow.ForEach
-                    values: "{{ trigger.files }}"
-                    tasks:
-                      - id: return
-                        type: io.kestra.plugin.core.debug.Return
-                        format: "{{ taskrun.value | jq('.path') }}"
 
                 triggers:
                   - id: watch
@@ -64,27 +41,23 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                     from: "/home/dev/kestra"
                     interval: PT10S
                     action: MOVE
-                    recursive: true
                     moveDirectory: "/home/dev/archive/"
                 """
         )
     }
 )
-public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<Downloads.Output> {
+public class Trigger extends AbstractTrigger
+    implements PollingTriggerInterface, TriggerOutput<Downloads.Output> {
 
     @Schema(title = "The interval between checks")
     @Builder.Default
     private final Duration interval = Duration.ofSeconds(60);
 
-    @Schema(
-        title = "The directory to list"
-    )
+    @Schema(title = "The directory to list")
     @NotNull
     private Property<String> from;
 
-    @Schema(
-        title = "The destination directory in case off `MOVE` "
-    )
+    @Schema(title = "The destination directory in case off `MOVE`")
     private Property<String> moveDirectory;
 
     @Schema(title = "Regex pattern to match file names")
@@ -94,19 +67,19 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @Builder.Default
     private Property<Boolean> recursive = Property.ofValue(false);
 
-    @Schema(
-        title = "The action to do on downloaded files"
-    )
+    @Schema(title = "The action to do on downloaded files")
     @Builder.Default
     private Property<Downloads.Action> action = Property.ofValue(Downloads.Action.NONE);
 
-    @Schema(
-        title = "The maximum number of files to retrieve at once"
-    )
+    @Schema(title = "The maximum number of files to retrieve at once")
     private Property<Integer> maxFiles;
 
     @Override
-    public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext triggerContext) throws Exception {
+    public Optional<Execution> evaluate(
+        ConditionContext conditionContext,
+        TriggerContext triggerContext
+    ) throws Exception {
+
         RunContext runContext = conditionContext.getRunContext();
 
         String renderedFrom = runContext.render(this.from).as(String.class).orElseThrow();
@@ -126,8 +99,14 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             return Optional.empty();
         }
 
-        java.util.List<File> downloadedFiles = listOutput
-            .getFiles()
+        Integer rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(null);
+        java.util.List<File> selectedFiles = listOutput.getFiles();
+
+        if (rMaxFiles != null && selectedFiles.size() > rMaxFiles) {
+            selectedFiles = selectedFiles.subList(0, rMaxFiles);
+        }
+
+        java.util.List<File> downloadedFiles = selectedFiles
             .stream()
             .map(throwFunction(fileItem -> {
                 if (fileItem.isDirectory()) {
@@ -146,24 +125,33 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             }))
             .toList();
 
-        Downloads.Action selectedAction = this.action != null ?
-            runContext.render(this.action).as(Downloads.Action.class).orElse(Downloads.Action.NONE) :
-            Downloads.Action.NONE;
+        Downloads.Action selectedAction =
+            runContext.render(this.action)
+                .as(Downloads.Action.class)
+                .orElse(Downloads.Action.NONE);
 
-        java.util.List<File> filesToProcess = downloadedFiles.stream()
+        java.util.List<File> filesToProcess = selectedFiles.stream()
             .filter(file -> !file.isDirectory())
             .toList();
 
         if (selectedAction != Downloads.Action.NONE) {
-            Downloads.performAction(filesToProcess, selectedAction, this.moveDirectory, runContext);
+            Downloads.performAction(
+                filesToProcess,
+                selectedAction,
+                this.moveDirectory,
+                runContext
+            );
         }
 
-        return Optional.of(TriggerService.generateExecution(
-            this,
-            conditionContext,
-            triggerContext,
-            Downloads.Output.builder().files(downloadedFiles).build()
-        ));
+        return Optional.of(
+            TriggerService.generateExecution(
+                this,
+                conditionContext,
+                triggerContext,
+                Downloads.Output.builder()
+                    .files(downloadedFiles)
+                    .build()
+            )
+        );
     }
 }
-
