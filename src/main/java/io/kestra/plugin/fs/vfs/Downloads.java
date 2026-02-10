@@ -26,23 +26,23 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @NoArgsConstructor
 public abstract class Downloads extends AbstractVfsTask implements RunnableTask<Downloads.Output> {
     @Schema(
-        title = "The directory to list"
+        title = "Directory URI to list"
     )
     @NotNull
     private Property<String> from;
 
     @Schema(
-        title = "The action to take on downloaded files"
+        title = "Action on downloaded files"
     )
     private Property<Downloads.Action> action;
 
     @Schema(
-        title = "The destination directory in case of `MOVE`"
+        title = "Destination directory when action is MOVE"
     )
     private Property<String> moveDirectory;
 
     @Schema(
-        title = "A regexp to filter on full path"
+        title = "Regexp filter on full path"
     )
     private Property<String> regExp;
 
@@ -54,7 +54,7 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
 
     @Builder.Default
     @Schema(
-        title = "The maximum number of files to retrieve at once"
+        title = "Maximum files to retrieve"
     )
     private Property<Integer> maxFiles = Property.ofValue(25);
 

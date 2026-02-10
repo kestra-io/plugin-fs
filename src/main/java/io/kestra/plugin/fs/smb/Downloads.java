@@ -18,7 +18,8 @@ import java.io.IOException;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Download multiple files from an SMB (e.g., Samba) server."
+    title = "Download multiple files over SMB",
+    description = "Lists matching files then downloads them to internal storage. Respects `maxFiles` (default 25) and optional post-download action (MOVE/DELETE). Default port 445."
 )
 @Plugin(
     examples = {

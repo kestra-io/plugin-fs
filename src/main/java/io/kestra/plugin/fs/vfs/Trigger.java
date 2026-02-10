@@ -36,7 +36,7 @@ import static io.kestra.core.models.triggers.StatefulTriggerService.*;
 @Getter
 @NoArgsConstructor
 public abstract class Trigger extends AbstractTrigger implements PollingTriggerInterface, AbstractVfsInterface, TriggerOutput<Trigger.Output>, StatefulTriggerInterface {
-    @Schema(title = "The interval between trigger checks")
+    @Schema(title = "Interval between trigger checks")
     @Builder.Default
     private final Duration interval = Duration.ofSeconds(60);
 
@@ -44,18 +44,18 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
     protected Property<String> username;
     protected Property<String> password;
 
-    @Schema(title = "The directory to list")
+    @Schema(title = "Directory URI to watch")
     @NotNull
     private Property<String> from;
 
-    @Schema(title = "The action to perform on the retrieved files. If using 'NONE' make sure to handle the files inside your flow to avoid infinite triggering.")
+    @Schema(title = "Action to perform on retrieved files", description = "If NONE, handle files in the Flow to avoid reprocessing.")
     @NotNull
     private Property<Downloads.Action> action;
 
-    @Schema(title = "The destination directory in case of `MOVE`")
+    @Schema(title = "Destination directory when action is MOVE")
     private Property<String> moveDirectory;
 
-    @Schema(title = "A regexp to filter on full path")
+    @Schema(title = "Regexp filter on full path")
     private Property<String> regExp;
 
     @Schema(title = "List files recursively")
@@ -63,7 +63,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
     private Property<Boolean> recursive = Property.ofValue(false);
 
     @Builder.Default
-    @Schema(title = "Enable the RSA/SHA1 algorithm (disabled by default)")
+    @Schema(title = "Enable RSA/SHA1 algorithm", description = "Disabled by default; enable only if the remote server requires it.")
     @NotNull
     private Property<Boolean> enableSshRsa1 = Property.ofValue(false);
 
@@ -74,7 +74,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
     private Property<Duration> stateTtl;
 
     @Builder.Default
-    @Schema(title = "The maximum number of files to retrieve at once")
+    @Schema(title = "Maximum files to process per poll")
     private Property<Integer> maxFiles = Property.ofValue(25);
 
     private static class PendingFile {

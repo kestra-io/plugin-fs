@@ -18,7 +18,8 @@ import java.io.IOException;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Upload a file to an SMB (e.g., Samba) server directory."
+    title = "Upload a file over SMB",
+    description = "Pushes one local file to an SMB/CIFS share. Default port 445."
 )
 @Plugin(
     examples = {

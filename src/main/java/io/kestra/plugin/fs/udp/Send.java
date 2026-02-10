@@ -23,7 +23,8 @@ import java.nio.charset.StandardCharsets;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Send a UDP datagram message to a specific host and port."
+    title = "Send a UDP datagram",
+    description = "Sends a single UDP packet to the target host/port, then closes the socket. Default encoding UTF-8."
 )
 @Plugin(
     examples = {
@@ -45,19 +46,19 @@ import java.nio.charset.StandardCharsets;
     }
 )
 public class Send extends Task implements RunnableTask<Send.Output> {
-    @Schema(title = "Target host or IP address.")
+    @Schema(title = "Target host or IP")
     @NotNull
     private Property<String> host;
 
-    @Schema(title = "Target UDP port.")
+    @Schema(title = "Target UDP port")
     @NotNull
     private Property<Integer> port;
 
-    @Schema(title = "Message payload to send.")
+    @Schema(title = "Payload to send")
     @NotNull
     private Property<String> payload;
 
-    @Schema(title = "Character encoding for the payload.", defaultValue = "UTF-8")
+    @Schema(title = "Payload encoding", description = "UTF-8 default; use an alternate charset for binary-safe payloads.", defaultValue = "UTF-8")
     @Builder.Default
     private Property<String> encoding = Property.ofValue("UTF-8");
 

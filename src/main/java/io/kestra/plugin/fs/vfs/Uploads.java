@@ -27,27 +27,27 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @NoArgsConstructor
 public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Uploads.Output>, Data.From {
     @Schema(
-        title = "The files to upload, must be internal storage URIs, must be a list of URIs or a pebble template that returns a list of URIs",
+        title = "Files to upload (kestra:// URIs)",
         anyOf = {
             String.class,
             List.class,
             Map.class
         },
-        description = "Must be Kestra internal storage URIs. Can be a single URI string, a list of URI strings, or an internal storage URI pointing to a file containing URIs."
+        description = "Kestra internal storage URIs; accepts a single URI string, a list of URIs, or a URI pointing to a file that contains URIs."
     )
     @PluginProperty(dynamic = true, internalStorageURI = true)
     @NotNull
     private Object from;
 
     @Schema(
-            title = "The destination directory"
+            title = "Destination directory"
     )
     @NotNull
     private Property<String> to;
 
     @Builder.Default
     @Schema(
-        title = "The maximum number of files to retrieve at once"
+        title = "Maximum files to upload"
     )
     private Property<Integer> maxFiles = Property.ofValue(25);
 

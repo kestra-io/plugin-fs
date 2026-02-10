@@ -20,7 +20,8 @@ import java.time.Duration;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Download file from an FTP server."
+    title = "Download a file from FTP",
+    description = "Fetches a single remote file to internal storage. Defaults: port 21, passive mode on, remote IP verification on, paths relative to user home."
 )
 @Plugin(
     examples = {

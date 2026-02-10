@@ -22,7 +22,8 @@ import java.net.Proxy;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Download a file from an FTPS server."
+    title = "Download a file from FTPS",
+    description = "Fetches a single remote file over FTPS. Defaults: port 990, EXPLICIT mode, PROT P data channel, passive mode on, remote IP verification on, paths relative to user home. `insecureTrustAllCertificates` skips SSL checks for testing."
 )
 @Plugin(
     examples = {

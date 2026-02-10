@@ -19,12 +19,12 @@ import java.net.URI;
 @NoArgsConstructor
 public abstract class Delete extends AbstractVfsTask implements RunnableTask<Delete.Output> {
     @Schema(
-        title = "The file to delete")
+        title = "URI of the file to delete")
     @NotNull
     private Property<String> uri;
 
     @Schema(
-        title = "raise an error if the file is not found"
+        title = "Raise error if missing"
     )
     @Builder.Default
     private final Property<Boolean> errorOnMissing = Property.ofValue(false);

@@ -23,10 +23,10 @@ import java.util.NoSuchElementException;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Delete a file or directory from the local filesystem.",
+    title = "Delete local file or directory",
     description = """
-        Local filesystem access is disabled by default.
-        You must configure the plugin default `allowed-paths` in your Kestra configuration.
+        Removes a file or directory under the configured `allowed-paths`; access outside is denied. Recursive deletion defaults to true for directories.
+        Set `errorOnMissing: true` to fail when the target is absent.
 
         Example (Kestra config):
         ```yaml
@@ -57,17 +57,17 @@ import java.util.NoSuchElementException;
 )
 public class Delete extends AbstractLocalTask implements RunnableTask<Delete.Output> {
 
-    @Schema(title = "The local file path to delete")
+    @Schema(title = "Local path to delete")
     @NotNull
     private Property<String> from;
 
-    @Schema(title = "Raise an error if the file is not found")
+    @Schema(title = "Raise an error if missing")
     @Builder.Default
     private Property<Boolean> errorOnMissing = Property.ofValue(false);
 
     @Schema(
-        title = "Whether to include subdirectories",
-        description = "If true, the task will recursively delete files in all subdirectories."
+        title = "Include subdirectories",
+        description = "If true, deletes directory contents recursively."
     )
     @Builder.Default
     private Property<Boolean> recursive = Property.ofValue(true);

@@ -25,10 +25,10 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Copy files within the local file system.",
+    title = "Copy files on the local filesystem",
     description = """
-        Local filesystem access is disabled by default.
-        You must configure the plugin default `allowed-paths` in your Kestra configuration.
+        Copies files or directories within allowed local paths. Local access requires configuring `allowed-paths` in plugin defaults; operations outside are blocked.
+        Set `overwrite: true` to replace existing targets.
 
         Example (Kestra config):
         ```yaml
@@ -62,20 +62,20 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 public class Copy extends AbstractLocalTask implements RunnableTask<VoidOutput> {
 
     @Schema(
-        title = "The file or directory to move from local file system."
+        title = "Source file or directory path"
     )
     @NotNull
     private Property<String> from;
 
     @Schema(
-        title = "The path to move the file or directory to on the local file system."
+        title = "Destination path on the local file system"
     )
     @NotNull
     private Property<String> to;
 
     @Schema(
-        title = "Overwrite.",
-        description = "If set to false, it will raise an exception if the destination folder or file already exists."
+        title = "Overwrite existing files",
+        description = "If false, the task fails when the destination already exists."
     )
     @Builder.Default
     protected Property<Boolean> overwrite = Property.ofValue(false);

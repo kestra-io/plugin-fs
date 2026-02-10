@@ -18,7 +18,8 @@ import java.io.IOException;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "List files from an SMB (e.g., Samba) server directory."
+    title = "List files on an SMB share",
+    description = "Lists entries under the given share path with optional regexp filter. Default port 445."
 )
 @Plugin(
     examples = {

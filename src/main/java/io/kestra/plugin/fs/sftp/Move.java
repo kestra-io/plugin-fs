@@ -18,8 +18,8 @@ import java.io.IOException;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Move a file to an SFTP server.",
-    description ="If the destination directory doesn't exist, it will be created"
+    title = "Move or rename an SFTP file",
+    description = "Moves/renames a remote file; destination directories are created when missing. Defaults: port 22, user home as root, password auth unless a PEM key is provided, host key checking disabled by default."
 )
 @Plugin(
     examples = {

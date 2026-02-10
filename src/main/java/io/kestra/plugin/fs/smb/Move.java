@@ -18,8 +18,8 @@ import java.io.IOException;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Move a file to a different folder on an SMB (e.g., Samba) server directory.",
-    description = "If the destination directory doesn't exist, it will be created"
+    title = "Move or rename a file over SMB",
+    description = "Moves/renames a file on an SMB/CIFS share; destination directories are created when missing. Default port 445."
 )
 @Plugin(
     examples = {

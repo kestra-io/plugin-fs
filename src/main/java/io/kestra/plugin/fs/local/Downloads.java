@@ -30,10 +30,10 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Download multiple files from a local filesystem directory to Kestra's internal storage.",
+    title = "Download multiple local files",
     description = """
-        Local filesystem access is disabled by default.
-        You must configure the plugin default `allowed-paths` in your Kestra configuration.
+        Lists files within `allowed-paths`, downloads up to `maxFiles` (default 25) to Kestra storage, then optionally MOVE or DELETE them.
+        Local access requires configured `allowed-paths`; `moveDirectory` is required when action is MOVE.
 
         Example (Kestra config):
         ```yaml
@@ -84,24 +84,24 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 public class Downloads extends AbstractLocalTask implements RunnableTask<Downloads.Output> {
 
     @Schema(
-        title = "The directory to list"
+        title = "Directory to list"
     )
     @NotNull
     private Property<String> from;
 
     @Schema(
-        title = "The action to take on downloaded files"
+        title = "Action on downloaded files"
     )
     @Builder.Default
     private Property<Downloads.Action> action = Property.ofValue(Downloads.Action.NONE);
 
     @Schema(
-        title = "The destination directory in case of `MOVE`"
+        title = "Destination directory when action is MOVE"
     )
     private Property<String> moveDirectory;
 
     @Schema(
-        title = "A regexp to filter on full path"
+        title = "Regexp filter on full path"
     )
     private Property<String> regExp;
 
@@ -113,7 +113,7 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
 
     @Builder.Default
     @Schema(
-        title = "The maximum number of files to retrieve at once"
+        title = "Maximum files to retrieve"
     )
     private Property<Integer> maxFiles = Property.ofValue(25);
 

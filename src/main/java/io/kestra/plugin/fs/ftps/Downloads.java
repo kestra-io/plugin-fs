@@ -22,7 +22,8 @@ import java.net.Proxy;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Download multiple files from an FTPS server."
+    title = "Download multiple files from FTPS",
+    description = "Lists matching files then downloads them over FTPS. Respects `maxFiles` (default 25) and optional post-download action (MOVE/DELETE). Defaults: port 990, EXPLICIT mode, PROT P data channel, passive mode on, remote IP verification on, paths relative to user home. Use `insecureTrustAllCertificates` only for testing."
 )
 @Plugin(
     examples = {

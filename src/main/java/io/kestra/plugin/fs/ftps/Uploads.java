@@ -22,7 +22,8 @@ import java.net.Proxy;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Upload files to an FTPS server's directory."
+    title = "Upload multiple files to FTPS",
+    description = "Uploads each provided file over FTPS to the target directory. Defaults: port 990, EXPLICIT mode, PROT P data channel, passive mode on, remote IP verification on, paths relative to user home. `insecureTrustAllCertificates` skips SSL checks for testing."
 )
 @Plugin(
     examples = {

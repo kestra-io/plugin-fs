@@ -24,10 +24,11 @@ import java.util.stream.Stream;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Move files within the local filesystem.",
+    title = "Move or rename local files",
     description = """
-        Local filesystem access is disabled by default.
-        You must configure the plugin default `allowed-paths` in your Kestra configuration.
+        Moves files or directories within configured `allowed-paths`; destination parents are created as needed.
+        Overwrite is false by default and directories cannot be moved into themselves.
+        Local access requires `allowed-paths` in plugin defaults.
 
         Example (Kestra config):
         ```yaml
@@ -60,20 +61,20 @@ import java.util.stream.Stream;
 )
 public class Move extends AbstractLocalTask implements RunnableTask<VoidOutput> {
     @Schema(
-        title = "The file or directory to move from the local file system"
+        title = "Source file or directory path"
     )
     @NotNull
     private Property<String> from;
 
     @Schema(
-        title = "The path to move the file or directory to on the local file system"
+        title = "Destination path on the local file system"
     )
     @NotNull
     private Property<String> to;
 
     @Schema(
-        title = "Overwrite",
-        description = "If set to false, it will raise an exception if the destination folder or file already exists."
+        title = "Overwrite existing files",
+        description = "If false, the task fails when the destination already exists."
     )
     @Builder.Default
     protected Property<Boolean> overwrite = Property.ofValue(false);

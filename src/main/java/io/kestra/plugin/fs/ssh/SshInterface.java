@@ -8,13 +8,13 @@ public interface SshInterface {
     String ALLOW_OPEN_SSH_CONFIG = "allow-open-ssh-config";
 
     @Schema(
-        title = "Hostname of the remote server"
+        title = "Remote host"
     )
     @NotNull
     Property<String> getHost();
 
     @Schema(
-        title = "Port of the remote server"
+        title = "Remote port"
     )
     Property<String> getPort();
 
@@ -25,22 +25,26 @@ public interface SshInterface {
     Property<AuthMethod> getAuthMethod();
 
     @Schema(
-        title = "Username on the remote server, required for password auth method"
+        title = "Username",
+        description = "Required for PASSWORD and PUBLIC_KEY methods."
     )
     Property<String> getUsername();
 
     @Schema(
-        title = "Password on the remote server, required for password auth method"
+        title = "Password",
+        description = "Required for PASSWORD auth; optional for OPEN_SSH when config supplies credentials."
     )
     Property<String> getPassword();
 
     @Schema(
-        title = "Private SSH Key to authenticate, required for pubkey auth method"
+        title = "Private SSH key",
+        description = "OpenSSH private key content for PUBLIC_KEY auth."
     )
     Property<String> getPrivateKey();
 
     @Schema(
-        title = "Passphrase used in order to unseal the private key, optional for pubkey auth method"
+        title = "Private key passphrase",
+        description = "Optional passphrase for the private key."
     )
     Property<String> getPrivateKeyPassphrase();
 
