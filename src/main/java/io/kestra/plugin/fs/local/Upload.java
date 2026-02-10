@@ -24,10 +24,10 @@ import java.nio.file.*;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Upload a file to a local filesystem.",
+    title = "Upload file to the local filesystem",
     description = """
-        Local filesystem access is disabled by default.
-        You must configure the plugin default `allowed-paths` in your Kestra configuration.
+        Writes a file from Kestra internal storage to a local path under configured `allowed-paths`; access outside is denied.
+        Source must be a `kestra://` URI. Overwrite defaults to true; destination path defaults to the source filename.
 
         Example (Kestra config):
         ```yaml
@@ -67,20 +67,21 @@ public class Upload extends AbstractLocalTask implements RunnableTask<Upload.Out
 
     @Schema(
         title = "Source file URI",
-        description = "URI of the file to be uploaded into the local system"
+        description = "Kestra internal storage URI of the file to upload"
     )
     @NotNull
     @PluginProperty(internalStorageURI = true)
     private Property<String> from;
 
     @Schema(
-        title = "The destination path, if not set the task will use the name of the file denoted by the `from` property"
+        title = "Destination path",
+        description = "Optional local path; defaults to the source filename when omitted"
     )
     private Property<String> to;
 
     @Schema(
-        title = "Whether to overwrite existing files",
-        description = "If false, the task will throw an error if the target file already exists"
+        title = "Overwrite existing files",
+        description = "If false, the task fails when the target file already exists"
     )
     @Builder.Default
     private Property<Boolean> overwrite = Property.ofValue(true);

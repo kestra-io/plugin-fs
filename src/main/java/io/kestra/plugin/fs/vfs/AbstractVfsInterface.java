@@ -6,23 +6,23 @@ import jakarta.validation.constraints.NotNull;
 
 public interface AbstractVfsInterface {
     @Schema(
-        title = "Hostname of the remote server"
+        title = "Remote host"
     )
     @NotNull
     Property<String> getHost();
 
     @Schema(
-        title = "Port of the remote server"
+        title = "Remote port"
     )
     Property<String> getPort();
 
     @Schema(
-        title = "Username on the remote server"
+        title = "Username"
     )
     Property<String> getUsername();
 
     @Schema(
-        title = "Password on the remote server"
+        title = "Password"
     )
     Property<String> getPassword();
 }

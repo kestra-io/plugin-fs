@@ -28,7 +28,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Trigger a flow when a UDP message is received in real-time."
+    title = "Trigger on incoming UDP messages",
+    description = "Listens on a UDP port and fires immediately for each received datagram. Default bind 0.0.0.0, buffer 1024 bytes, UTF-8 decoding."
 )
 @Plugin(
     examples = {
@@ -56,19 +57,19 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class RealtimeTrigger extends AbstractTrigger
     implements RealtimeTriggerInterface, TriggerOutput<RealtimeTrigger.Output> {
 
-    @Schema(title = "The interface to bind.", defaultValue = "0.0.0.0")
+    @Schema(title = "Interface to bind", defaultValue = "0.0.0.0")
     @Builder.Default
     private Property<String> host = Property.ofValue("0.0.0.0");
 
-    @Schema(title = "The UDP port to listen on.")
+    @Schema(title = "UDP port to listen on")
     @NotNull
     private Property<Integer> port;
 
-    @Schema(title = "Buffer size in bytes.", defaultValue = "1024")
+    @Schema(title = "Buffer size in bytes", defaultValue = "1024")
     @Builder.Default
     private Property<Integer> bufferSize = Property.ofValue(1024);
 
-    @Schema(title = "Encoding for incoming data.", defaultValue = "UTF-8")
+    @Schema(title = "Encoding for incoming data", defaultValue = "UTF-8")
     @Builder.Default
     private Property<String> encoding = Property.ofValue(StandardCharsets.UTF_8.name());
 

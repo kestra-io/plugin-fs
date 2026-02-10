@@ -33,7 +33,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Send a command to a remote server using SSH."
+    title = "Run commands over SSH",
+    description = "Executes one or more commands on a remote host via SSH. Supports PASSWORD, PUBLIC_KEY, or OPEN_SSH auth. Default port 22 and strict host key checking off (`no`). Allow weak rsa-sha1 only when `enableSshRsa1` is true."
 )
 @Plugin(
     examples = {
@@ -108,25 +109,22 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
     // OpenSSH config
     @Builder.Default
     @Schema(
-        title = "OpenSSH configuration directory (deprecated).",
-        description = "Deprecated. Use openSSHConfigPath instead."
+        title = "OpenSSH config directory (deprecated)",
+        description = "Deprecated; use `openSSHConfigPath` instead."
     )
     @Deprecated
     private Property<String> openSSHConfigDir = Property.ofValue("~/.ssh/config");
 
     @Schema(
-        title = "OpenSSH configuration file path used when the authentication method is `OPEN_SSH`."
+        title = "OpenSSH config file path",
+        description = "Used when `authMethod` is OPEN_SSH. Access must be allowed via plugin configuration."
     )
     private Property<String> openSSHConfigPath;
 
     @Schema(
         title = "SSH authentication configuration",
         description = """
-            When the authentication method is set to `OPEN_SSH`, access to the local OpenSSH host configuration must be explicitly allowed.
-            This ensures that the plugin can use SSH settings (such as `Host`, `User`, `Port`, or `IdentityFile`) defined in the user's OpenSSH configuration file.
-
-            To enable this, configure the plugin using "allow-open-ssh-config" in the plugin configuration, as shown below:
-
+            When `authMethod` is OPEN_SSH, access to local SSH config must be allowed with `allow-open-ssh-config: true` in plugin defaults:
             ```yaml
             kestra:
               plugins:
@@ -143,13 +141,13 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
     @Builder.Default
     private Property<String> port = Property.ofValue("22");
 
-    @Schema(title = "The list of commands to run on the remote server")
+    @Schema(title = "Commands to execute")
     @PluginProperty(dynamic = true)
     @NotNull
     @NotEmpty
     private String[] commands;
 
-    @Schema(title = "Whether to check if the host public key could be found among known host, one of 'yes', 'no', 'ask'")
+    @Schema(title = "Strict host key checking", description = "One of yes|no|ask. Default no.")
     @Builder.Default
     private Property<String> strictHostKeyChecking = Property.ofValue("no");
 

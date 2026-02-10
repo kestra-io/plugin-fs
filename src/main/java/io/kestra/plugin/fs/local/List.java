@@ -24,10 +24,10 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "List files in the local filesystem.",
+    title = "List local files",
     description = """
-        Local filesystem access is disabled by default.
-        You must configure the plugin default `allowed-paths` in your Kestra configuration.
+        Lists files under a directory allowed by `allowed-paths`; optional regexp filter and recursion. Limits results to `maxFiles` (default 25).
+        Local access requires `allowed-paths` in plugin defaults.
 
         Example (Kestra config):
         ```yaml
@@ -61,27 +61,27 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 public class List extends AbstractLocalTask implements RunnableTask<List.Output> {
 
     @Schema(
-        title = "The fully-qualified URIs that point to the path"
+        title = "Directory to scan"
     )
     @NotNull
     private Property<String> from;
 
     @Schema(
-        title = "Regular expression to filter files",
-        description = "Only files matching this regular expression will be listed."
+        title = "Regular expression filter",
+        description = "Only files matching this regex are listed."
     )
     private Property<String> regExp;
 
     @Schema(
-        title = "Whether to include subdirectories",
-        description = "If true, the task will recursively list files in all subdirectories."
+        title = "Include subdirectories",
+        description = "If true, list files recursively."
     )
     @Builder.Default
     private Property<Boolean> recursive = Property.ofValue(false);
 
     @Builder.Default
     @Schema(
-        title = "The maximum number of files to retrieve at once"
+        title = "Maximum files to retrieve"
     )
     private Property<Integer> maxFiles = Property.ofValue(25);
 

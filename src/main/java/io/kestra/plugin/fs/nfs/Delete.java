@@ -25,7 +25,8 @@ import java.nio.file.Path;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Delete a file from an NFS mount."
+    title = "Delete a file on NFS",
+    description = "Removes a file from an NFS mount. By default `errorOnMissing` is true and raises when the target is absent."
 )
 @Plugin(
     examples = {
@@ -51,11 +52,11 @@ public class Delete extends Task implements RunnableTask<Delete.Output> {
     @Builder.Default
     private NfsService nfsService = NfsService.getInstance();
 
-    @Schema(title = "The path to the file to delete.")
+    @Schema(title = "Path of the file to delete")
     @NotNull
     private Property<String> uri;
 
-    @Schema(title = "Raise an error if the file doesn't exist.")
+    @Schema(title = "Raise an error if missing")
     @Builder.Default
     private boolean errorOnMissing = true;
 

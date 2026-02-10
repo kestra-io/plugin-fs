@@ -17,13 +17,13 @@ import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 @NoArgsConstructor
 public abstract class List extends AbstractVfsTask implements RunnableTask<List.Output> {
     @Schema(
-        title = "The fully-qualified URIs that point to a path"
+        title = "Directory URI to list"
     )
     @NotNull
     protected Property<String> from;
 
     @Schema(
-        title = "A regexp to filter on full path"
+        title = "Regexp filter on full path"
     )
     private Property<String> regExp;
 
@@ -35,7 +35,7 @@ public abstract class List extends AbstractVfsTask implements RunnableTask<List.
 
     @Builder.Default
     @Schema(
-        title = "The maximum number of files to retrieve at once"
+        title = "Maximum files to retrieve"
     )
     private Property<Integer> maxFiles = Property.ofValue(25);
 

@@ -19,20 +19,21 @@ import java.net.URI;
 @NoArgsConstructor
 public abstract class Upload extends AbstractVfsTask implements RunnableTask<Upload.Output> {
     @Schema(
-        title = "The file to copy, must be an internal storage URI"
+        title = "Source file (kestra:// URI)"
     )
     @NotNull
     @PluginProperty(internalStorageURI = true)
     private Property<String> from;
 
     @Schema(
-        title = "The destination path, if not set it will use the name of the file denoted by the `from` property"
+        title = "Destination path",
+        description = "If unset, uses the source filename."
     )
     private Property<String> to;
 
     @Schema(
-        title = "Overwrite.",
-        description = "If set to false, it will raise an exception if the destination folder or file already exists."
+        title = "Overwrite existing files",
+        description = "If false (default), fails when the destination already exists."
     )
     @Builder.Default
     private Property<Boolean> overwrite = Property.ofValue(false);

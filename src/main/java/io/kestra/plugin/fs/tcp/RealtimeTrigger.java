@@ -33,7 +33,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Trigger a flow when a TCP message is received in real-time."
+    title = "Trigger on incoming TCP messages",
+    description = "Listens on a TCP port and fires immediately when data is received. Default bind host 0.0.0.0, UTF-8 decoding. Stops when trigger is canceled or kill/stop is called."
 )
 @Plugin(
     examples = {
@@ -65,15 +66,15 @@ public class RealtimeTrigger extends AbstractTrigger
     @Builder.Default
     private TcpService tcpService = TcpService.getInstance();
 
-    @Schema(title = "The interface to bind.", defaultValue = "0.0.0.0")
+    @Schema(title = "Interface to bind", defaultValue = "0.0.0.0")
     @Builder.Default
     private Property<String> host = Property.ofValue("0.0.0.0");
 
-    @Schema(title = "The TCP port to listen on.")
+    @Schema(title = "TCP port to listen on")
     @NotNull
     private Property<Integer> port;
 
-    @Schema(title = "Encoding for incoming data.", defaultValue = "UTF-8")
+    @Schema(title = "Encoding for incoming data", defaultValue = "UTF-8")
     @Builder.Default
     private Property<String> encoding = Property.ofValue(StandardCharsets.UTF_8.name());
 

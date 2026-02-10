@@ -30,10 +30,10 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Trigger a flow as soon as new files are detected in a given local file system's directory.",
+    title = "Trigger on new local files",
     description = """
-        Local filesystem access is disabled by default.
-        You must configure the plugin default `allowed-paths` in your Kestra configuration.
+        Polls a directory under configured `allowed-paths` (default every 60s) and fires when files are created or updated.
+        Limits to `maxFiles` (default 25) and can MOVE or DELETE matched files; `moveDirectory` is required when MOVE is chosen.
 
         Example (Kestra config):
         ```yaml
@@ -78,18 +78,18 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 )
 public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<List.Output>, StatefulTriggerInterface {
 
-    @Schema(title = "The interval between checks")
+    @Schema(title = "Interval between checks")
     @Builder.Default
     private final Duration interval = Duration.ofSeconds(60);
 
     @Schema(
-        title = "The directory to list"
+        title = "Directory to watch"
     )
     @NotNull
     private Property<String> from;
 
     @Schema(
-        title = "The destination directory in case of `MOVE`"
+        title = "Destination directory when action is MOVE"
     )
     private Property<String> moveDirectory;
 
@@ -101,7 +101,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     private Property<Boolean> recursive = Property.ofValue(false);
 
     @Schema(
-        title = "The action to take on downloaded files"
+        title = "Action to take on matched files"
     )
     @Builder.Default
     private Property<Downloads.Action> action = Property.ofValue(Downloads.Action.NONE);
@@ -114,7 +114,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
     @Builder.Default
     @Schema(
-        title = "The maximum number of files to retrieve at once"
+        title = "Maximum files to process per poll"
     )
     private Property<Integer> maxFiles = Property.ofValue(25);
 

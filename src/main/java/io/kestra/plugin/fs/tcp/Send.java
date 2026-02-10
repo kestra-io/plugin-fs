@@ -25,7 +25,8 @@ import java.time.Duration;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Send a payload to a TCP server."
+    title = "Send data to a TCP server",
+    description = "Opens a TCP socket, sends the payload, and closes the connection. Default encoding UTF-8; set encoding to BASE64 for binary. Connection timeout defaults to 10s."
 )
 @Plugin(
     examples = {
@@ -52,23 +53,23 @@ public class Send extends Task implements RunnableTask<Send.Output> {
     @Builder.Default
     private TcpService tcpService = TcpService.getInstance();
 
-    @Schema(title = "The target host or IP address.")
+    @Schema(title = "Target host or IP")
     @NotNull
     private Property<String> host;
 
-    @Schema(title = "The target port number.")
+    @Schema(title = "Target port")
     @NotNull
     private Property<Integer> port;
 
-    @Schema(title = "The payload to send over TCP.")
+    @Schema(title = "Payload to send")
     @NotNull
     private Property<String> payload;
 
-    @Schema(title = "Encoding for the payload. Use 'BASE64' for binary data.", defaultValue = "UTF-8")
+    @Schema(title = "Payload encoding", description = "Use BASE64 for binary data; otherwise UTF-8.", defaultValue = "UTF-8")
     @Builder.Default
     private Property<String> encoding = Property.ofValue(StandardCharsets.UTF_8.name());
 
-    @Schema(title = "Optional timeout for the socket connection.")
+    @Schema(title = "Socket timeout", description = "Timeout for establishing the connection and IO; default 10s.")
     private Property<Duration> timeout;
 
     @Override

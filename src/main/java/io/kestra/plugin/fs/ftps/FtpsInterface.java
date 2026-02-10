@@ -7,19 +7,21 @@ import org.apache.commons.vfs2.provider.ftps.FtpsMode;
 
 public interface FtpsInterface {
     @Schema(
-        title = "Sets FTPS mode, either \"implicit\" or \"explicit\"."
+        title = "Select FTPS mode",
+        description = "Choose implicit or explicit FTPS. Default EXPLICIT."
     )
     Property<FtpsMode> getMode();
 
 
     @Schema(
-        title = "Sets the data channel protection level (PROT)."
+        title = "Data channel protection level",
+        description = "PROT command value (`P`, `C`, etc.). Default P (encrypted)."
     )
     Property<FtpsDataChannelProtectionLevel> getDataChannelProtectionLevel();
 
     @Schema(
-        title = "Whether the client should disable checking of the remote SSL certificate.",
-        description = "Note: This makes the SSL connection insecure, and should only be used for testing."
+        title = "Trust all certificates",
+        description = "Skip server certificate validation. Insecure; use only for testing."
     )
     Property<Boolean> getInsecureTrustAllCertificates();
 }

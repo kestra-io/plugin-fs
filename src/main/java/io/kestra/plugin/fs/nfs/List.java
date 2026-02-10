@@ -31,7 +31,8 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "List files from an NFS mount point."
+    title = "List files on an NFS mount",
+    description = "Lists files under an NFS path with optional regex filtering and recursion. Caps results at `maxFiles` (default 25)."
 )
 @Plugin(
     examples = {
@@ -59,14 +60,14 @@ public class List extends Task implements RunnableTask<List.Output> {
     @Builder.Default
     private NfsService nfsService = NfsService.getInstance();
 
-    @Schema(title = "The directory path to list from.")
+    @Schema(title = "Directory path to list")
     @NotNull
     private Property<String> from;
 
-    @Schema(title = "A regular expression to filter files.")
+    @Schema(title = "Regular expression to filter files")
     private Property<String> regExp;
 
-    @Schema(title = "Whether to list files recursively.")
+    @Schema(title = "List files recursively")
     @Builder.Default
     private Property<Boolean> recursive = Property.ofValue(false);
 

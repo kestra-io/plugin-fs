@@ -18,7 +18,8 @@ import java.io.IOException;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "List files from an SFTP server directory."
+    title = "List files in an SFTP directory",
+    description = "Lists entries under the given path with optional regexp filter. Defaults: port 22, user home as root, password auth unless a PEM key is provided, host key checking disabled by default."
 )
 @Plugin(
     examples = {

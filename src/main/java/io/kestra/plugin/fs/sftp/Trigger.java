@@ -18,7 +18,8 @@ import java.io.IOException;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Trigger a flow as soon as new files are detected in a given SFTP server's directory."
+    title = "Trigger on new SFTP files",
+    description = "Polls a remote directory on the interval and starts a Flow when new files appear. Defaults: port 22, user home as root, password auth unless a PEM key is provided, host key checking disabled by default. Use `action` MOVE/DELETE to prevent repeated triggering."
 )
 @Plugin(
     examples = {

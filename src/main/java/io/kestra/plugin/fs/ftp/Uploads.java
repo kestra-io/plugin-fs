@@ -19,7 +19,8 @@ import java.net.Proxy;
 @Getter
 @NoArgsConstructor
 @Schema(
-        title = "Upload files to an FTP server's directory."
+        title = "Upload multiple files to FTP",
+        description = "Uploads each provided file to the target directory. Defaults: port 21, passive mode on, remote IP verification on, paths relative to user home."
 )
 @Plugin(
         examples = {

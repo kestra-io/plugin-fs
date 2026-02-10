@@ -18,7 +18,8 @@ import java.io.IOException;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Trigger a flow on new file arrival in a given SMB (e.g., Samba) server directory."
+    title = "Trigger on new SMB files",
+    description = "Polls a share path on the interval and starts a Flow when new files appear. Default port 445. Use `action` MOVE/DELETE to avoid reprocessing."
 )
 @Plugin(
     examples = {

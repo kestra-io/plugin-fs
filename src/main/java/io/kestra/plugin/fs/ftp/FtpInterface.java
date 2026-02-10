@@ -11,7 +11,7 @@ import java.time.Duration;
 
 public interface FtpInterface {
     @Schema(
-        title = "FTP proxy host"
+        title = "FTP proxy hostname"
     )
     Property<String> getProxyHost();
 
@@ -26,17 +26,20 @@ public interface FtpInterface {
     Property<Proxy.Type> getProxyType();
 
     @Schema(
-        title = "Is the path relative to the user's home directory"
+        title = "Treat path as user home root",
+        description = "If true (default), remote paths are resolved relative to the authenticated user's home directory."
     )
     Property<Boolean> getRootDir();
 
     @Schema(
-        title = "Whether to use a [passive mode](https://www.jscape.com/blog/active-v-s-passive-ftp-simplified). Passive mode is generally considered more secure as it's less likely to encounter issues with NAT and firewalls. Therefore, this property is by default set to `true`. To use active mode instead, set the property to `false`."
+        title = "Use passive data connections",
+        description = "Passive mode avoids most firewall and NAT issues and is enabled by default (`true`). Set to `false` to force active mode."
     )
     Property<Boolean> getPassiveMode();
 
     @Schema(
-        title = "Ensure the server IP responding matches the one that received the request."
+        title = "Verify data channel IP",
+        description = "Ensures the responding server IP matches the control connection to prevent spoofed data channels."
     )
     Property<Boolean> getRemoteIpVerification();
 
@@ -47,33 +50,36 @@ public interface FtpInterface {
     @Jacksonized
     class Options {
         @Schema(
-            title = "The timeout for the initial control connection."
+            title = "Control connection timeout",
+            description = "Maximum time to open the control channel. Default 30s."
         )
         @Builder.Default
         Property<Duration> connectionTimeout = Property.ofValue(Duration.ofSeconds(30));
 
         @Schema(
-            title = "The timeout for opening the data channel."
+            title = "Data channel timeout",
+            description = "Maximum time to open the data socket. Default 30s."
         )
         @Builder.Default
         Property<Duration> dataTimeout = Property.ofValue(Duration.ofSeconds(30));
 
         @Schema(
-            title = "The socket timeout."
+            title = "Socket read timeout",
+            description = "Timeout for socket reads and writes once connected. Default 30s."
         )
         @Builder.Default
         Property<Duration> socketTimeout = Property.ofValue(Duration.ofSeconds(30));
 
         @Schema(
-            title = "The control keep-alive timeout.",
-            description = "Ensures the socket stays alive after downloading a large file."
+            title = "Control keep-alive interval",
+            description = "Sends keep-alive commands during long transfers. Default 30s."
         )
         @Builder.Default
         Property<Duration> controlKeepAliveTimeout = Property.ofValue(Duration.ofSeconds(30));
 
         @Schema(
-            title = "The control keep-alive reply timeout.",
-            description = "Ensures the socket stays alive after downloading a large file."
+            title = "Keep-alive reply timeout",
+            description = "How long to wait for keep-alive responses before failing. Default 30s."
         )
         @Builder.Default
         Property<Duration> controlKeepAliveReplyTimeout = Property.ofValue(Duration.ofSeconds(30));

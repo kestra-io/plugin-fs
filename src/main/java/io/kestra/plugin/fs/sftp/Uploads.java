@@ -18,7 +18,8 @@ import java.io.IOException;
 @Getter
 @NoArgsConstructor
 @Schema(
-        title = "Upload files to an SFTP server's directory."
+        title = "Upload multiple files via SFTP",
+        description = "Uploads each provided file to the target directory. Defaults: port 22, user home as root, password auth unless a PEM key is provided, host key checking disabled by default."
 )
 @Plugin(
         examples = {

@@ -18,7 +18,8 @@ import java.io.IOException;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Delete a file from an SFTP server."
+    title = "Delete a remote SFTP file",
+    description = "Removes the specified file on the server. Defaults: port 22, user home as root, password auth unless a PEM key is provided, host key checking disabled by default."
 )
 @Plugin(
     examples = {

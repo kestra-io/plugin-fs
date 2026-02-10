@@ -19,8 +19,8 @@ import java.net.Proxy;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Move a file to an FTP server.",
-    description ="If the destination directory doesn't exist, it will be created"
+    title = "Move or rename an FTP file",
+    description = "Moves/renames a remote file; destination directories are created when missing. Defaults: port 21, passive mode on, remote IP verification on, paths relative to user home."
 )
 @Plugin(
     examples = {

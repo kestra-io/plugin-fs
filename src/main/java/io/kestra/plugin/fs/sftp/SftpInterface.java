@@ -5,8 +5,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 public interface SftpInterface {
     @Schema(
-        title = "Private key file in the PEM format to connect to a remote server using SSH",
-        description = "To generate a PEM-format key from OpenSSH, use the following command: `ssh-keygen -m PEM`"
+        title = "SSH private key (PEM)",
+        description = "PEM-formatted private key for public key auth. Convert OpenSSH keys with `ssh-keygen -m PEM`."
     )
     Property<String> getKeyfile();
 
@@ -17,8 +17,8 @@ public interface SftpInterface {
 
     @Deprecated
     @Schema(
-        title = "SFTP proxy host",
-        description = "Use 'proxyAddress' instead. This property is deprecated and will be removed in a future version."
+        title = "Deprecated proxy host",
+        description = "Use `proxyAddress` instead; retained for backward compatibility."
     )
     Property<String> getProxyHost();
 
@@ -34,8 +34,8 @@ public interface SftpInterface {
 
     @Deprecated
     @Schema(
-        title = "SFTP proxy user",
-        description = "Use 'proxyUsername' instead. This property is deprecated and will be removed in a future version."
+        title = "Deprecated proxy user",
+        description = "Use `proxyUsername` instead; retained for backward compatibility."
     )
     Property<String> getProxyUser();
 
@@ -50,17 +50,20 @@ public interface SftpInterface {
     Property<String> getProxyPassword();
 
     @Schema(
-        title = "SFTP proxy type"
+        title = "SFTP proxy type",
+        description = "One of SOCKS5, STREAM, or HTTP."
     )
     Property<String> getProxyType();
 
     @Schema(
-        title = "Is the path relative to the user's home directory"
+        title = "Treat path as user home root",
+        description = "If true (default), remote paths are resolved relative to the authenticated user's home directory."
     )
     Property<Boolean> getRootDir();
 
     @Schema(
-        title = "Configures the key exchange algorithm explicitly (e.g., diffie-hellman-group14-sha1, diffie-hellman-group-exchange-sha256, diffie-hellman-group-exchange-sha1, diffie-hellman-group1-sha1)."
+        title = "Key exchange algorithm",
+        description = "Override the KEX algorithm (e.g. diffie-hellman-group14-sha1, diffie-hellman-group-exchange-sha256)."
     )
     Property<String> getKeyExchangeAlgorithm();
 }

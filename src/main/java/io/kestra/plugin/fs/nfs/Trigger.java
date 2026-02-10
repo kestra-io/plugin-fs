@@ -34,7 +34,8 @@ import static io.kestra.core.models.triggers.StatefulTriggerService.*;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Trigger a flow when files are detected or modified on an NFS mount."
+    title = "Trigger on NFS file changes",
+    description = "Polls an NFS directory (default every 60s) and fires when files match `on` (CREATE/UPDATE). Supports regex filtering, optional recursion, and limits to `maxFiles` (default 25)."
 )
 @Plugin(
     examples = {
@@ -67,29 +68,29 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @Builder.Default
     private NfsService nfsService = NfsService.getInstance();
     
-    @Schema(title = "The directory path to watch.")
+    @Schema(title = "Directory path to watch")
     @NotNull
     private Property<String> from;
 
-    @Schema(title = "A regular expression to filter files.")
+    @Schema(title = "Regular expression to filter files")
     private Property<String> regExp;
 
-    @Schema(title = "Whether to list files recursively.")
+    @Schema(title = "List files recursively")
     @Builder.Default
     private Boolean recursive = false;
 
-    @Schema(title = "The interval between checks.")
+    @Schema(title = "Interval between checks")
     @Builder.Default
     private Duration interval = Duration.ofSeconds(60);
 
-    @Schema(title = "When to trigger the flow (CREATE, UPDATE, or CREATE_OR_UPDATE).")
+    @Schema(title = "Trigger condition (CREATE, UPDATE, CREATE_OR_UPDATE)")
     @Builder.Default
     private Property<On> on = Property.ofValue(On.CREATE_OR_UPDATE);
 
-    @Schema(title = "Unique key for storing the trigger state.")
+    @Schema(title = "Unique key for storing the trigger state")
     private Property<String> stateKey;
 
-    @Schema(title = "Time-to-live for the trigger state.")
+    @Schema(title = "Time-to-live for the trigger state")
     private Property<Duration> stateTtl;
 
     @Builder.Default

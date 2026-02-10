@@ -18,7 +18,8 @@ import java.io.IOException;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Download a file from an SMB (e.g., Samba) server."
+    title = "Download a file over SMB",
+    description = "Fetches a single file from an SMB/CIFS share to internal storage. Default port 445."
 )
 @Plugin(
     examples = {

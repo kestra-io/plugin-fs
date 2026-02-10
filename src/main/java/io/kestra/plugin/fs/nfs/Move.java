@@ -25,7 +25,8 @@ import java.nio.file.StandardCopyOption;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Move a file on an NFS mount."
+    title = "Move or rename a file on NFS",
+    description = "Moves or renames a file on an NFS mount. Parent directories are created as needed and existing targets are overwritten."
 )
 @Plugin(
     examples = {
@@ -52,11 +53,11 @@ public class Move extends Task implements RunnableTask<Move.Output> {
     @Builder.Default
     private NfsService nfsService = NfsService.getInstance();
     
-    @Schema(title = "The path to the file to move.")
+    @Schema(title = "Source file path")
     @NotNull
     private Property<String> from;
 
-    @Schema(title = "The destination path.")
+    @Schema(title = "Destination path")
     @NotNull
     private Property<String> to;
 

@@ -22,7 +22,8 @@ import java.net.Proxy;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Trigger a flow as soon as new files are detected in a given FTPS server's directory."
+    title = "Trigger on new FTPS files",
+    description = "Polls a remote directory on the interval and starts a Flow when new files appear. Defaults: port 990, EXPLICIT mode, PROT P data channel, passive mode on, remote IP verification on, paths relative to user home. Use `action` MOVE/DELETE to prevent repeated triggering; `insecureTrustAllCertificates` is for testing only."
 )
 @Plugin(
     examples = {

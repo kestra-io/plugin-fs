@@ -22,7 +22,8 @@ import java.nio.file.Path;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Check if a path is a valid and accessible NFS mount."
+    title = "Validate an NFS mount path",
+    description = "Checks whether the given path resides on an NFS file store and reports the detected store type."
 )
 @Plugin(
     examples = {
@@ -47,7 +48,7 @@ public class CheckMount extends Task implements RunnableTask<CheckMount.Output> 
     private NfsService nfsService = NfsService.getInstance();
 
     @Schema(
-        title = "The NFS path to check."
+        title = "NFS path to check"
     )
     @NotNull
     private Property<String> path;

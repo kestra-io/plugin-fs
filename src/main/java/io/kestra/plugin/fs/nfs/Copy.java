@@ -25,7 +25,8 @@ import java.nio.file.StandardCopyOption;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Copy a file on an NFS mount."
+    title = "Copy a file on NFS",
+    description = "Copies a file between paths on the same NFS mount. Parent directories are created when missing and existing targets are overwritten."
 )
 @Plugin(
     examples = {
@@ -51,11 +52,11 @@ public class Copy extends Task implements RunnableTask<Copy.Output> {
     @Builder.Default
     private NfsService nfsService = NfsService.getInstance();
 
-    @Schema(title = "The path to the file to copy.")
+    @Schema(title = "Source file path")
     @NotNull
     private Property<String> from;
 
-    @Schema(title = "The destination path.")
+    @Schema(title = "Destination path")
     @NotNull
     private Property<String> to;
 
