@@ -7,7 +7,7 @@ import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.ssh.SshInterface.AuthMethod;
 import jakarta.inject.Inject;
-import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -58,6 +58,38 @@ class CommandTest {
         assertThat(run.getStdErrLineCount(), is(2));
         assertThat(run.getVars().get("out"), is("1"));
         assertThat(run.getVars().get("err"), is("2"));
+    }
+
+    @Test
+    void run_passwordMethod_withProxyCommand() throws Exception {
+        var command = Command.builder()
+            .id(IdUtils.create())
+            .type(Command.class.getName())
+            .host(Property.ofValue("unreachable.invalid"))
+            .username(USERNAME)
+            .authMethod(Property.ofValue(AuthMethod.PASSWORD))
+            .password(PASSWORD)
+            .port(Property.ofValue("2222"))
+            .proxyCommand(Property.ofValue("nc {{ inputs.proxyHost }} {{ inputs.proxyPort }}"))
+            .commands(new String[] {
+                "echo 0",
+                "echo 1",
+                ">&2 echo 2",
+                "echo '::{\"outputs\":{\"out\":\"1\"}}::'",
+                ">&2 echo '::{\"outputs\":{\"err\":\"2\"}}::'",
+            })
+            .build();
+
+        var exception = Assertions.assertThrows(Exception.class, () -> command.run(TestsUtils.mockRunContext(
+            runContextFactory,
+            command,
+            Map.of(
+                "proxyHost", "127.0.0.1",
+                "proxyPort", "1"
+            )
+        )));
+
+        assertThat(String.valueOf(exception.getMessage()).contains("UnknownHostException"), is(false));
     }
 
     @Test
