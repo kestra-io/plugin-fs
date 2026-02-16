@@ -19,7 +19,8 @@ import java.net.Proxy;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Download multiple files from an FTP server."
+    title = "Download multiple files from FTP",
+    description = "Lists matching files then downloads them to internal storage. Respects `maxFiles` (default 25) and optional post-download action (MOVE/DELETE). Defaults: port 21, passive mode on, remote IP verification on, paths relative to user home."
 )
 @Plugin(
     examples = {

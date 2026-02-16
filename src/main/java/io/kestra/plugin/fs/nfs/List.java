@@ -31,7 +31,8 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "List files from an NFS mount point."
+    title = "List files on an NFS mount",
+    description = "Lists files under an NFS path with optional regex filtering and recursion. Caps results at `maxFiles` (default 25)."
 )
 @Plugin(
     examples = {
@@ -51,24 +52,30 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
             """
         )
     }
-    
+
 )
 public class List extends Task implements RunnableTask<List.Output> {
 
     @Inject
     @Builder.Default
     private NfsService nfsService = NfsService.getInstance();
-    
-    @Schema(title = "The directory path to list from.")
+
+    @Schema(title = "Directory path to list")
     @NotNull
     private Property<String> from;
 
-    @Schema(title = "A regular expression to filter files.")
+    @Schema(title = "Regular expression to filter files")
     private Property<String> regExp;
 
-    @Schema(title = "Whether to list files recursively.")
+    @Schema(title = "List files recursively")
     @Builder.Default
     private Property<Boolean> recursive = Property.ofValue(false);
+
+    @Builder.Default
+    @Schema(
+        title = "The maximum number of files to retrieve at once"
+    )
+    private Property<Integer> maxFiles = Property.ofValue(25);
 
     @Override
     public Output run(RunContext runContext) throws Exception {
@@ -89,18 +96,24 @@ public class List extends Task implements RunnableTask<List.Output> {
             if (rRecursive) {
                 filteredStream = filteredStream.filter(path -> !path.equals(fromPath));
             }
-            
+
             if (rRegExp.isPresent()) {
-                String finalRegExp = rRegExp.get(); 
+                String finalRegExp = rRegExp.get();
                 filteredStream = filteredStream.filter(path -> path.toString().matches(finalRegExp));
             }
 
             files = filteredStream
                 .map(throwFunction(this::mapToFile))
-                .collect(Collectors.toList());
+                .toList();
         }
 
         logger.info("Found {} files matching the criteria.", files.size());
+
+        int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
+        if (files.size() > rMaxFiles) {
+            logger.warn("Too many files to process ({}), limiting to {}", files.size(), rMaxFiles);
+            files = files.subList(0, rMaxFiles);
+        }
 
         return Output.builder().files(files).build();
     }
@@ -128,7 +141,7 @@ public class List extends Task implements RunnableTask<List.Output> {
         private final java.util.List<File> files;
     }
 
-    @SuperBuilder 
+    @SuperBuilder
     @Getter
     @EqualsAndHashCode
     @ToString

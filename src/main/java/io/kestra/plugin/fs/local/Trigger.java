@@ -30,10 +30,10 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Trigger a flow as soon as new files are detected in a given local file system's directory.",
+    title = "Trigger on new local files",
     description = """
-        Local filesystem access is disabled by default.
-        You must configure the plugin default `allowed-paths` in your Kestra configuration.
+        Polls a directory under configured `allowed-paths` (default every 60s) and fires when files are created or updated.
+        Limits to `maxFiles` (default 25) and can MOVE or DELETE matched files; `moveDirectory` is required when MOVE is chosen.
 
         Example (Kestra config):
         ```yaml
@@ -78,18 +78,18 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 )
 public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<List.Output>, StatefulTriggerInterface {
 
-    @Schema(title = "The interval between checks")
+    @Schema(title = "Interval between checks")
     @Builder.Default
     private final Duration interval = Duration.ofSeconds(60);
 
     @Schema(
-        title = "The directory to list"
+        title = "Directory to watch"
     )
     @NotNull
     private Property<String> from;
 
     @Schema(
-        title = "The destination directory in case of `MOVE`"
+        title = "Destination directory when action is MOVE"
     )
     private Property<String> moveDirectory;
 
@@ -101,7 +101,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     private Property<Boolean> recursive = Property.ofValue(false);
 
     @Schema(
-        title = "The action to take on downloaded files"
+        title = "Action to take on matched files"
     )
     @Builder.Default
     private Property<Downloads.Action> action = Property.ofValue(Downloads.Action.NONE);
@@ -112,9 +112,16 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
     private Property<Duration> stateTtl;
 
+    @Builder.Default
+    @Schema(
+        title = "Maximum files to process per poll"
+    )
+    private Property<Integer> maxFiles = Property.ofValue(25);
+
     @Override
     public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext triggerContext) throws Exception {
         RunContext runContext = conditionContext.getRunContext();
+        var logger = runContext.logger();
         var rOn = runContext.render(on).as(On.class).orElse(On.CREATE_OR_UPDATE);
         var rStateKey = runContext.render(stateKey).as(String.class).orElse(StatefulTriggerService.defaultKey(triggerContext.getNamespace(), triggerContext.getFlowId(), id));
         var rStateTtl = runContext.render(stateTtl).as(Duration.class);
@@ -126,6 +133,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .from(Property.ofValue(rFrom))
             .regExp(this.regExp)
             .recursive(this.recursive)
+            .maxFiles(this.maxFiles)
             .build();
 
         io.kestra.plugin.fs.local.List.Output listOutput = listTask.run(runContext);
@@ -183,11 +191,25 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             return Optional.empty();
         }
 
+        int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
+        java.util.List<TriggeredFile> limitedToFire = toFire;
+        java.util.List<File> limitedActionFiles = actionFiles;
+        if (toFire.size() > rMaxFiles) {
+            logger.warn("Too many files to process ({}), limiting to {}", toFire.size(), rMaxFiles);
+            int limit = Math.min(rMaxFiles, toFire.size());
+            limitedToFire = toFire.subList(0, limit);
+            limitedActionFiles = actionFiles.subList(0, Math.min(limit, actionFiles.size()));
+        }
+
+        if (limitedToFire.isEmpty()) {
+            return Optional.empty();
+        }
+
         Downloads.Action selectedAction = this.action != null ?
             runContext.render(this.action).as(Downloads.Action.class).orElse(Downloads.Action.NONE) :
             Downloads.Action.NONE;
 
-        java.util.List<File> filesToProcess = actionFiles.stream()
+        java.util.List<File> filesToProcess = limitedActionFiles.stream()
             .filter(file -> !file.isDirectory())
             .toList();
 
@@ -195,7 +217,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             Downloads.performAction(filesToProcess, selectedAction, this.moveDirectory, runContext);
         }
 
-        return Optional.of(TriggerService.generateExecution(this, conditionContext, triggerContext, Output.builder().files(toFire).build()));
+        return Optional.of(TriggerService.generateExecution(this, conditionContext, triggerContext, Output.builder().files(limitedToFire).build()));
     }
 
     public enum ChangeType {

@@ -18,7 +18,7 @@ import java.net.URI;
 @NoArgsConstructor
 public abstract class Download extends AbstractVfsTask implements RunnableTask<Download.Output> {
     @Schema(
-        title = "The fully-qualified URIs that point to destination path"
+        title = "Source URI to download"
     )
     @NotNull
     protected Property<String> from;

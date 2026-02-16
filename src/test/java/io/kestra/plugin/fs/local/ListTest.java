@@ -60,4 +60,21 @@ class ListTest {
 
         assertThat(output.getCount(), is(3));
     }
+
+    @Test
+    void listFilesWithMaxFiles() throws Exception {
+        List task = List.builder()
+            .id(ListTest.class.getSimpleName())
+            .type(List.class.getName())
+            .from(Property.ofValue(tempDir.toString()))
+            .regExp(Property.ofValue(".*\\.csv"))
+            .recursive(Property.ofValue(true))
+            .maxFiles(Property.ofValue(2))
+            .build();
+
+        List.Output output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(output.getFiles(), hasSize(2));
+        assertThat(output.getCount(), is(2));
+    }
 }

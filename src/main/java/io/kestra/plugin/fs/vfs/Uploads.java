@@ -27,23 +27,29 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @NoArgsConstructor
 public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Uploads.Output>, Data.From {
     @Schema(
-        title = "The files to upload, must be internal storage URIs, must be a list of URIs or a pebble template that returns a list of URIs",
+        title = "Files to upload (kestra:// URIs)",
         anyOf = {
             String.class,
             List.class,
             Map.class
         },
-        description = "Must be Kestra internal storage URIs. Can be a single URI string, a list of URI strings, or an internal storage URI pointing to a file containing URIs."
+        description = "Kestra internal storage URIs; accepts a single URI string, a list of URIs, or a URI pointing to a file that contains URIs."
     )
     @PluginProperty(dynamic = true, internalStorageURI = true)
     @NotNull
     private Object from;
 
     @Schema(
-            title = "The destination directory"
+            title = "Destination directory"
     )
     @NotNull
     private Property<String> to;
+
+    @Builder.Default
+    @Schema(
+        title = "Maximum files to upload"
+    )
+    private Property<Integer> maxFiles = Property.ofValue(25);
 
     public Output run(RunContext runContext) throws Exception {
         try (StandardFileSystemManager fsm = new KestraStandardFileSystemManager(runContext)) {
@@ -51,6 +57,12 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
             fsm.init();
 
             String[] renderedFrom = parseFromProperty(runContext);
+
+            int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
+            if (renderedFrom.length > rMaxFiles) {
+                runContext.logger().warn("Too many files to process ({}), limiting to {}", renderedFrom.length, rMaxFiles);
+                renderedFrom = Arrays.copyOf(renderedFrom, rMaxFiles);
+            }
 
             List<Upload.Output> outputs = Arrays.stream(renderedFrom).map(throwFunction(fromURI -> {
                 var rTo = runContext.render(this.to).as(String.class).orElseThrow();

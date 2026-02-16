@@ -19,7 +19,8 @@ import java.net.Proxy;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "List files from an FTP server directory."
+    title = "List files in an FTP directory",
+    description = "Lists entries under the given path with optional regexp filter. Defaults: port 21, passive mode on, remote IP verification on, paths relative to user home."
 )
 @Plugin(
     examples = {

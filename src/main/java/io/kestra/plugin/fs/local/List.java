@@ -7,15 +7,14 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.fs.local.models.File;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
-import jakarta.validation.constraints.NotNull;
-
-import java.nio.file.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.Objects;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -25,10 +24,10 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "List files in the local filesystem.",
+    title = "List local files",
     description = """
-        Local filesystem access is disabled by default.
-        You must configure the plugin default `allowed-paths` in your Kestra configuration.
+        Lists files under a directory allowed by `allowed-paths`; optional regexp filter and recursion. Limits results to `maxFiles` (default 25).
+        Local access requires `allowed-paths` in plugin defaults.
 
         Example (Kestra config):
         ```yaml
@@ -62,23 +61,29 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 public class List extends AbstractLocalTask implements RunnableTask<List.Output> {
 
     @Schema(
-        title = "The fully-qualified URIs that point to the path"
+        title = "Directory to scan"
     )
     @NotNull
     private Property<String> from;
 
     @Schema(
-        title = "Regular expression to filter files",
-        description = "Only files matching this regular expression will be listed."
+        title = "Regular expression filter",
+        description = "Only files matching this regex are listed."
     )
     private Property<String> regExp;
 
     @Schema(
-        title = "Whether to include subdirectories",
-        description = "If true, the task will recursively list files in all subdirectories."
+        title = "Include subdirectories",
+        description = "If true, list files recursively."
     )
     @Builder.Default
     private Property<Boolean> recursive = Property.ofValue(false);
+
+    @Builder.Default
+    @Schema(
+        title = "Maximum files to retrieve"
+    )
+    private Property<Integer> maxFiles = Property.ofValue(25);
 
     @Override
     public Output run(RunContext runContext) throws Exception {
@@ -93,15 +98,19 @@ public class List extends AbstractLocalTask implements RunnableTask<List.Output>
         String fileRegex = this.regExp != null ? runContext.render(this.regExp).as(String.class).orElseThrow() : ".*";
         int maxDepth = runContext.render(recursive).as(Boolean.class).orElse(false) ? Integer.MAX_VALUE : 1;
 
-        java.util.List<File> files = Files.find(directoryPath, maxDepth, (path, basicFileAttributes) -> {
-                return basicFileAttributes.isRegularFile() && path.toString().matches(fileRegex);
-            })
+        java.util.List<File> files = Files.find(directoryPath, maxDepth, (path, basicFileAttributes) -> basicFileAttributes.isRegularFile() && path.toString().matches(fileRegex))
             .map(throwFunction(path -> {
                 BasicFileAttributes attrs = Files.readAttributes(path, BasicFileAttributes.class);
                 return File.from(path, attrs);
             }))
             .filter(Objects::nonNull)
-            .collect(Collectors.toList());
+            .toList();
+
+        int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
+        if (files.size() > rMaxFiles) {
+            runContext.logger().warn("Too many files to process ({}), limiting to {}", files.size(), rMaxFiles);
+            files = files.subList(0, rMaxFiles);
+        }
 
         return Output.builder()
             .files(files)

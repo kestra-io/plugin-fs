@@ -18,23 +18,21 @@ import java.net.URI;
 @NoArgsConstructor
 public abstract class Move extends AbstractVfsTask implements RunnableTask<Move.Output> {
     @Schema(
-        title = "The file or directory to move from remote server."
+        title = "Source file or directory URI"
     )
     @NotNull
     private Property<String> from;
 
     @Schema(
-        title = "The path to move the file or directory to on the remote server.",
-        description = "The full destination path (with filename optionally)\n" +
-            "If end with a `/`, the destination is considered as a directory and filename will be happen\n" +
-            "If the destFile exists, it is deleted first."
+        title = "Destination URI",
+        description = "Full target path. If it ends with `/`, the source name is kept. Existing targets are replaced when `overwrite` is true."
     )
     @NotNull
     private Property<String> to;
 
     @Schema(
-        title = "Overwrite.",
-        description = "If set to false, it will raise an exception if the destination folder or file already exists."
+        title = "Overwrite existing files",
+        description = "If false (default), fails when the destination already exists."
     )
     @Builder.Default
     protected Property<Boolean> overwrite = Property.ofValue(false);

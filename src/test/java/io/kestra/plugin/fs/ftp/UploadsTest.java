@@ -84,4 +84,25 @@ class UploadsTest {
                 Matchers.is(Matchers.in(remoteFileUris))
         ));
     }
+
+    @Test
+    void run_maxFilesShouldLimit() throws Exception {
+        URI uri1 = ftpUtils.uploadToStorage();
+        URI uri2 = ftpUtils.uploadToStorage();
+
+        Uploads uploadsTask = Uploads.builder().id(UploadsTest.class.getSimpleName())
+            .type(UploadsTest.class.getName())
+            .from(List.of(uri1.toString(), uri2.toString()))
+            .to(Property.ofValue("/upload/" + random + "/max-files/"))
+            .maxFiles(Property.ofValue(1))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6621"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+
+        Uploads.Output uploadsRun = uploadsTask.run(TestsUtils.mockRunContext(runContextFactory, uploadsTask, Map.of()));
+
+        assertThat(uploadsRun.getFiles().size(), is(1));
+    }
 }

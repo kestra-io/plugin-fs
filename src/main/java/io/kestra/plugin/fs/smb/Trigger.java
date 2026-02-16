@@ -18,7 +18,8 @@ import java.io.IOException;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Trigger a flow on new file arrival in a given SMB (e.g., Samba) server directory."
+    title = "Trigger on new SMB files",
+    description = "Polls a share path on the interval and starts a Flow when new files appear. Default port 445. Use `action` MOVE/DELETE to avoid reprocessing."
 )
 @Plugin(
     examples = {
@@ -30,7 +31,7 @@ import java.io.IOException;
             code = """
                 id: smb_trigger_flow
                 namespace: company.team
-                
+
                 tasks:
                   - id: for_each_file
                     type: io.kestra.plugin.core.flow.ForEach
@@ -39,14 +40,14 @@ import java.io.IOException;
                       - id: return
                         type: io.kestra.plugin.core.debug.Return
                         format: "{{ taskrun.value | jq('.path') }}"
-                
+
                 triggers:
                   - id: watch
                     type: io.kestra.plugin.fs.smb.Trigger
                     host: localhost
                     port: "445"
                     username: foo
-                    password: bar
+                    password: "{{ secret('SMB_PASSWORD') }}"
                     from: "/my_share/in/"
                     interval: PT10S
                     action: MOVE
@@ -61,7 +62,7 @@ import java.io.IOException;
             code = """
                 id: smb_trigger_flow
                 namespace: company.team
-                
+
                 tasks:
                   - id: for_each_file
                     type: io.kestra.plugin.core.flow.ForEach
@@ -77,7 +78,7 @@ import java.io.IOException;
                         username: foo
                         password: "{{ secret('SMB_PASSWORD') }}"
                         uri: "/my_share/in/{{ taskrun.value | jq('.path') }}"
-                
+
                 triggers:
                   - id: watch
                     type: io.kestra.plugin.fs.smb.Trigger
@@ -107,7 +108,7 @@ import java.io.IOException;
                       - id: return
                         type: io.kestra.plugin.core.debug.Return
                         format: "{{ taskrun.value | jq('.path') }}"
-                
+
                 triggers:
                   - id: watch
                     type: io.kestra.plugin.fs.smb.Trigger
@@ -119,7 +120,7 @@ import java.io.IOException;
                     regExp: ".*.csv"
                     action: MOVE
                     moveDirectory: "my_share/archivedir"
-                    interval: PTS
+                    interval: PT10S
                 """
         )
     }

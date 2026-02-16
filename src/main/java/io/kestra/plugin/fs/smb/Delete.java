@@ -18,7 +18,8 @@ import java.io.IOException;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Delete a file from an SMB (e.g., Samba) server."
+    title = "Delete a file over SMB",
+    description = "Removes the specified file on an SMB/CIFS share. Default port 445."
 )
 @Plugin(
     examples = {

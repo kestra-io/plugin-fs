@@ -22,7 +22,8 @@ import java.net.Proxy;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "List files from an FTPS server directory."
+    title = "List files in an FTPS directory",
+    description = "Lists entries under the given path with optional regexp filter. Defaults: port 990, EXPLICIT mode, PROT P data channel, passive mode on, remote IP verification on, paths relative to user home. Use `insecureTrustAllCertificates` only for testing."
 )
 @Plugin(
     examples = {

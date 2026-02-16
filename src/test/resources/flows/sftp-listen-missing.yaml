@@ -1,0 +1,19 @@
+id: sftp-listen-missing
+namespace: io.kestra.tests
+
+triggers:
+  - id: watch
+    type: io.kestra.plugin.fs.sftp.Trigger
+    host: localhost
+    port: 6622
+    username: foo
+    password: pass*+=
+    from: "/upload/trigger-missing/"
+    interval: PT10S
+    action: MOVE
+    moveDirectory: "/upload/trigger-move-missing/"
+
+tasks:
+  - id: end
+    type: io.kestra.plugin.core.debug.Return
+    format: "{{task.id}} > {{taskrun.startDate}}"

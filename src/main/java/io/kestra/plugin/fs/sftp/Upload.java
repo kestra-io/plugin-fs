@@ -18,7 +18,8 @@ import java.io.IOException;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Upload a file to an SFTP server."
+    title = "Upload a file via SFTP",
+    description = "Pushes one local file to the remote path. Defaults: port 22, user home as root, password auth unless a PEM key is provided, host key checking disabled by default."
 )
 @Plugin(
     examples = {

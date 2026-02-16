@@ -18,7 +18,8 @@ import java.io.IOException;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Download multiple files from an SFTP server."
+    title = "Download multiple files via SFTP",
+    description = "Lists matching files then downloads them to internal storage. Respects `maxFiles` (default 25) and optional post-download action (MOVE/DELETE). Defaults: port 22, user home as root, password auth unless a PEM key is provided, host key checking disabled by default."
 )
 @Plugin(
     examples = {

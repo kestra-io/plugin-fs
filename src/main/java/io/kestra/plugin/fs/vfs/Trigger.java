@@ -27,10 +27,8 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Stream;
 
 import static io.kestra.core.models.triggers.StatefulTriggerService.*;
-import static io.kestra.core.utils.Rethrow.throwFunction;
 
 @SuperBuilder
 @ToString
@@ -38,9 +36,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 public abstract class Trigger extends AbstractTrigger implements PollingTriggerInterface, AbstractVfsInterface, TriggerOutput<Trigger.Output>, StatefulTriggerInterface {
-    @Schema(
-        title = "The interval between trigger checks"
-    )
+    @Schema(title = "Interval between trigger checks")
     @Builder.Default
     private final Duration interval = Duration.ofSeconds(60);
 
@@ -48,47 +44,50 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
     protected Property<String> username;
     protected Property<String> password;
 
-    @Schema(
-        title = "The directory to list"
-    )
+    @Schema(title = "Directory URI to watch")
     @NotNull
     private Property<String> from;
 
-    @Schema(
-        title = "The action to perform on the retrieved files. If using 'NONE' make sure to handle the files inside your flow to avoid infinite triggering."
-    )
+    @Schema(title = "Action to perform on retrieved files", description = "If NONE, handle files in the Flow to avoid reprocessing.")
     @NotNull
     private Property<Downloads.Action> action;
 
-    @Schema(
-        title = "The destination directory in case of `MOVE`"
-    )
+    @Schema(title = "Destination directory when action is MOVE")
     private Property<String> moveDirectory;
 
-    @Schema(
-        title = "A regexp to filter on full path"
-    )
+    @Schema(title = "Regexp filter on full path")
     private Property<String> regExp;
 
-    @Schema(
-        title = "List files recursively"
-    )
+    @Schema(title = "List files recursively")
     @Builder.Default
     private Property<Boolean> recursive = Property.ofValue(false);
 
     @Builder.Default
-    @Schema(
-        title = "Enable the RSA/SHA1 algorithm (disabled by default)"
-    )
+    @Schema(title = "Enable RSA/SHA1 algorithm", description = "Disabled by default; enable only if the remote server requires it.")
     @NotNull
     private Property<Boolean> enableSshRsa1 = Property.ofValue(false);
 
     @Builder.Default
-    private Property<On> on =  Property.ofValue(On.CREATE_OR_UPDATE);
+    private Property<On> on = Property.ofValue(On.CREATE_OR_UPDATE);
 
     private Property<String> stateKey;
-
     private Property<Duration> stateTtl;
+
+    @Builder.Default
+    @Schema(title = "Maximum files to process per poll")
+    private Property<Integer> maxFiles = Property.ofValue(25);
+
+    private static class PendingFile {
+        private final File file;
+        private final Entry candidate;
+        private final ChangeType changeType;
+
+        private PendingFile(File file, Entry candidate, ChangeType changeType) {
+            this.file = file;
+            this.candidate = candidate;
+            this.changeType = changeType;
+        }
+    }
 
     protected abstract FileSystemOptions fsOptions(RunContext runContext) throws IllegalVariableEvaluationException, IOException;
 
@@ -108,15 +107,19 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
         var jsch = new JSch();
         var session = jsch.getSession(
             runContext.render(username).as(String.class).orElse(null),
-            renderedHost, Integer.parseInt(renderedPort)
+            renderedHost,
+            Integer.parseInt(renderedPort)
         );
+
         var rOn = runContext.render(on).as(On.class).orElse(On.CREATE_OR_UPDATE);
-        var rStateKey = runContext.render(stateKey).as(String.class).orElse(StatefulTriggerService.defaultKey(context.getNamespace(), context.getFlowId(), id));
+        var rStateKey = runContext.render(stateKey)
+            .as(String.class)
+            .orElse(StatefulTriggerService.defaultKey(context.getNamespace(), context.getFlowId(), id));
         var rStateTtl = runContext.render(stateTtl).as(Duration.class);
 
         // enable disabled by default weak RSA/SHA1 algorithm
         if (runContext.render(enableSshRsa1).as(Boolean.class).orElseThrow()) {
-            runContext.logger().info("RSA/SHA1 is enabled, be advised that SHA1 is no longer considered secure by the general cryptographic community.");
+            logger.info("RSA/SHA1 is enabled, be advised that SHA1 is no longer considered secure by the general cryptographic community.");
             session.setConfig("server_host_key", session.getConfig("server_host_key") + ",ssh-rsa");
             session.setConfig("PubkeyAcceptedAlgorithms", session.getConfig("PubkeyAcceptedAlgorithms") + ",ssh-rsa");
         }
@@ -144,78 +147,98 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                 return Optional.empty();
             }
 
-            java.util.List<File> files = run
-                .getFiles()
+            java.util.List<File> files = run.getFiles()
                 .stream()
                 .filter(file -> file.getFileType() == FileType.FILE)
                 .toList();
 
-            Map<String, StatefulTriggerService.Entry> state = readState(runContext, rStateKey, rStateTtl);
+            Map<String, Entry> state = readState(runContext, rStateKey, rStateTtl);
 
-            java.util.List<File> actionFiles = new ArrayList<>();
+            java.util.List<PendingFile> pendingFiles = new ArrayList<>();
 
-            var toFire = files
-                .stream()
-                .flatMap(throwFunction(file -> {
-                    if (file.getFileType().equals(FileType.FOLDER)) {
-                        return Stream.empty();
-                    }
+            for (File file : files) {
+                if (file.getFileType().equals(FileType.FOLDER)) {
+                    continue;
+                }
 
-                    var remotePath = file.getServerPath().getPath();
-                    var updatedDate = Optional.ofNullable(file.getUpdatedDate()).orElse(Instant.EPOCH);
-                    var size = Optional.ofNullable(file.getSize()).orElse(0L);
-                    var version = String.format("%d_%d_%s", updatedDate.toEpochMilli(), size, remotePath);
+                var remotePath = file.getServerPath().getPath();
+                var updatedDate = Optional.ofNullable(file.getUpdatedDate()).orElse(Instant.EPOCH);
+                var size = Optional.ofNullable(file.getSize()).orElse(0L);
+                var version = String.format("%d_%d_%s", updatedDate.toEpochMilli(), size, remotePath);
 
-                    var candidate = Entry.candidate(remotePath, version, updatedDate);
+                var candidate = Entry.candidate(remotePath, version, updatedDate);
+                var prev = state.get(remotePath);
 
-                    var change = computeAndUpdateState(state, candidate, rOn);
+                // IMPORTANT: keep state up to date for non-fired files
+                if (!shouldFire(prev, version, rOn)) {
+                    computeAndUpdateState(state, candidate, rOn);
+                    continue;
+                }
 
-                    if (change.fire()) {
-                        var changeType = change.isNew() ? ChangeType.CREATE : ChangeType.UPDATE;
+                var changeType = prev == null ? ChangeType.CREATE : ChangeType.UPDATE;
+                pendingFiles.add(new PendingFile(file, candidate, changeType));
+            }
 
-                        Download.Output download = VfsService.download(
-                            runContext,
-                            fsm,
-                            fileSystemOptions,
-                            VfsService.uri(
-                                runContext,
-                                this.scheme(),
-                                runContext.render(this.host).as(String.class).orElse(null),
-                                runContext.render(this.getPort()).as(String.class).orElse(null),
-                                runContext.render(this.username).as(String.class).orElse(null),
-                                runContext.render(this.password).as(String.class).orElse(null),
-                                file.getServerPath().getPath()
-                            )
-                        );
+            int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
+            java.util.List<PendingFile> limitedPending = pendingFiles;
+            if (pendingFiles.size() > rMaxFiles) {
+                logger.warn("Too many files to process ({}), limiting to {}", pendingFiles.size(), rMaxFiles);
+                limitedPending = pendingFiles.subList(0, rMaxFiles);
+            }
 
-                        logger.debug("File '{}' download to '{}'", from.getPath(), download.getTo());
-
-                        var downloaded = file.withPath(download.getTo());
-
-                        actionFiles.add(downloaded);
-
-                        return Stream.of(TriggeredFile.builder()
-                            .file(downloaded)
-                            .changeType(changeType)
-                            .build());
-                    }
-                    return Stream.empty();
-                }))
-                .toList();
-
-            writeState(runContext, rStateKey, state, rStateTtl);
-
-            if (toFire.isEmpty()) {
+            if (limitedPending.isEmpty()) {
+                // still persist state for files we skipped / updated above
+                writeState(runContext, rStateKey, state, rStateTtl);
                 return Optional.empty();
             }
 
+            java.util.List<File> actionFiles = new ArrayList<>();
+            java.util.List<TriggeredFile> toFire = new ArrayList<>();
+
+            // 1) Download first, do NOT update state yet.
+            for (PendingFile pending : limitedPending) {
+                Download.Output download = VfsService.download(
+                    runContext,
+                    fsm,
+                    fileSystemOptions,
+                    VfsService.uri(
+                        runContext,
+                        this.scheme(),
+                        runContext.render(this.host).as(String.class).orElse(null),
+                        runContext.render(this.getPort()).as(String.class).orElse(null),
+                        runContext.render(this.username).as(String.class).orElse(null),
+                        runContext.render(this.password).as(String.class).orElse(null),
+                        pending.file.getServerPath().getPath()
+                    )
+                );
+
+                logger.debug("File '{}' download to '{}'", from.getPath(), download.getTo());
+
+                var downloaded = pending.file.withPath(download.getTo());
+                actionFiles.add(downloaded);
+
+                toFire.add(TriggeredFile.builder()
+                    .file(downloaded)
+                    .changeType(pending.changeType)
+                    .build());
+            }
+
+            if (toFire.isEmpty()) {
+                // nothing to fire; persist state updates made earlier
+                writeState(runContext, rStateKey, state, rStateTtl);
+                return Optional.empty();
+            }
+
+            // 2) Perform remote action BEFORE committing state.
             if (this.action != null) {
+                var renderedAction = runContext.render(this.action).as(Downloads.Action.class).orElse(null);
+
                 VfsService.performAction(
                     runContext,
                     fsm,
                     fileSystemOptions,
                     actionFiles,
-                    runContext.render(this.action).as(Downloads.Action.class).orElse(null),
+                    renderedAction,
                     VfsService.uri(
                         runContext,
                         this.scheme(),
@@ -228,7 +251,19 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                 );
             }
 
-            Execution execution = TriggerService.generateExecution(this, conditionContext, context, Output.builder().files(toFire).build());
+            // 3) Only now that downloads + actions succeeded, commit state for fired files.
+            for (PendingFile pending : limitedPending) {
+                computeAndUpdateState(state, pending.candidate, rOn);
+            }
+
+            writeState(runContext, rStateKey, state, rStateTtl);
+
+            Execution execution = TriggerService.generateExecution(
+                this,
+                conditionContext,
+                context,
+                Output.builder().files(toFire).build()
+            );
 
             return Optional.of(execution);
         }

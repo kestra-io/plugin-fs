@@ -10,9 +10,11 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-import java.io.File;
-import java.io.FileInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -32,7 +34,7 @@ class CommandTest {
     void run_passwordMethod() throws Exception {
         Command command = Command.builder()
             .id(IdUtils.create())
-            .type(CommandTest.class.getName())
+            .type(Command.class.getName())
             .host(Property.ofValue("localhost"))
             .username(USERNAME)
             .authMethod(Property.ofValue(AuthMethod.PASSWORD))
@@ -60,17 +62,50 @@ class CommandTest {
 
     @Test
     void run_pubkeyMethod() throws Exception {
-        File file = new File("src/test/resources/ssh/id_ed25519");
-        byte[] data;
-        try (FileInputStream fis = new FileInputStream(file)) {
-            data = new byte[(int) file.length()];
-            fis.read(data);
+        Path tempDir = Files.createTempDirectory("ssh-key");
+        Path privateKeyPath = tempDir.resolve("id_ed25519");
+        Path publicKeyPath = tempDir.resolve("id_ed25519.pub");
+
+        Process keygen = new ProcessBuilder(
+            "ssh-keygen",
+            "-t", "ed25519",
+            "-N", "",
+            "-f", privateKeyPath.toString()
+        ).redirectErrorStream(true).start();
+
+        if (keygen.waitFor() != 0) {
+            try (InputStream errorStream = keygen.getInputStream()) {
+                ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+                errorStream.transferTo(buffer);
+                String output = buffer.toString(StandardCharsets.UTF_8);
+                throw new IllegalStateException("ssh-keygen failed: " + output);
+            }
         }
-        String keyFileContent = new String(data, StandardCharsets.UTF_8);
+
+        String keyFileContent = Files.readString(privateKeyPath, StandardCharsets.UTF_8);
+        String publicKeyContent = Files.readString(publicKeyPath, StandardCharsets.UTF_8).trim();
+
+        Command setupAuthorizedKey = Command.builder()
+            .id(IdUtils.create())
+            .type(Command.class.getName())
+            .host(Property.ofValue("localhost"))
+            .username(USERNAME)
+            .authMethod(Property.ofValue(AuthMethod.PASSWORD))
+            .password(PASSWORD)
+            .port(Property.ofValue("2222"))
+            .commands(new String[] {
+                "mkdir -p ~/.ssh",
+                "chmod 700 ~/.ssh",
+                "printf '%s\\n' '" + publicKeyContent + "' >> ~/.ssh/authorized_keys",
+                "chmod 600 ~/.ssh/authorized_keys"
+            })
+            .build();
+
+        setupAuthorizedKey.run(TestsUtils.mockRunContext(runContextFactory, setupAuthorizedKey, Map.of()));
 
         Command command = Command.builder()
             .id(IdUtils.create())
-            .type(CommandTest.class.getName())
+            .type(Command.class.getName())
             .host(Property.ofValue("localhost"))
             .username(USERNAME)
             .authMethod(Property.ofValue(AuthMethod.PUBLIC_KEY))
@@ -97,12 +132,12 @@ class CommandTest {
     }
 
     @Test
-    @Disabled("Cannot work on CI")
     void run_openSSHMethod() throws Exception {
         Command command = Command.builder()
-            .id(CommandTest.class.getName())
-            .type(CommandTest.class.getName())
+            .id(IdUtils.create())
+            .type(Command.class.getName())
             .host(Property.ofValue("localhost"))
+            .openSSHConfigPath(Property.ofValue("src/test/resources/ssh/config"))
             .password(PASSWORD)
             .authMethod(Property.ofValue(AuthMethod.OPEN_SSH))
             .port(Property.ofValue("2222"))

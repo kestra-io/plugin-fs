@@ -83,4 +83,31 @@ class DownloadsTest {
 
         assertThat(ftpUtils.list(toUploadDir).getFiles().size(), is(2));
     }
+
+    @Test
+    void run_MaxFilesShouldLimit() throws Exception {
+        String toUploadDir = "/upload/" + random + "-maxfiles";
+        String out1 = FriendlyId.createFriendlyId();
+        ftpUtils.upload(toUploadDir + "/" + out1 + ".txt");
+        String out2 = FriendlyId.createFriendlyId();
+        ftpUtils.upload(toUploadDir + "/" + out2 + ".txt");
+
+        Downloads task = Downloads.builder()
+            .id(DownloadsTest.class.getSimpleName())
+            .type(DownloadsTest.class.getName())
+            .from(Property.ofValue(toUploadDir + "/"))
+            .action(Property.ofValue(Downloads.Action.NONE))
+            .maxFiles(Property.ofValue(1))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6621"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+
+        Downloads.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(run.getFiles().size(), is(1));
+        assertThat(run.getOutputFiles().size(), is(1));
+        assertThat(ftpUtils.list(toUploadDir).getFiles().size(), is(2));
+    }
 }
