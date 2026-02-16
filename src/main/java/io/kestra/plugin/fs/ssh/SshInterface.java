@@ -60,6 +60,12 @@ public interface SshInterface {
     )
     Property<String> getOpenSSHConfigPath();
 
+    @Schema(
+        title = "Proxy command",
+        description = "Optional local command used to establish the SSH transport (OpenSSH `ProxyCommand` semantics)."
+    )
+    Property<String> getProxyCommand();
+
     enum AuthMethod {
         PASSWORD,
         PUBLIC_KEY,

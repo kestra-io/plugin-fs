@@ -20,6 +20,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.net.Socket;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -77,6 +78,26 @@ import java.util.concurrent.atomic.AtomicInteger;
                 """
         ),
         @Example(
+            title = "Run SSH command through a proxy command",
+            full = true,
+            code = """
+                id: fs_ssh_proxy_command
+                namespace: company.team
+
+                tasks:
+                  - id: command
+                    type: io.kestra.plugin.fs.ssh.Command
+                    host: host
+                    username: user
+                    authMethod: PASSWORD
+                    password: "{{ secret('SSH_PASSWORD') }}"
+                    proxyCommand: |
+                      cloudflared access ssh --service-token-id {{ secret('SSH_PROXY_SERVICE_TOKEN_ID') }} --service-token-secret {{ secret('SSH_PROXY_SERVICE_TOKEN_SECRET') }} --hostname proxy_host
+                    commands:
+                      - mycmd
+                """
+        ),
+        @Example(
             title = "Run SSH command using the local OpenSSH configuration",
             full = true,
             code = """
@@ -120,6 +141,15 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
         description = "Used when `authMethod` is OPEN_SSH. Access must be allowed via plugin configuration."
     )
     private Property<String> openSSHConfigPath;
+
+    @Schema(
+        title = "Proxy command",
+        description = """
+            Optional local command used to establish the SSH transport (OpenSSH `ProxyCommand` semantics).
+            Example: `cloudflared access ssh --service-token-id ... --service-token-secret ... --hostname ...`
+            """
+    )
+    private Property<String> proxyCommand;
 
     @Schema(
         title = "SSH authentication configuration",
@@ -223,6 +253,10 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
                 runContext.render(username).as(String.class).orElse(null),
                 renderedHost, Integer.parseInt(renderedPort)
             );
+            var rProxyCommand = runContext.render(proxyCommand).as(String.class);
+            if (rProxyCommand.isPresent()) {
+                session.setProxy(new ProcessProxyCommand(rProxyCommand.orElseThrow(), session.getUserName()));
+            }
 
             // enable disabled by default weak RSA/SHA1 algorithm
             if (runContext.render(enableSshRsa1).as(Boolean.class).orElseThrow()) {
@@ -342,6 +376,84 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
         @Override
         public void showMessage(String message) {
             log.debug(message);
+        }
+    }
+
+    private static final class ProcessProxyCommand implements Proxy {
+        private final String command;
+        private final String username;
+
+        private Process process;
+        private InputStream inputStream;
+        private OutputStream outputStream;
+
+        private ProcessProxyCommand(String command, String username) {
+            this.command = command;
+            this.username = username;
+        }
+
+        @Override
+        public void connect(SocketFactory socketFactory, String host, int port, int timeout) throws Exception {
+            var resolvedCommand = command
+                .replace("%h", host)
+                .replace("%p", String.valueOf(port))
+                .replace("%r", username == null ? "" : username);
+
+            var processBuilder = new ProcessBuilder(shellCommand(resolvedCommand));
+            processBuilder.redirectError(ProcessBuilder.Redirect.DISCARD);
+            process = processBuilder.start();
+            inputStream = process.getInputStream();
+            outputStream = process.getOutputStream();
+
+            if (!process.isAlive()) {
+                throw new JSchException("Proxy command exited immediately: " + resolvedCommand);
+            }
+        }
+
+        private static String[] shellCommand(String command) {
+            if (System.getProperty("os.name").toLowerCase().contains("win")) {
+                return new String[] {"cmd.exe", "/c", command};
+            }
+
+            return new String[] {"/bin/sh", "-c", command};
+        }
+
+        @Override
+        public InputStream getInputStream() {
+            return inputStream;
+        }
+
+        @Override
+        public OutputStream getOutputStream() {
+            return outputStream;
+        }
+
+        @Override
+        public Socket getSocket() {
+            return null;
+        }
+
+        @Override
+        public void close() {
+            if (inputStream != null) {
+                try {
+                    inputStream.close();
+                } catch (IOException ignored) {
+                    // no-op
+                }
+            }
+
+            if (outputStream != null) {
+                try {
+                    outputStream.close();
+                } catch (IOException ignored) {
+                    // no-op
+                }
+            }
+
+            if (process != null) {
+                process.destroy();
+            }
         }
     }
 
