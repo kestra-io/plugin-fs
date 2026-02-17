@@ -1,10 +1,7 @@
 @PluginSubGroup(
     title = "FTPS (File Transfer Protocol Secure)",
     description = "This sub-group of plugins contains tasks for accessing files using the FTPS protocol.",
-    categories = {
-        PluginSubGroup.PluginCategory.DATA,
-        PluginSubGroup.PluginCategory.INFRASTRUCTURE
-    }
+    categories = PluginSubGroup.PluginCategory.STORAGE
 )
 package io.kestra.plugin.fs.ftps;
 
