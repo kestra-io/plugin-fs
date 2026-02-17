@@ -1,6 +1,11 @@
-@io.kestra.core.models.annotations.PluginSubGroup(
+@PluginSubGroup(
     title = "NFS",
     description = "This sub-group of plugins contains tasks for interacting with Network File System (NFS) mounts.",
-    categories = io.kestra.core.models.annotations.PluginSubGroup.PluginCategory.STORAGE
+    categories = {
+        PluginSubGroup.PluginCategory.DATA,
+        PluginSubGroup.PluginCategory.INFRASTRUCTURE
+    }
 )
 package io.kestra.plugin.fs.nfs;
+
+import io.kestra.core.models.annotations.PluginSubGroup;
