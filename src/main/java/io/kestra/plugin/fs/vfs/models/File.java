@@ -39,7 +39,7 @@ public class File {
 
     public static File of(AbstractFileObject<?> fileObject) throws FileSystemException, NoSuchFieldException, IllegalAccessException, URISyntaxException {
         FileBuilder builder = File.builder()
-            .path(URI.create(fileObject.getName().getPath().replace(" ", "%20")))
+            .path(new URI(null, fileObject.getName().getPath(),null))
             .serverPath(serverPath(fileObject))
             .name(FilenameUtils.getName(fileObject.getName().getPath()))
             .fileType(fileObject.getType())

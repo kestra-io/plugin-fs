@@ -84,4 +84,30 @@ class ListTest {
 
         assertThat(run.getFiles().size(), is(0));
     }
+
+    @Test
+    void shouldHandleHashInPath() throws Exception {
+        String dir = "/" + IdUtils.create();
+
+        smbUtils.upload(SmbUtils.SHARE_NAME + dir + "/Run #1/Sub Folder/file.txt");
+
+        List task = List.builder()
+            .id(ListTest.class.getSimpleName())
+            .type(ListTest.class.getName())
+            .from(Property.ofValue(SmbUtils.SHARE_NAME + dir))
+            .host(Property.ofValue("localhost"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .recursive(Property.ofValue(true))
+            .build();
+
+        List.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(run.getFiles().size(), is(1));
+
+        String path = run.getFiles().getFirst().getPath().getRawPath();
+
+        assertThat(path.contains("%23"), is(true));
+    }
+
 }
