@@ -67,7 +67,7 @@ class UploadsTest {
             .id(UploadsTest.class.getSimpleName())
             .type(UploadsTest.class.getName())
             .from(Property.ofValue(SmbUtils.SHARE_NAME + "/" + random + "/"))
-            .action(Property.ofValue(Downloads.Action.DELETE))
+            .action(Property.ofValue(io.kestra.plugin.fs.vfs.Downloads.Action.DELETE))
             .host(Property.ofValue("localhost"))
             .username(USERNAME)
             .password(PASSWORD)

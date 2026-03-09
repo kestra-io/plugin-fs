@@ -23,7 +23,7 @@ public class SmbUtils extends AbstractUtils {
     @Inject
     private RunContextFactory runContextFactory;
 
-    public Upload.Output upload(URI source, String to) throws Exception {
+    public io.kestra.plugin.fs.sftp.Upload.Output upload(URI source, String to) throws Exception {
         var task = Upload.builder()
             .id(SmbUtils.class.getSimpleName())
             .type(SmbUtils.class.getName())
