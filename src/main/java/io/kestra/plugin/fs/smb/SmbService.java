@@ -50,7 +50,7 @@ public abstract class SmbService {
 
         var sb = new StringBuilder("smb://");
         sb.append(rHost);
-        if (rPort != null && !rPort.equals("445")) {
+        if (!rPort.equals("445")) {
             sb.append(":").append(rPort);
         }
         sb.append("/").append(cleanPath);
@@ -98,7 +98,7 @@ public abstract class SmbService {
                     files.add(file);
                 }
             } else {
-                collectFiles(ctx, dir, regExp, recursive, files, rHost, rPort);
+                collectFiles(dir, regExp, recursive, files, rHost, rPort);
             }
 
             runContext.logger().debug("Found '{}' files from '{}'", files.size(), from);
@@ -110,7 +110,6 @@ public abstract class SmbService {
     }
 
     private static void collectFiles(
-        CIFSContext ctx,
         SmbFile dir,
         String regExp,
         boolean recursive,
@@ -125,7 +124,7 @@ public abstract class SmbService {
             try {
                 if (child.isDirectory()) {
                     if (recursive) {
-                        collectFiles(ctx, child, regExp, recursive, result, host, port);
+                        collectFiles(child, regExp, true, result, host, port);
                     }
                 } else if (child.isFile()) {
                     var path = extractPath(child);
@@ -383,17 +382,26 @@ public abstract class SmbService {
     // --- Helpers ---
 
     /**
+     * Extract the path portion (everything after the host) from an SMB URL.
+     * e.g. "smb://host/share/path" → "/share/path"
+     */
+    private static String pathFromSmbUrl(String smbUrl) {
+        var schemeEnd = smbUrl.indexOf("://");
+        if (schemeEnd < 0) return smbUrl;
+        var hostEnd = smbUrl.indexOf('/', schemeEnd + 3);
+        if (hostEnd < 0) return smbUrl;
+        return smbUrl.substring(hostEnd);
+    }
+
+    /**
      * Extract the share name from an SMB URL (e.g., "smb://host/share/path" → "share").
      */
     private static String extractShareName(String smbUrl) {
-        // smb://host/share/... or smb://host:port/share/...
-        var schemeEnd = smbUrl.indexOf("://");
-        if (schemeEnd < 0) return null;
-        var hostEnd = smbUrl.indexOf('/', schemeEnd + 3);
-        if (hostEnd < 0) return null;
-        var shareEnd = smbUrl.indexOf('/', hostEnd + 1);
-        if (shareEnd < 0) return smbUrl.substring(hostEnd + 1);
-        return smbUrl.substring(hostEnd + 1, shareEnd);
+        var path = pathFromSmbUrl(smbUrl);
+        if (path.equals(smbUrl)) return null; // no scheme found
+        var stripped = StringUtils.stripStart(path, "/");
+        var slashIdx = stripped.indexOf('/');
+        return slashIdx < 0 ? stripped : stripped.substring(0, slashIdx);
     }
 
     /**
@@ -404,10 +412,8 @@ public abstract class SmbService {
             var children = file.listFiles();
             if (children != null) {
                 for (var child : children) {
-                    try {
+                    try (child) {
                         deleteRecursively(child);
-                    } finally {
-                        child.close();
                     }
                 }
             }
@@ -427,10 +433,8 @@ public abstract class SmbService {
             if (children != null) {
                 for (var child : children) {
                     var childName = child.getName();
-                    try (var childDest = new SmbFile(dest.getCanonicalPath() + childName, ctx)) {
+                    try (child; var childDest = new SmbFile(dest.getCanonicalPath() + childName, ctx)) {
                         copyRecursively(ctx, child, childDest);
-                    } finally {
-                        child.close();
                     }
                 }
             }
@@ -456,27 +460,19 @@ public abstract class SmbService {
     static String extractPath(SmbFile smbFile) {
         // SmbFile.getCanonicalPath() returns smb://host/share/path/
         // We want /share/path
-        var urlStr = smbFile.getCanonicalPath();
-        var schemeEnd = urlStr.indexOf("://");
-        if (schemeEnd >= 0) {
-            var hostEnd = urlStr.indexOf('/', schemeEnd + 3);
-            if (hostEnd >= 0) {
-                var path = urlStr.substring(hostEnd);
-                // Remove trailing slash for files
-                if (path.endsWith("/") && path.length() > 1) {
-                    try {
-                        if (!smbFile.isDirectory()) {
-                            path = path.substring(0, path.length() - 1);
-                        }
-                    } catch (Exception e) {
-                        // If we can't check, strip it
-                        path = path.substring(0, path.length() - 1);
-                    }
+        var path = pathFromSmbUrl(smbFile.getCanonicalPath());
+        // Remove trailing slash for files
+        if (path.endsWith("/") && path.length() > 1) {
+            try {
+                if (!smbFile.isDirectory()) {
+                    path = path.substring(0, path.length() - 1);
                 }
-                return path;
+            } catch (Exception e) {
+                // If we can't check, strip it
+                path = path.substring(0, path.length() - 1);
             }
         }
-        return urlStr;
+        return path;
     }
 
     static File smbFileToFile(SmbFile smbFile, String host, String port) throws Exception {
