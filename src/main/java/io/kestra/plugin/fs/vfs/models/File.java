@@ -74,23 +74,16 @@ public class File {
                     urlFileName.getQueryString(),
                     null
                 );
-            case GenericFileName genericFileName -> {
-                String share = extractShareForSmb(genericFileName);
-                yield  new URI(
+            case GenericFileName genericFileName -> new URI(
                     genericFileName.getScheme(),
                     VfsService.basicAuth(genericFileName.getUserName(), genericFileName.getPassword()),
                     genericFileName.getHostName(),
                     genericFileName.getPort(),
-                    share == null ? genericFileName.getPath() : String.join("", "/", share, genericFileName.getPath()),
+                    genericFileName.getPath(),
                     null,
                     null
                 );
-            }
             default -> fileObject.getURI();
         };
-    }
-
-    private static String extractShareForSmb(GenericFileName genericFileName) {
-        return null;
     }
 }
