@@ -18,37 +18,64 @@ import java.io.IOException;
 @Getter
 @NoArgsConstructor
 @Schema(
-        title = "Upload multiple files via SFTP",
-        description = "Uploads each provided file to the target directory. Defaults: port 22, user home as root, password auth unless a PEM key is provided, host key checking disabled by default."
+    title = "Upload multiple files via SFTP",
+    description = "Uploads each provided file to the target directory. Defaults: port 22, user home as root, password auth unless a PEM key is provided, host key checking disabled by default."
 )
 @Plugin(
-        examples = {
-                @Example(
-                        full = true,
-                        code = """
-                            id: fs_sftp_uploads
-                            namespace: company.team
+    examples = {
+        @Example(
+            title = "Upload files using a list of URIs",
+            full = true,
+            code = """
+                id: fs_sftp_uploads
+                namespace: company.team
 
-                            inputs:
-                              - id: file1
-                                type: FILE
-                              - id: file2
-                                type: FILE
-            
-                            tasks:
-                              - id: uploads
-                                type: io.kestra.plugin.fs.sftp.Uploads
-                                host: localhost
-                                port: "22"
-                                username: foo
-                                password: "{{ secret('SFTP_PASSWORD') }}"
-                                from:
-                                  - "{{ inputs.file1 }}"
-                                  - "{{ inputs.file2 }}"
-                                to: "/upload/dir2"
-                            """
-                )
-        }
+                inputs:
+                  - id: file1
+                    type: FILE
+                  - id: file2
+                    type: FILE
+
+                tasks:
+                  - id: uploads
+                    type: io.kestra.plugin.fs.sftp.Uploads
+                    host: localhost
+                    port: "22"
+                    username: foo
+                    password: "{{ secret('SFTP_PASSWORD') }}"
+                    from:
+                      - "{{ inputs.file1 }}"
+                      - "{{ inputs.file2 }}"
+                    to: "/upload/dir2"
+                """
+        ),
+        @Example(
+            title = "Upload files with custom destination filenames using a map",
+            full = true,
+            code = """
+                id: fs_sftp_uploads_with_names
+                namespace: company.team
+
+                inputs:
+                  - id: file1
+                    type: FILE
+                  - id: file2
+                    type: FILE
+
+                tasks:
+                  - id: uploads
+                    type: io.kestra.plugin.fs.sftp.Uploads
+                    host: localhost
+                    port: "22"
+                    username: foo
+                    password: "{{ secret('SFTP_PASSWORD') }}"
+                    from:
+                      report.csv: "{{ inputs.file1 }}"
+                      data.json: "{{ inputs.file2 }}"
+                    to: "/upload/dir2"
+                """
+        )
+    }
 )
 public class Uploads extends io.kestra.plugin.fs.vfs.Uploads implements SftpInterface {
     protected Property<String> keyfile;
