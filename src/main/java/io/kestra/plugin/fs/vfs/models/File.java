@@ -1,26 +1,21 @@
 package io.kestra.plugin.fs.vfs.models;
 
-import java.lang.reflect.Field;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.time.Instant;
-
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.jcraft.jsch.SftpATTRS;
+import io.kestra.plugin.fs.vfs.VfsService;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.With;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.vfs2.FileSystemException;
 import org.apache.commons.vfs2.FileType;
 import org.apache.commons.vfs2.provider.AbstractFileObject;
 import org.apache.commons.vfs2.provider.GenericFileName;
 import org.apache.commons.vfs2.provider.URLFileName;
-import org.apache.commons.vfs2.provider.smb.SmbFileName;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.jcraft.jsch.SftpATTRS;
-
-import io.kestra.plugin.fs.vfs.VfsService;
-
-import lombok.Builder;
-import lombok.Getter;
-import lombok.With;
+import java.lang.reflect.Field;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.time.Instant;
 
 @Getter
 @Builder
@@ -71,17 +66,17 @@ public class File {
     private static URI serverPath(AbstractFileObject<?> fileObject) throws URISyntaxException {
         return switch (fileObject.getName()) {
             case URLFileName urlFileName -> new URI(
-                urlFileName.getScheme(),
-                VfsService.basicAuth(urlFileName.getUserName(), urlFileName.getPassword()),
-                urlFileName.getHostName(),
-                urlFileName.getPort(),
-                urlFileName.getPath(),
-                urlFileName.getQueryString(),
-                null
-            );
+                    urlFileName.getScheme(),
+                    VfsService.basicAuth(urlFileName.getUserName(), urlFileName.getPassword()),
+                    urlFileName.getHostName(),
+                    urlFileName.getPort(),
+                    urlFileName.getPath(),
+                    urlFileName.getQueryString(),
+                    null
+                );
             case GenericFileName genericFileName -> {
                 String share = extractShareForSmb(genericFileName);
-                yield new URI(
+                yield  new URI(
                     genericFileName.getScheme(),
                     VfsService.basicAuth(genericFileName.getUserName(), genericFileName.getPassword()),
                     genericFileName.getHostName(),
@@ -96,10 +91,6 @@ public class File {
     }
 
     private static String extractShareForSmb(GenericFileName genericFileName) {
-        return switch (genericFileName) {
-            case SmbFileName smbFileName -> smbFileName.getShare();
-            case net.idauto.oss.jcifsng.vfs2.provider.SmbFileName smbFileName -> smbFileName.getShare();
-            default -> null;
-        };
+        return null;
     }
 }
