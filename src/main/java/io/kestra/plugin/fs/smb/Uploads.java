@@ -10,7 +10,6 @@ import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
-import org.codelibs.jcifs.smb.CIFSContext;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
@@ -87,18 +86,18 @@ public class Uploads extends AbstractSmbTask implements RunnableTask<Uploads.Out
     private Property<Integer> maxFiles = Property.ofValue(25);
 
     public Output run(RunContext runContext) throws Exception {
-        CIFSContext ctx = createContext(runContext);
-        java.util.List<Map.Entry<String, String>> fileMappings = parseFromProperty(runContext);
+        var ctx = createContext(runContext);
+        var fileMappings = parseFromProperty(runContext);
 
-        int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
+        var rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
         if (fileMappings.size() > rMaxFiles) {
             runContext.logger().warn("Too many files to process ({}), limiting to {}", fileMappings.size(), rMaxFiles);
             fileMappings = fileMappings.subList(0, rMaxFiles);
         }
 
-        java.util.List<io.kestra.plugin.fs.vfs.Upload.Output> outputs = fileMappings.stream().map(throwFunction(entry -> {
-            String destFileName = entry.getKey();
-            String fromURI = entry.getValue();
+        var outputs = fileMappings.stream().map(throwFunction(entry -> {
+            var destFileName = entry.getKey();
+            var fromURI = entry.getValue();
             var rTo = runContext.render(this.to).as(String.class).orElseThrow();
 
             String destPath;

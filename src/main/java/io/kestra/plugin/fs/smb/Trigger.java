@@ -10,11 +10,9 @@ import io.kestra.plugin.fs.vfs.Downloads;
 import io.kestra.plugin.fs.vfs.models.File;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
-import org.codelibs.jcifs.smb.CIFSContext;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.vfs2.FileType;
-import org.slf4j.Logger;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
@@ -171,10 +169,14 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @Builder.Default
     private Property<Boolean> recursive = Property.ofValue(false);
 
+    @Schema(title = "Change event type to react to")
     @Builder.Default
     private Property<On> on = Property.ofValue(On.CREATE_OR_UPDATE);
 
+    @Schema(title = "Custom state key for deduplication")
     private Property<String> stateKey;
+
+    @Schema(title = "TTL for state entries")
     private Property<Duration> stateTtl;
 
     @Builder.Default
@@ -195,8 +197,8 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
     @Override
     public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
-        RunContext runContext = conditionContext.getRunContext();
-        Logger logger = runContext.logger();
+        var runContext = conditionContext.getRunContext();
+        var logger = runContext.logger();
 
         var rOn = runContext.render(on).as(On.class).orElse(On.CREATE_OR_UPDATE);
         var rStateKey = runContext.render(stateKey)
@@ -204,10 +206,10 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .orElse(StatefulTriggerService.defaultKey(context.getNamespace(), context.getFlowId(), id));
         var rStateTtl = runContext.render(stateTtl).as(Duration.class);
 
-        CIFSContext ctx = SmbService.createContext(runContext, this);
-        String fromPath = runContext.render(this.from).as(String.class).orElseThrow();
+        var ctx = SmbService.createContext(runContext, this);
+        var fromPath = runContext.render(this.from).as(String.class).orElseThrow();
 
-        io.kestra.plugin.fs.vfs.List.Output run;
+        io.kestra.plugin.fs.vfs.List.Output run; // FQCN needed: naming conflict with smb.List
         try {
             run = SmbService.list(
                 runContext,
@@ -226,13 +228,13 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             return Optional.empty();
         }
 
-        java.util.List<File> files = run.getFiles().stream()
+        var files = run.getFiles().stream()
             .filter(file -> file.getFileType() == FileType.FILE)
             .toList();
 
-        Map<String, Entry> state = readState(runContext, rStateKey, rStateTtl);
+        var state = readState(runContext, rStateKey, rStateTtl);
 
-        java.util.List<PendingFile> pendingFiles = new ArrayList<>();
+        var pendingFiles = new ArrayList<PendingFile>();
 
         for (File file : files) {
             if (file.getFileType().equals(FileType.FOLDER)) {
@@ -256,8 +258,8 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             pendingFiles.add(new PendingFile(file, candidate, changeType));
         }
 
-        int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
-        java.util.List<PendingFile> limitedPending = pendingFiles;
+        var rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
+        java.util.List<PendingFile> limitedPending = pendingFiles; // reassigned below
         if (pendingFiles.size() > rMaxFiles) {
             logger.warn("Too many files to process ({}), limiting to {}", pendingFiles.size(), rMaxFiles);
             limitedPending = pendingFiles.subList(0, rMaxFiles);
@@ -268,12 +270,12 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             return Optional.empty();
         }
 
-        java.util.List<File> actionFiles = new ArrayList<>();
-        java.util.List<TriggeredFile> toFire = new ArrayList<>();
+        var actionFiles = new ArrayList<File>();
+        var toFire = new ArrayList<TriggeredFile>();
 
         // 1) Download first, do NOT update state yet.
         for (PendingFile pending : limitedPending) {
-            io.kestra.plugin.fs.vfs.Download.Output download = SmbService.download(
+            var download = SmbService.download(
                 runContext,
                 ctx,
                 this,
@@ -298,14 +300,14 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
         // 2) Perform remote action BEFORE committing state.
         if (this.action != null) {
-            var renderedAction = runContext.render(this.action).as(Downloads.Action.class).orElse(null);
+            var rAction = runContext.render(this.action).as(Downloads.Action.class).orElse(null);
 
             SmbService.performAction(
                 runContext,
                 ctx,
                 this,
                 actionFiles,
-                renderedAction,
+                rAction,
                 runContext.render(this.moveDirectory).as(String.class).orElse(null)
             );
         }
@@ -317,7 +319,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
         writeState(runContext, rStateKey, state, rStateTtl);
 
-        Execution execution = TriggerService.generateExecution(
+        var execution = TriggerService.generateExecution(
             this,
             conditionContext,
             context,

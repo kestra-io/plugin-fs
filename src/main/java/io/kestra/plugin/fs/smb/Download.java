@@ -7,7 +7,6 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
-import org.codelibs.jcifs.smb.CIFSContext;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
@@ -48,7 +47,7 @@ public class Download extends AbstractSmbTask implements RunnableTask<io.kestra.
     protected Property<String> from;
 
     public io.kestra.plugin.fs.vfs.Download.Output run(RunContext runContext) throws Exception {
-        CIFSContext ctx = createContext(runContext);
+        var ctx = createContext(runContext);
         return SmbService.download(
             runContext,
             ctx,

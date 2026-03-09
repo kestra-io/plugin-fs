@@ -8,7 +8,6 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
-import org.codelibs.jcifs.smb.CIFSContext;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
@@ -70,18 +69,18 @@ public class Upload extends AbstractSmbTask implements RunnableTask<io.kestra.pl
     private Property<Boolean> overwrite = Property.ofValue(false);
 
     public io.kestra.plugin.fs.vfs.Upload.Output run(RunContext runContext) throws Exception {
-        CIFSContext ctx = createContext(runContext);
-        var renderedFrom = runContext.render(this.from).as(String.class).orElseThrow();
-        if (!renderedFrom.startsWith("kestra://")) {
+        var ctx = createContext(runContext);
+        var rFrom = runContext.render(this.from).as(String.class).orElseThrow();
+        if (!rFrom.startsWith("kestra://")) {
             throw new IllegalArgumentException("'from' must be a Kestra's internal storage URI");
         }
-        var renderedTo = runContext.render(this.to).as(String.class).orElse(renderedFrom.substring(renderedFrom.lastIndexOf('/')));
+        var rTo = runContext.render(this.to).as(String.class).orElse(rFrom.substring(rFrom.lastIndexOf('/')));
         return SmbService.upload(
             runContext,
             ctx,
             this,
-            URI.create(renderedFrom),
-            renderedTo,
+            URI.create(rFrom),
+            rTo,
             runContext.render(this.overwrite).as(Boolean.class).orElseThrow()
         );
     }

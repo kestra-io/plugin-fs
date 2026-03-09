@@ -24,17 +24,17 @@ import java.util.*;
 public abstract class SmbService {
 
     public static CIFSContext createContext(RunContext runContext, SmbInterface smbInterface) throws Exception {
-        Properties props = new Properties();
+        var props = new Properties();
         props.setProperty("jcifs.smb.client.enableSMB2", "true");
         props.setProperty("jcifs.smb.client.disableSMB1", "false");
 
-        CIFSContext baseContext = new BaseContext(new PropertyConfiguration(props));
+        var baseContext = new BaseContext(new PropertyConfiguration(props));
 
-        String username = runContext.render(smbInterface.getUsername()).as(String.class).orElse(null);
-        String password = runContext.render(smbInterface.getPassword()).as(String.class).orElse(null);
+        var rUsername = runContext.render(smbInterface.getUsername()).as(String.class).orElse(null);
+        var rPassword = runContext.render(smbInterface.getPassword()).as(String.class).orElse(null);
 
-        if (username != null) {
-            NtlmPasswordAuthenticator auth = new NtlmPasswordAuthenticator("", username, password != null ? password : "");
+        if (rUsername != null) {
+            var auth = new NtlmPasswordAuthenticator("", rUsername, rPassword != null ? rPassword : "");
             return baseContext.withCredentials(auth);
         }
 
@@ -42,16 +42,16 @@ public abstract class SmbService {
     }
 
     public static String smbUrl(RunContext runContext, SmbInterface smbInterface, String filepath) throws IllegalVariableEvaluationException {
-        String host = runContext.render(smbInterface.getHost()).as(String.class).orElseThrow();
-        String port = runContext.render(smbInterface.getPort()).as(String.class).orElse("445");
+        var rHost = runContext.render(smbInterface.getHost()).as(String.class).orElseThrow();
+        var rPort = runContext.render(smbInterface.getPort()).as(String.class).orElse("445");
 
         // SMB URLs: smb://host:port/share/path
-        String cleanPath = StringUtils.stripStart(filepath, "/");
+        var cleanPath = StringUtils.stripStart(filepath, "/");
 
-        StringBuilder sb = new StringBuilder("smb://");
-        sb.append(host);
-        if (port != null && !port.equals("445")) {
-            sb.append(":").append(port);
+        var sb = new StringBuilder("smb://");
+        sb.append(rHost);
+        if (rPort != null && !rPort.equals("445")) {
+            sb.append(":").append(rPort);
         }
         sb.append("/").append(cleanPath);
 
@@ -59,8 +59,8 @@ public abstract class SmbService {
     }
 
     public static URI serverPathUri(String host, String port, String filepath) throws URISyntaxException {
-        String cleanPath = "/" + StringUtils.stripStart(filepath, "/");
-        int portNum = port != null ? Integer.parseInt(port) : 445;
+        var cleanPath = "/" + StringUtils.stripStart(filepath, "/");
+        var portNum = port != null ? Integer.parseInt(port) : 445;
         return new URI("smb", null, host, portNum, cleanPath, null, null);
     }
 
@@ -74,31 +74,31 @@ public abstract class SmbService {
         String regExp,
         boolean recursive
     ) throws Exception {
-        String url = smbUrl(runContext, smbInterface, from);
+        var url = smbUrl(runContext, smbInterface, from);
         if (!url.endsWith("/")) {
             url += "/";
         }
 
-        String host = runContext.render(smbInterface.getHost()).as(String.class).orElseThrow();
-        String port = runContext.render(smbInterface.getPort()).as(String.class).orElse("445");
+        var rHost = runContext.render(smbInterface.getHost()).as(String.class).orElseThrow();
+        var rPort = runContext.render(smbInterface.getPort()).as(String.class).orElse("445");
 
-        try (SmbFile dir = new SmbFile(url, ctx)) {
+        try (var dir = new SmbFile(url, ctx)) {
             if (!dir.exists()) {
                 return io.kestra.plugin.fs.vfs.List.Output.builder()
                     .files(java.util.List.of())
                     .build();
             }
 
-            java.util.List<File> files = new ArrayList<>();
+            var files = new ArrayList<File>();
 
             if (dir.isFile()) {
                 // Path points to a file, not a directory: return it as a single-element list
-                File file = smbFileToFile(dir, host, port);
+                var file = smbFileToFile(dir, rHost, rPort);
                 if (regExp == null || extractPath(dir).matches(regExp)) {
                     files.add(file);
                 }
             } else {
-                collectFiles(ctx, dir, regExp, recursive, files, host, port);
+                collectFiles(ctx, dir, regExp, recursive, files, rHost, rPort);
             }
 
             runContext.logger().debug("Found '{}' files from '{}'", files.size(), from);
@@ -118,17 +118,17 @@ public abstract class SmbService {
         String host,
         String port
     ) throws Exception {
-        SmbFile[] children = dir.listFiles();
+        var children = dir.listFiles();
         if (children == null) return;
 
-        for (SmbFile child : children) {
+        for (var child : children) {
             try {
                 if (child.isDirectory()) {
                     if (recursive) {
                         collectFiles(ctx, child, regExp, recursive, result, host, port);
                     }
                 } else if (child.isFile()) {
-                    String path = extractPath(child);
+                    var path = extractPath(child);
                     if (regExp == null || path.matches(regExp)) {
                         result.add(smbFileToFile(child, host, port));
                     }
@@ -145,21 +145,21 @@ public abstract class SmbService {
         SmbInterface smbInterface,
         String filepath
     ) throws Exception {
-        String url = smbUrl(runContext, smbInterface, filepath);
-        String ext = FileUtils.getExtension(filepath);
-        java.io.File tempFile = runContext.workingDir().createTempFile(ext).toFile();
+        var url = smbUrl(runContext, smbInterface, filepath);
+        var ext = FileUtils.getExtension(filepath);
+        var tempFile = runContext.workingDir().createTempFile(ext).toFile();
 
-        try (SmbFile remote = new SmbFile(url, ctx);
-             InputStream in = remote.getInputStream();
-             OutputStream out = new FileOutputStream(tempFile)) {
+        try (var remote = new SmbFile(url, ctx);
+             var in = remote.getInputStream();
+             var out = new FileOutputStream(tempFile)) {
             IOUtils.copy(in, out);
         }
 
-        URI storageUri = runContext.storage().putFile(tempFile);
+        var storageUri = runContext.storage().putFile(tempFile);
 
-        String host = runContext.render(smbInterface.getHost()).as(String.class).orElseThrow();
-        String port = runContext.render(smbInterface.getPort()).as(String.class).orElse("445");
-        URI fromUri = serverPathUri(host, port, filepath);
+        var rHost = runContext.render(smbInterface.getHost()).as(String.class).orElseThrow();
+        var rPort = runContext.render(smbInterface.getPort()).as(String.class).orElse("445");
+        var fromUri = serverPathUri(rHost, rPort, filepath);
 
         runContext.logger().debug("File '{}' download to '{}'", filepath, storageUri);
 
@@ -187,17 +187,17 @@ public abstract class SmbService {
         String toPath,
         boolean overwrite
     ) throws Exception {
-        String url = smbUrl(runContext, smbInterface, toPath);
+        var url = smbUrl(runContext, smbInterface, toPath);
 
         // Ensure parent directories exist
-        String parentUrl = url.substring(0, url.lastIndexOf('/') + 1);
-        try (SmbFile parentDir = new SmbFile(parentUrl, ctx)) {
+        var parentUrl = url.substring(0, url.lastIndexOf('/') + 1);
+        try (var parentDir = new SmbFile(parentUrl, ctx)) {
             if (!parentDir.exists()) {
                 parentDir.mkdirs();
             }
         }
 
-        try (SmbFile remote = new SmbFile(url, ctx)) {
+        try (var remote = new SmbFile(url, ctx)) {
             // Check if destination is a folder that would be overwritten
             if (!overwrite && remote.exists() && remote.isDirectory() && !toPath.endsWith("/")) {
                 throw new KestraRuntimeException(String.format(
@@ -212,21 +212,21 @@ public abstract class SmbService {
             // If overwrite and destination is a directory, delete it recursively first
             if (overwrite && remote.exists() && remote.isDirectory()) {
                 // Ensure we use a directory URL (ending with /) for proper listing
-                String dirUrl = url.endsWith("/") ? url : url + "/";
-                try (SmbFile dirFile = new SmbFile(dirUrl, ctx)) {
+                var dirUrl = url.endsWith("/") ? url : url + "/";
+                try (var dirFile = new SmbFile(dirUrl, ctx)) {
                     deleteRecursively(dirFile);
                 }
             }
 
-            try (InputStream in = runContext.storage().getFile(from);
-                 OutputStream out = remote.getOutputStream()) {
+            try (var in = runContext.storage().getFile(from);
+                 var out = remote.getOutputStream()) {
                 IOUtils.copy(in, out);
             }
         }
 
-        String host = runContext.render(smbInterface.getHost()).as(String.class).orElseThrow();
-        String port = runContext.render(smbInterface.getPort()).as(String.class).orElse("445");
-        URI toUri = serverPathUri(host, port, toPath);
+        var rHost = runContext.render(smbInterface.getHost()).as(String.class).orElseThrow();
+        var rPort = runContext.render(smbInterface.getPort()).as(String.class).orElse("445");
+        var toUri = serverPathUri(rHost, rPort, toPath);
 
         runContext.logger().debug("File '{}' uploaded to '{}'", from, toUri);
 
@@ -243,12 +243,12 @@ public abstract class SmbService {
         String filepath,
         Boolean errorOnMissing
     ) throws Exception {
-        String url = smbUrl(runContext, smbInterface, filepath);
-        String host = runContext.render(smbInterface.getHost()).as(String.class).orElseThrow();
-        String port = runContext.render(smbInterface.getPort()).as(String.class).orElse("445");
-        URI fileUri = serverPathUri(host, port, filepath);
+        var url = smbUrl(runContext, smbInterface, filepath);
+        var rHost = runContext.render(smbInterface.getHost()).as(String.class).orElseThrow();
+        var rPort = runContext.render(smbInterface.getPort()).as(String.class).orElse("445");
+        var fileUri = serverPathUri(rHost, rPort, filepath);
 
-        try (SmbFile remote = new SmbFile(url, ctx)) {
+        try (var remote = new SmbFile(url, ctx)) {
             if (!remote.exists()) {
                 if (Boolean.TRUE.equals(errorOnMissing)) {
                     throw new NoSuchElementException("Unable to find file '" + fileUri + "'");
@@ -278,40 +278,40 @@ public abstract class SmbService {
         boolean overwrite
     ) throws Exception {
         // If source is a file and destination looks like a directory, append the filename
-        boolean fromIsDir = fromPath.endsWith("/");
-        boolean toIsDir = toPath.endsWith("/");
+        var fromIsDir = fromPath.endsWith("/");
+        var toIsDir = toPath.endsWith("/");
 
         if (!fromIsDir && toIsDir) {
-            String fileName = FilenameUtils.getName(fromPath);
+            var fileName = FilenameUtils.getName(fromPath);
             toPath = StringUtils.stripEnd(toPath, "/") + "/" + fileName;
         }
 
-        String fromUrl = smbUrl(runContext, smbInterface, fromPath);
-        String toUrl = smbUrl(runContext, smbInterface, toPath);
+        var fromUrl = smbUrl(runContext, smbInterface, fromPath);
+        var toUrl = smbUrl(runContext, smbInterface, toPath);
 
-        String host = runContext.render(smbInterface.getHost()).as(String.class).orElseThrow();
-        String port = runContext.render(smbInterface.getPort()).as(String.class).orElse("445");
+        var rHost = runContext.render(smbInterface.getHost()).as(String.class).orElseThrow();
+        var rPort = runContext.render(smbInterface.getPort()).as(String.class).orElse("445");
 
         // If source and destination are the same, nothing to do
         if (fromUrl.equals(toUrl)) {
-            URI fromUri = serverPathUri(host, port, fromPath);
-            URI toUri = serverPathUri(host, port, toPath);
+            var fromUri = serverPathUri(rHost, rPort, fromPath);
+            var toUri = serverPathUri(rHost, rPort, toPath);
             return io.kestra.plugin.fs.vfs.Move.Output.builder()
                 .from(fromUri)
                 .to(toUri)
                 .build();
         }
 
-        try (SmbFile source = new SmbFile(fromUrl, ctx)) {
+        try (var source = new SmbFile(fromUrl, ctx)) {
             if (!source.exists()) {
-                URI fromUri = serverPathUri(host, port, fromPath);
+                var fromUri = serverPathUri(rHost, rPort, fromPath);
                 throw new NoSuchElementException("Unable to find file '" + fromUri + "'");
             }
 
-            try (SmbFile dest = new SmbFile(toUrl, ctx)) {
+            try (var dest = new SmbFile(toUrl, ctx)) {
                 if (dest.exists()) {
-                    String destFileName = FilenameUtils.getName(extractPath(dest));
-                    String srcFileName = FilenameUtils.getName(extractPath(source));
+                    var destFileName = FilenameUtils.getName(extractPath(dest));
+                    var srcFileName = FilenameUtils.getName(extractPath(source));
                     if (destFileName != null && destFileName.equals(srcFileName)) {
                         if (overwrite) {
                             runContext.logger().warn("File '{}' already exists in the remote server and will be overwritten.", destFileName);
@@ -325,9 +325,9 @@ public abstract class SmbService {
                     }
                 } else {
                     // Create parent directories (strip trailing slash to get actual parent)
-                    String trimmedUrl = toUrl.endsWith("/") ? toUrl.substring(0, toUrl.length() - 1) : toUrl;
-                    String parentUrl = trimmedUrl.substring(0, trimmedUrl.lastIndexOf('/') + 1);
-                    try (SmbFile parentDir = new SmbFile(parentUrl, ctx)) {
+                    var trimmedUrl = toUrl.endsWith("/") ? toUrl.substring(0, toUrl.length() - 1) : toUrl;
+                    var parentUrl = trimmedUrl.substring(0, trimmedUrl.lastIndexOf('/') + 1);
+                    try (var parentDir = new SmbFile(parentUrl, ctx)) {
                         if (!parentDir.exists()) {
                             parentDir.mkdirs();
                             runContext.logger().debug("Create directory '{}'", parentUrl);
@@ -336,8 +336,8 @@ public abstract class SmbService {
                 }
 
                 // Detect cross-share move: extract share names from URLs
-                String fromShare = extractShareName(fromUrl);
-                String toShare = extractShareName(toUrl);
+                var fromShare = extractShareName(fromUrl);
+                var toShare = extractShareName(toUrl);
                 if (fromShare != null && toShare != null && !fromShare.equals(toShare)) {
                     // Cross-share move: renameTo won't work, use copy + delete
                     copyRecursively(ctx, source, dest);
@@ -348,8 +348,8 @@ public abstract class SmbService {
             }
         }
 
-        URI fromUri = serverPathUri(host, port, fromPath);
-        URI toUri = serverPathUri(host, port, toPath);
+        var fromUri = serverPathUri(rHost, rPort, fromPath);
+        var toUri = serverPathUri(rHost, rPort, toPath);
 
         return io.kestra.plugin.fs.vfs.Move.Output.builder()
             .from(fromUri)
@@ -371,7 +371,7 @@ public abstract class SmbService {
             }
         } else if (action == io.kestra.plugin.fs.vfs.Downloads.Action.MOVE) {
             for (File file : blobList) {
-                String moveTo = moveDirectory;
+                var moveTo = moveDirectory;
                 if (!moveTo.endsWith("/")) {
                     moveTo += "/";
                 }
@@ -387,11 +387,11 @@ public abstract class SmbService {
      */
     private static String extractShareName(String smbUrl) {
         // smb://host/share/... or smb://host:port/share/...
-        int schemeEnd = smbUrl.indexOf("://");
+        var schemeEnd = smbUrl.indexOf("://");
         if (schemeEnd < 0) return null;
-        int hostEnd = smbUrl.indexOf('/', schemeEnd + 3);
+        var hostEnd = smbUrl.indexOf('/', schemeEnd + 3);
         if (hostEnd < 0) return null;
-        int shareEnd = smbUrl.indexOf('/', hostEnd + 1);
+        var shareEnd = smbUrl.indexOf('/', hostEnd + 1);
         if (shareEnd < 0) return smbUrl.substring(hostEnd + 1);
         return smbUrl.substring(hostEnd + 1, shareEnd);
     }
@@ -401,9 +401,9 @@ public abstract class SmbService {
      */
     private static void deleteRecursively(SmbFile file) throws Exception {
         if (file.isDirectory()) {
-            SmbFile[] children = file.listFiles();
+            var children = file.listFiles();
             if (children != null) {
-                for (SmbFile child : children) {
+                for (var child : children) {
                     try {
                         deleteRecursively(child);
                     } finally {
@@ -423,11 +423,11 @@ public abstract class SmbService {
             if (!dest.exists()) {
                 dest.mkdirs();
             }
-            SmbFile[] children = source.listFiles();
+            var children = source.listFiles();
             if (children != null) {
-                for (SmbFile child : children) {
-                    String childName = child.getName();
-                    try (SmbFile childDest = new SmbFile(dest.getCanonicalPath() + childName, ctx)) {
+                for (var child : children) {
+                    var childName = child.getName();
+                    try (var childDest = new SmbFile(dest.getCanonicalPath() + childName, ctx)) {
                         copyRecursively(ctx, child, childDest);
                     } finally {
                         child.close();
@@ -436,15 +436,15 @@ public abstract class SmbService {
             }
         } else {
             // Ensure parent directory exists
-            String destUrl = dest.getCanonicalPath();
-            String parentUrl = destUrl.substring(0, destUrl.lastIndexOf('/') + 1);
-            try (SmbFile parentDir = new SmbFile(parentUrl, ctx)) {
+            var destUrl = dest.getCanonicalPath();
+            var parentUrl = destUrl.substring(0, destUrl.lastIndexOf('/') + 1);
+            try (var parentDir = new SmbFile(parentUrl, ctx)) {
                 if (!parentDir.exists()) {
                     parentDir.mkdirs();
                 }
             }
-            try (InputStream in = source.getInputStream();
-                 OutputStream out = dest.getOutputStream()) {
+            try (var in = source.getInputStream();
+                 var out = dest.getOutputStream()) {
                 IOUtils.copy(in, out);
             }
         }
@@ -456,12 +456,12 @@ public abstract class SmbService {
     static String extractPath(SmbFile smbFile) {
         // SmbFile.getCanonicalPath() returns smb://host/share/path/
         // We want /share/path
-        String urlStr = smbFile.getCanonicalPath();
-        int schemeEnd = urlStr.indexOf("://");
+        var urlStr = smbFile.getCanonicalPath();
+        var schemeEnd = urlStr.indexOf("://");
         if (schemeEnd >= 0) {
-            int hostEnd = urlStr.indexOf('/', schemeEnd + 3);
+            var hostEnd = urlStr.indexOf('/', schemeEnd + 3);
             if (hostEnd >= 0) {
-                String path = urlStr.substring(hostEnd);
+                var path = urlStr.substring(hostEnd);
                 // Remove trailing slash for files
                 if (path.endsWith("/") && path.length() > 1) {
                     try {
@@ -480,11 +480,11 @@ public abstract class SmbService {
     }
 
     static File smbFileToFile(SmbFile smbFile, String host, String port) throws Exception {
-        String path = extractPath(smbFile);
+        var path = extractPath(smbFile);
 
-        URI serverPath = serverPathUri(host, port, path);
+        var serverPath = serverPathUri(host, port, path);
 
-        File.FileBuilder builder = File.builder()
+        var builder = File.builder()
             .path(new URI(null, path, null))
             .serverPath(serverPath)
             .name(FilenameUtils.getName(path))
@@ -497,7 +497,7 @@ public abstract class SmbService {
         }
 
         try {
-            long lastModified = smbFile.lastModified();
+            var lastModified = smbFile.lastModified();
             if (lastModified > 0) {
                 builder.updatedDate(Instant.ofEpochMilli(lastModified));
             }

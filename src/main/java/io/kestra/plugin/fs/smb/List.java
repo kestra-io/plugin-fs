@@ -8,7 +8,6 @@ import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.fs.vfs.models.File;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
-import org.codelibs.jcifs.smb.CIFSContext;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
@@ -67,8 +66,8 @@ public class List extends AbstractSmbTask implements RunnableTask<io.kestra.plug
     private Property<Integer> maxFiles = Property.ofValue(25);
 
     public io.kestra.plugin.fs.vfs.List.Output run(RunContext runContext) throws Exception {
-        CIFSContext ctx = createContext(runContext);
-        io.kestra.plugin.fs.vfs.List.Output output = SmbService.list(
+        var ctx = createContext(runContext);
+        var output = SmbService.list(
             runContext,
             ctx,
             this,
@@ -77,7 +76,7 @@ public class List extends AbstractSmbTask implements RunnableTask<io.kestra.plug
             runContext.render(this.recursive).as(Boolean.class).orElse(false)
         );
 
-        java.util.List<File> files = output.getFiles();
+        var files = output.getFiles();
 
         int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
         if (files.size() > rMaxFiles) {
