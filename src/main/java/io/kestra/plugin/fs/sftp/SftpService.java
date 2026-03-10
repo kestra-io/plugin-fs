@@ -1,15 +1,16 @@
 package io.kestra.plugin.fs.sftp;
 
-import io.kestra.core.exceptions.IllegalVariableEvaluationException;
-import io.kestra.core.runners.RunContext;
-import org.apache.commons.vfs2.FileSystemOptions;
-import org.apache.commons.vfs2.provider.sftp.IdentityInfo;
-import org.apache.commons.vfs2.provider.sftp.SftpFileSystemConfigBuilder;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+
+import org.apache.commons.vfs2.FileSystemOptions;
+import org.apache.commons.vfs2.provider.sftp.IdentityInfo;
+import org.apache.commons.vfs2.provider.sftp.SftpFileSystemConfigBuilder;
+
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
+import io.kestra.core.runners.RunContext;
 
 public abstract class SftpService {
     @SuppressWarnings("deprecation") // Required for backward compatibility with deprecated proxy properties
@@ -73,8 +74,10 @@ public abstract class SftpService {
 
             IdentityInfo identityInfo;
             if (sftpInterface.getPassphrase() != null) {
-                identityInfo = new IdentityInfo(sftpKey, runContext.render(sftpInterface.getPassphrase()).as(String.class).orElseThrow()
-                    .getBytes());
+                identityInfo = new IdentityInfo(
+                    sftpKey, runContext.render(sftpInterface.getPassphrase()).as(String.class).orElseThrow()
+                        .getBytes()
+                );
             } else {
                 identityInfo = new IdentityInfo(sftpKey);
             }

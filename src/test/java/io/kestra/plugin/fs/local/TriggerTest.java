@@ -1,14 +1,5 @@
 package io.kestra.plugin.fs.local;
 
-import com.devskiller.friendly_id.FriendlyId;
-import io.kestra.core.models.executions.Execution;
-import io.kestra.core.models.property.Property;
-import io.kestra.core.models.triggers.StatefulTriggerInterface;
-import io.kestra.core.utils.TestsUtils;
-import io.kestra.plugin.fs.vfs.models.File;
-import jakarta.inject.Inject;
-import org.junit.jupiter.api.Test;
-
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -16,6 +7,18 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+
+import org.junit.jupiter.api.Test;
+
+import com.devskiller.friendly_id.FriendlyId;
+
+import io.kestra.core.models.executions.Execution;
+import io.kestra.core.models.property.Property;
+import io.kestra.core.models.triggers.StatefulTriggerInterface;
+import io.kestra.core.utils.TestsUtils;
+import io.kestra.plugin.fs.vfs.models.File;
+
+import jakarta.inject.Inject;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -61,7 +64,8 @@ class TriggerTest extends AbstractTriggerTest {
         java.util.List<File> urls = (java.util.List<File>) execution.get().getTrigger().getVariables().get("files");
         assertThat(urls.size(), greaterThanOrEqualTo(1));
 
-        assertThrows(java.lang.IllegalArgumentException.class, () -> {
+        assertThrows(java.lang.IllegalArgumentException.class, () ->
+        {
             io.kestra.plugin.fs.local.Download task = io.kestra.plugin.fs.local.Download.builder()
                 .id(TriggerTest.class.getSimpleName())
                 .type(io.kestra.plugin.fs.local.Download.class.getName())
@@ -127,8 +131,7 @@ class TriggerTest extends AbstractTriggerTest {
             assertThat(execution.isPresent(), is(true));
 
             @SuppressWarnings("unchecked")
-            java.util.List<io.kestra.plugin.fs.local.models.File> files =
-                (java.util.List<io.kestra.plugin.fs.local.models.File>) execution.get().getTrigger().getVariables().get("files");
+            java.util.List<io.kestra.plugin.fs.local.models.File> files = (java.util.List<io.kestra.plugin.fs.local.models.File>) execution.get().getTrigger().getVariables().get("files");
 
             assertThat(files.size(), is(2));
 
@@ -169,8 +172,7 @@ class TriggerTest extends AbstractTriggerTest {
 
             assertThat(execution.isPresent(), is(true));
             @SuppressWarnings("unchecked")
-            java.util.List<Object> rawFiles =
-                (java.util.List<Object>) execution.get().getTrigger().getVariables().get("files");
+            java.util.List<Object> rawFiles = (java.util.List<Object>) execution.get().getTrigger().getVariables().get("files");
             assertThat(rawFiles, hasSize(1));
         } finally {
             cleanup(sourceDir);
@@ -217,14 +219,14 @@ class TriggerTest extends AbstractTriggerTest {
             assertThat(execution.isPresent(), is(true));
 
             @SuppressWarnings("unchecked")
-            java.util.List<Object> rawFiles =
-                (java.util.List<Object>) execution.get().getTrigger().getVariables().get("files");
+            java.util.List<Object> rawFiles = (java.util.List<Object>) execution.get().getTrigger().getVariables().get("files");
 
             java.util.List<String> processedFileNames = rawFiles.stream()
                 .filter(f -> f instanceof java.util.Map)
                 .map(f -> (java.util.Map<String, Object>) f)
                 .filter(map -> !Boolean.TRUE.equals(map.get("directory")))
-                .map(map -> {
+                .map(map ->
+                {
                     Object localPath = map.get("localPath");
                     if (localPath != null) {
                         return Paths.get(localPath.toString()).getFileName().toString();
@@ -236,17 +238,16 @@ class TriggerTest extends AbstractTriggerTest {
                 .toList();
 
             java.util.Set<String> expectedMatches = java.util.Set.of(
-                "user.txt",        // root file: path contains user
-                "config.yml",      // root file: path contains "recursive" -> 'u'
-                "upload.csv",      // subdir1: path contains "subdir" -> 'u'
-                "download.txt",    // subdir1: path contains "subdir" -> 'u'
-                "user-data.json",  // subdir1: path contains "subdir" -> 'u'
-                "archive.zip",     // subdir2: path contains "subdir" -> 'u'
-                "update.log",      // subdir2: path contains "subdir" -> 'u'
-                "settings.ini",    // subdir2: path contains "subdir" -> 'u'
-                "report.pdf"       // subdir2: path contains "subdir" -> 'u'
+                "user.txt", // root file: path contains user
+                "config.yml", // root file: path contains "recursive" -> 'u'
+                "upload.csv", // subdir1: path contains "subdir" -> 'u'
+                "download.txt", // subdir1: path contains "subdir" -> 'u'
+                "user-data.json", // subdir1: path contains "subdir" -> 'u'
+                "archive.zip", // subdir2: path contains "subdir" -> 'u'
+                "update.log", // subdir2: path contains "subdir" -> 'u'
+                "settings.ini", // subdir2: path contains "subdir" -> 'u'
+                "report.pdf" // subdir2: path contains "subdir" -> 'u'
             );
-
 
             java.util.Set<String> processedSet = new java.util.HashSet<>(processedFileNames);
             assertThat(processedSet, is(expectedMatches));
@@ -258,7 +259,8 @@ class TriggerTest extends AbstractTriggerTest {
             java.util.Set<String> movedFiles = new java.util.HashSet<>();
 
             if (Files.exists(targetDir)) {
-                Files.list(targetDir).forEach(path -> {
+                Files.list(targetDir).forEach(path ->
+                {
                     String fileName = path.getFileName().toString();
                     movedFiles.add(fileName);
                 });
@@ -327,8 +329,7 @@ class TriggerTest extends AbstractTriggerTest {
             assertThat(execution2.isPresent(), is(true));
 
             @SuppressWarnings("unchecked")
-            java.util.List<Object> rawFiles =
-                (java.util.List<Object>) execution2.get().getTrigger().getVariables().get("files");
+            java.util.List<Object> rawFiles = (java.util.List<Object>) execution2.get().getTrigger().getVariables().get("files");
 
             assertThat("should find 1 remaining XML file", rawFiles.size(), is(1));
 
@@ -438,12 +439,15 @@ class TriggerTest extends AbstractTriggerTest {
             try {
                 Files.walk(directory)
                     .sorted((a, b) -> b.compareTo(a))
-                    .forEach(path -> {
+                    .forEach(path ->
+                    {
                         try {
                             Files.deleteIfExists(path);
-                        } catch (Exception ignored) {}
+                        } catch (Exception ignored) {
+                        }
                     });
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }
     }
 }

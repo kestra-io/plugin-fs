@@ -1,15 +1,16 @@
 package io.kestra.plugin.fs.sftp;
 
+import java.net.URI;
+import java.util.Map;
+
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.AbstractUtils;
 import io.kestra.plugin.fs.vfs.Delete;
+
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-
-import java.net.URI;
-import java.util.Map;
 
 @Singleton
 class SftpUtils extends AbstractUtils {

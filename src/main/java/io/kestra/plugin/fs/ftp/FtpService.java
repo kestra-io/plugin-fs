@@ -1,14 +1,15 @@
 package io.kestra.plugin.fs.ftp;
 
-import io.kestra.core.exceptions.IllegalVariableEvaluationException;
-import io.kestra.core.runners.RunContext;
-import org.apache.commons.vfs2.FileSystemOptions;
-import org.apache.commons.vfs2.provider.ftp.FtpFileSystemConfigBuilder;
-
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.time.Duration;
+
+import org.apache.commons.vfs2.FileSystemOptions;
+import org.apache.commons.vfs2.provider.ftp.FtpFileSystemConfigBuilder;
+
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
+import io.kestra.core.runners.RunContext;
 
 public abstract class FtpService {
     public static FileSystemOptions fsOptions(RunContext runContext, FtpInterface ftpInterface) throws IOException, IllegalVariableEvaluationException {

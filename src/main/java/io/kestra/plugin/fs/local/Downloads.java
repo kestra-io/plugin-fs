@@ -1,26 +1,22 @@
 package io.kestra.plugin.fs.local;
 
+import java.net.URI;
+import java.util.AbstractMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.*;
 import io.kestra.core.runners.RunContext;
-import io.kestra.core.utils.FileUtils;
 import io.kestra.plugin.fs.local.models.File;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-
-import java.io.IOException;
-import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.util.AbstractMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -186,7 +182,8 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
 
         List<File> downloadedFiles = listedFiles
             .stream()
-            .map(throwFunction(fileItem -> {
+            .map(throwFunction(fileItem ->
+            {
                 if (fileItem.isDirectory()) {
                     return fileItem;
                 }
@@ -207,9 +204,7 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
             .filter(file -> !file.isDirectory())
             .toList();
 
-        Action selectedAction = this.action != null ?
-            runContext.render(this.action).as(Action.class).orElse(Action.NONE) :
-            Action.NONE;
+        Action selectedAction = this.action != null ? runContext.render(this.action).as(Action.class).orElse(Action.NONE) : Action.NONE;
 
         if (selectedAction != Action.NONE) {
             performAction(filesToProcess, selectedAction, this.moveDirectory, runContext);

@@ -1,17 +1,18 @@
 package io.kestra.plugin.fs.local;
 
-import io.kestra.core.exceptions.IllegalVariableEvaluationException;
-import io.kestra.core.models.tasks.Task;
-import io.kestra.core.runners.RunContext;
-import lombok.*;
-import lombok.experimental.SuperBuilder;
-
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
+import io.kestra.core.models.tasks.Task;
+import io.kestra.core.runners.RunContext;
+
+import lombok.*;
+import lombok.experimental.SuperBuilder;
 
 @SuperBuilder
 @ToString
@@ -27,8 +28,8 @@ public abstract class AbstractLocalTask extends Task {
         if (allowedPathConfig.isEmpty() || allowedPathConfig.get().isEmpty()) {
             throw new SecurityException(
                 "The 'allowed-paths' configuration is required to enable access to the local filesystem. " +
-                "You must define at least one allowed path in the plugin configuration, `kestra.plugins.configurations`. " +
-                "Refer to the example in the plugin documentation."
+                    "You must define at least one allowed path in the plugin configuration, `kestra.plugins.configurations`. " +
+                    "Refer to the example in the plugin documentation."
             );
         }
 
@@ -85,8 +86,8 @@ public abstract class AbstractLocalTask extends Task {
 
             throw new SecurityException(
                 "Access to path '" + realPath + "' is denied. " +
-                "The specified path must be within one of the configured 'allowed-paths': " + formattedAllowedPaths + ". " +
-                "Refer to:: https://kestra.io/docs/configuration#set-default-values"
+                    "The specified path must be within one of the configured 'allowed-paths': " + formattedAllowedPaths + ". " +
+                    "Refer to:: https://kestra.io/docs/configuration#set-default-values"
             );
         }
     }

@@ -1,11 +1,12 @@
 package io.kestra.plugin.fs.vfs;
 
-import io.kestra.core.runners.RunContext;
+import java.io.File;
+import java.nio.file.Path;
+
 import org.apache.commons.vfs2.impl.DefaultFileReplicator;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 
-import java.io.File;
-import java.nio.file.Path;
+import io.kestra.core.runners.RunContext;
 
 class KestraStandardFileSystemManager extends StandardFileSystemManager {
     static final String CONFIG_RESOURCE = "providers.xml"; // same as StandardFileSystemManager.CONFIG_RESOURCE

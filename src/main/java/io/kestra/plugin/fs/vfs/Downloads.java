@@ -1,21 +1,23 @@
 package io.kestra.plugin.fs.vfs;
 
-import io.kestra.core.models.property.Property;
-import io.kestra.core.models.tasks.RunnableTask;
-import io.kestra.core.runners.RunContext;
-import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotNull;
-import lombok.*;
-import lombok.experimental.SuperBuilder;
+import java.net.URI;
+import java.util.AbstractMap;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import org.apache.commons.vfs2.FileSystemOptions;
 import org.apache.commons.vfs2.FileType;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 import org.slf4j.Logger;
 
-import java.net.URI;
-import java.util.AbstractMap;
-import java.util.Map;
-import java.util.stream.Collectors;
+import io.kestra.core.models.property.Property;
+import io.kestra.core.models.tasks.RunnableTask;
+import io.kestra.core.runners.RunContext;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -94,7 +96,8 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
 
             java.util.List<io.kestra.plugin.fs.vfs.models.File> list = files
                 .stream()
-                .map(throwFunction(file -> {
+                .map(throwFunction(file ->
+                {
                     Download.Output download = VfsService.download(
                         runContext,
                         fsm,
@@ -145,7 +148,6 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
         DELETE,
         NONE
     }
-
 
     @Builder
     @Getter

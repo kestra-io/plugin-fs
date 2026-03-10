@@ -1,9 +1,11 @@
 package io.kestra.plugin.fs.ftps;
 
-import io.kestra.core.models.property.Property;
-import io.swagger.v3.oas.annotations.media.Schema;
 import org.apache.commons.vfs2.provider.ftps.FtpsDataChannelProtectionLevel;
 import org.apache.commons.vfs2.provider.ftps.FtpsMode;
+
+import io.kestra.core.models.property.Property;
+
+import io.swagger.v3.oas.annotations.media.Schema;
 
 public interface FtpsInterface {
     @Schema(
@@ -11,7 +13,6 @@ public interface FtpsInterface {
         description = "Choose implicit or explicit FTPS. Default EXPLICIT."
     )
     Property<FtpsMode> getMode();
-
 
     @Schema(
         title = "Data channel protection level",

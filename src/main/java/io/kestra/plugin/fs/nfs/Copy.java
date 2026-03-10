@@ -1,23 +1,24 @@
 package io.kestra.plugin.fs.nfs;
 
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+
+import org.slf4j.Logger;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
- 
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.inject.Inject;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.slf4j.Logger;
-
-import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 
 @SuperBuilder
 @ToString
@@ -34,15 +35,15 @@ import java.nio.file.StandardCopyOption;
             full = true,
             title = "Copy a file from one location to another on an NFS mount.",
             code = """
-                id: nfs_copy
-                namespace: company.team
+                    id: nfs_copy
+                    namespace: company.team
 
-                tasks:
-                  - id: copy_file
-                    type: io.kestra.plugin.fs.nfs.Copy
-                    from: /mnt/nfs/shared/in/file.txt
-                    to: /mnt/nfs/shared/out/file_copy.txt
-            """
+                    tasks:
+                      - id: copy_file
+                        type: io.kestra.plugin.fs.nfs.Copy
+                        from: /mnt/nfs/shared/in/file.txt
+                        to: /mnt/nfs/shared/out/file_copy.txt
+                """
         )
     }
 )
@@ -72,7 +73,6 @@ public class Copy extends Task implements RunnableTask<Copy.Output> {
 
         logger.info("Copying from {} to {}", fromPath, toPath);
 
-        
         Path toParent = toPath.getParent();
         if (toParent != null && !Files.exists(toParent)) {
             Files.createDirectories(toParent);

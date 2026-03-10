@@ -1,13 +1,14 @@
 package io.kestra.plugin.fs.ftp;
 
+import java.net.Proxy;
+import java.time.Duration;
+
 import io.kestra.core.models.property.Property;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.extern.jackson.Jacksonized;
-
-import java.net.Proxy;
-import java.time.Duration;
 
 public interface FtpInterface {
     @Schema(

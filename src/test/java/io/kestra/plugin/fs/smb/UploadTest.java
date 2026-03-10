@@ -1,5 +1,11 @@
 package io.kestra.plugin.fs.smb;
 
+import java.net.URI;
+import java.util.List;
+import java.util.Map;
+
+import org.junit.jupiter.api.Test;
+
 import io.kestra.core.exceptions.KestraRuntimeException;
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
@@ -8,12 +14,8 @@ import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.vfs.models.File;
-import jakarta.inject.Inject;
-import org.junit.jupiter.api.Test;
 
-import java.net.URI;
-import java.util.List;
-import java.util.Map;
+import jakarta.inject.Inject;
 
 import static io.kestra.plugin.fs.smb.SmbUtils.PASSWORD;
 import static io.kestra.plugin.fs.smb.SmbUtils.USERNAME;
@@ -100,7 +102,7 @@ class UploadTest {
         listResult = listFiles.run(TestsUtils.mockRunContext(runContextFactory, listFiles, Map.of()));
         assertThat(listResult.getFiles().size(), is(1));
         File file = listResult.getFiles().getFirst();
-        assertThat(file.getName(), is(destinationFolder.replace("/","")));
+        assertThat(file.getName(), is(destinationFolder.replace("/", "")));
         assertThat(file.getPath().toString(), containsString(parentFolder));
     }
 

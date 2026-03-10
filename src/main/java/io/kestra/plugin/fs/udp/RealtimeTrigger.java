@@ -1,5 +1,15 @@
 package io.kestra.plugin.fs.udp;
 
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.SocketException;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.conditions.ConditionContext;
@@ -7,20 +17,12 @@ import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.triggers.*;
 import io.kestra.core.runners.RunContext;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
 import reactor.core.publisher.Flux;
-
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.SocketException;
-import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 @SuperBuilder
 @ToString
@@ -89,7 +91,8 @@ public class RealtimeTrigger extends AbstractTrigger
 
         active.set(true);
 
-        return Flux.<Execution>create(emitter -> {
+        return Flux.<Execution> create(emitter ->
+        {
             try (DatagramSocket udpSocket = new DatagramSocket(rPort)) {
                 this.socket = udpSocket;
                 logger.info("UDP RealtimeTrigger listening on {}:{}", rHost, rPort);
@@ -119,7 +122,7 @@ public class RealtimeTrigger extends AbstractTrigger
                         if (active.get()) {
                             logger.warn("Socket exception while active: {}", se.getMessage());
                         }
-                        break; 
+                        break;
                     } catch (Exception e) {
                         if (active.get()) {
                             logger.error("Error while receiving UDP packet: {}", e.getMessage(), e);
@@ -133,7 +136,8 @@ public class RealtimeTrigger extends AbstractTrigger
                 logger.info("UDP RealtimeTrigger stopped listening on port {}", rPort);
                 emitter.complete();
             }
-        }).doOnCancel(() -> {
+        }).doOnCancel(() ->
+        {
             logger.info("UDP RealtimeTrigger cancelled.");
             stop();
         });

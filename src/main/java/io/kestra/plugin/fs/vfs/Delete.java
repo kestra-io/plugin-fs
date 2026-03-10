@@ -1,16 +1,17 @@
 package io.kestra.plugin.fs.vfs;
 
-import com.jcraft.jsch.JSch;
+import java.net.URI;
+
+import org.apache.commons.vfs2.impl.StandardFileSystemManager;
+
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.apache.commons.vfs2.impl.StandardFileSystemManager;
-
-import java.net.URI;
 
 @SuperBuilder(toBuilder = true)
 @ToString
@@ -19,7 +20,8 @@ import java.net.URI;
 @NoArgsConstructor
 public abstract class Delete extends AbstractVfsTask implements RunnableTask<Delete.Output> {
     @Schema(
-        title = "URI of the file to delete")
+        title = "URI of the file to delete"
+    )
     @NotNull
     private Property<String> uri;
 

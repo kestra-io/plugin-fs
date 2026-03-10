@@ -1,6 +1,24 @@
 package io.kestra.plugin.fs.sftp;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Objects;
+import java.util.UUID;
+
+import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.vfs2.FileSystemOptions;
+import org.apache.commons.vfs2.provider.sftp.SftpFileSystemConfigBuilder;
+import org.junit.jupiter.api.Test;
+
 import com.devskiller.friendly_id.FriendlyId;
+
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
@@ -8,23 +26,8 @@ import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.tenant.TenantService;
 import io.kestra.plugin.fs.vfs.Download.Output;
-import jakarta.inject.Inject;
-import org.apache.commons.vfs2.FileSystemOptions;
-import org.apache.commons.vfs2.provider.sftp.SftpFileSystemConfigBuilder;
-import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.io.IOUtils;
-import org.junit.jupiter.api.Test;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.OutputStream;
-import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.charset.StandardCharsets;
-import java.util.Objects;
-import java.util.UUID;
+import jakarta.inject.Inject;
 
 import static io.kestra.plugin.fs.sftp.SftpUtils.PASSWORD;
 import static io.kestra.plugin.fs.sftp.SftpUtils.USERNAME;
@@ -66,9 +69,12 @@ class SftpTest {
     }
 
     void testSftp(Boolean keyAuth) throws Exception {
-        File applicationFile = new File(Objects.requireNonNull(SftpTest.class.getClassLoader()
-            .getResource("application.yml"))
-            .toURI()
+        File applicationFile = new File(
+            Objects.requireNonNull(
+                SftpTest.class.getClassLoader()
+                    .getResource("application.yml")
+            )
+                .toURI()
         );
         URI source = storageInterface.put(
             TenantService.MAIN_TENANT,

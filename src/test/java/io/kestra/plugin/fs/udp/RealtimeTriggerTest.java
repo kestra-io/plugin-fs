@@ -1,5 +1,12 @@
 package io.kestra.plugin.fs.udp;
 
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.util.Map;
+
+import org.junit.jupiter.api.Test;
+
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
@@ -7,13 +14,8 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.triggers.TriggerContext;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
-import jakarta.inject.Inject;
-import org.junit.jupiter.api.Test;
 
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.util.Map;
+import jakarta.inject.Inject;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -37,7 +39,8 @@ public class RealtimeTriggerTest {
         ConditionContext conditionContext = new ConditionContext(null, null, runContext, Map.of(), null);
         TriggerContext triggerContext = TriggerContext.builder().build();
 
-        Thread triggerThread = new Thread(() -> {
+        Thread triggerThread = new Thread(() ->
+        {
             try {
                 trigger.evaluate(conditionContext, triggerContext)
                     .subscribe(new org.reactivestreams.Subscriber<Execution>() {
@@ -48,8 +51,7 @@ public class RealtimeTriggerTest {
 
                         @Override
                         public void onNext(Execution execution) {
-                            RealtimeTrigger.Output output = (RealtimeTrigger.Output)
-                                execution.getTrigger().getVariables().get("output");
+                            RealtimeTrigger.Output output = (RealtimeTrigger.Output) execution.getTrigger().getVariables().get("output");
                             assertThat(output.getPayload(), is(message));
                             assertThat(output.getSourceIp(), notNullValue());
                             assertThat(output.getTimestamp(), notNullValue());
@@ -61,7 +63,8 @@ public class RealtimeTriggerTest {
                         }
 
                         @Override
-                        public void onComplete() {}
+                        public void onComplete() {
+                        }
                     });
             } catch (Exception e) {
                 throw new RuntimeException(e);

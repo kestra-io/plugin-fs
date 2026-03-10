@@ -1,21 +1,22 @@
 package io.kestra.plugin.fs.local;
 
-import com.devskiller.friendly_id.FriendlyId;
-import io.kestra.core.models.property.Property;
-import io.kestra.core.runners.RunContextFactory;
-import io.kestra.core.storages.StorageInterface;
-import io.kestra.core.tenant.TenantService;
-import io.kestra.core.utils.TestsUtils;
-import io.kestra.plugin.fs.AbstractUtils;
-import io.micronaut.context.annotation.Prototype;
-import jakarta.inject.Inject;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.net.URI;
 import java.util.Map;
 import java.util.Objects;
 
+import com.devskiller.friendly_id.FriendlyId;
+
+import io.kestra.core.models.property.Property;
+import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.storages.StorageInterface;
+import io.kestra.core.tenant.TenantService;
+import io.kestra.core.utils.TestsUtils;
+import io.kestra.plugin.fs.AbstractUtils;
+
+import io.micronaut.context.annotation.Prototype;
+import jakarta.inject.Inject;
 
 @Prototype
 public class LocalUtils {
@@ -63,9 +64,12 @@ public class LocalUtils {
     }
 
     public URI uploadToStorage() throws Exception {
-        File applicationFile = new File(Objects.requireNonNull(AbstractUtils.class.getClassLoader()
-                .getResource("application.yml"))
-            .toURI()
+        File applicationFile = new File(
+            Objects.requireNonNull(
+                AbstractUtils.class.getClassLoader()
+                    .getResource("application.yml")
+            )
+                .toURI()
         );
 
         return storageInterface.put(

@@ -1,14 +1,13 @@
 package io.kestra.plugin.fs.local.models;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.With;
-
 import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Instant;
+
+import lombok.Builder;
+import lombok.Getter;
+import lombok.With;
 
 @Getter
 @Builder

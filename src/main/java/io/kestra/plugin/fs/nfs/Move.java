@@ -1,23 +1,24 @@
 package io.kestra.plugin.fs.nfs;
 
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+
+import org.slf4j.Logger;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
- 
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.inject.Inject;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.slf4j.Logger;
-
-import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 
 @SuperBuilder
 @ToString
@@ -34,25 +35,25 @@ import java.nio.file.StandardCopyOption;
             full = true,
             title = "Move a file from one location to another on an NFS mount.",
             code = """
-                id: nfs_move
-                namespace: company.team
+                    id: nfs_move
+                    namespace: company.team
 
-                tasks:
-                  - id: move_file
-                    type: io.kestra.plugin.fs.nfs.Move
-                    from: /mnt/nfs/shared/in/file.txt
-                    to: /mnt/nfs/shared/archive/file.txt
-            """
+                    tasks:
+                      - id: move_file
+                        type: io.kestra.plugin.fs.nfs.Move
+                        from: /mnt/nfs/shared/in/file.txt
+                        to: /mnt/nfs/shared/archive/file.txt
+                """
         )
     }
-    
+
 )
 public class Move extends Task implements RunnableTask<Move.Output> {
- 
+
     @Inject
     @Builder.Default
     private NfsService nfsService = NfsService.getInstance();
-    
+
     @Schema(title = "Source file path")
     @NotNull
     private Property<String> from;

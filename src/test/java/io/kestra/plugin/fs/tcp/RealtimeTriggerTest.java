@@ -1,18 +1,5 @@
 package io.kestra.plugin.fs.tcp;
 
-import io.kestra.core.junit.annotations.KestraTest;
-import io.kestra.core.models.conditions.ConditionContext;
-import io.kestra.core.models.executions.Execution;
-import io.kestra.core.models.flows.Flow;
-import io.kestra.core.models.property.Property;
-import io.kestra.core.models.triggers.TriggerContext;
-import io.kestra.core.runners.RunContext;
-import io.kestra.core.runners.RunContextFactory;
-import jakarta.inject.Inject;
-import org.junit.jupiter.api.Test;
-import reactor.core.publisher.Flux;
-import reactor.core.scheduler.Schedulers;
-
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -21,6 +8,21 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+
+import org.junit.jupiter.api.Test;
+
+import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.models.conditions.ConditionContext;
+import io.kestra.core.models.executions.Execution;
+import io.kestra.core.models.flows.Flow;
+import io.kestra.core.models.property.Property;
+import io.kestra.core.models.triggers.TriggerContext;
+import io.kestra.core.runners.RunContext;
+import io.kestra.core.runners.RunContextFactory;
+
+import jakarta.inject.Inject;
+import reactor.core.publisher.Flux;
+import reactor.core.scheduler.Schedulers;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -52,7 +54,8 @@ class RealtimeTriggerTest {
             .encoding(Property.ofValue("UTF-8"))
             .build();
 
-        Future<Execution> listener = Executors.newSingleThreadExecutor().submit(() -> {
+        Future<Execution> listener = Executors.newSingleThreadExecutor().submit(() ->
+        {
             Flux<Execution> flux = Flux.from(trigger.evaluate(conditionContext, triggerContext))
                 .subscribeOn(Schedulers.boundedElastic());
             return flux.blockFirst(Duration.ofSeconds(8));
@@ -62,7 +65,7 @@ class RealtimeTriggerTest {
 
         sendTestMessage(port, "Hello from Kestra TCP Trigger");
 
-        Execution execution = listener.get(); 
+        Execution execution = listener.get();
         assertThat(execution, notNullValue());
 
         Map<String, Object> vars = execution.getTrigger().getVariables();
@@ -74,8 +77,10 @@ class RealtimeTriggerTest {
     }
 
     private void sendTestMessage(int port, String message) {
-        try (Socket socket = new Socket("127.0.0.1", port);
-             OutputStream os = socket.getOutputStream()) {
+        try (
+            Socket socket = new Socket("127.0.0.1", port);
+            OutputStream os = socket.getOutputStream()
+        ) {
             os.write((message + "\n").getBytes(StandardCharsets.UTF_8));
             os.flush();
         } catch (Exception e) {

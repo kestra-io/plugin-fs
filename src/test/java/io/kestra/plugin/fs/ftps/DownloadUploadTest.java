@@ -1,6 +1,20 @@
 package io.kestra.plugin.fs.ftps;
 
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.net.URI;
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+
+import org.apache.commons.io.IOUtils;
+import org.hamcrest.Matchers;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+
 import com.google.common.base.Charsets;
+
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
@@ -10,19 +24,8 @@ import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.ftp.FtpUtils;
 import io.kestra.plugin.fs.vfs.models.File;
-import jakarta.inject.Inject;
-import org.apache.commons.io.IOUtils;
-import org.hamcrest.Matchers;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.URI;
-import java.net.Socket;
-import java.time.Duration;
-import java.util.List;
-import java.util.Map;
+import jakarta.inject.Inject;
 
 import static io.kestra.plugin.fs.ftp.FtpUtils.PASSWORD;
 import static io.kestra.plugin.fs.ftp.FtpUtils.USERNAME;
@@ -77,11 +80,12 @@ class DownloadUploadTest {
 
         var downloadRun = download.run(TestsUtils.mockRunContext(runContextFactory, download, Map.of()));
 
-        assertThat(IOUtils.toString(this.storageInterface.get(TenantService.MAIN_TENANT, null, downloadRun.getTo()), Charsets.UTF_8), is(IOUtils.toString(this.storageInterface.get(TenantService.MAIN_TENANT, null, uri), Charsets.UTF_8)));
+        assertThat(
+            IOUtils.toString(this.storageInterface.get(TenantService.MAIN_TENANT, null, downloadRun.getTo()), Charsets.UTF_8),
+            is(IOUtils.toString(this.storageInterface.get(TenantService.MAIN_TENANT, null, uri), Charsets.UTF_8))
+        );
         assertThat(downloadRun.getFrom().getPath(), endsWith(".yaml"));
     }
-
-
 
     @Test
     void downloadsUploads() throws Exception {
@@ -91,35 +95,37 @@ class DownloadUploadTest {
         String sftpPath = "/upload/" + IdUtils.create() + "/";
 
         Uploads uploadsTask = Uploads.builder().id(DownloadUploadTest.class.getSimpleName())
-                .type(DownloadUploadTest.class.getName())
-                .from(List.of(uri1.toString(), uri2.toString()))
-                .to(Property.ofValue(sftpPath))
-                .host(Property.ofValue("127.0.0.1"))
-                .port(Property.ofValue("6990"))
-                .username(USERNAME)
-                .password(PASSWORD)
-                .build();
+            .type(DownloadUploadTest.class.getName())
+            .from(List.of(uri1.toString(), uri2.toString()))
+            .to(Property.ofValue(sftpPath))
+            .host(Property.ofValue("127.0.0.1"))
+            .port(Property.ofValue("6990"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
         Uploads.Output uploadsRun = uploadsTask.run(TestsUtils.mockRunContext(runContextFactory, uploadsTask, Map.of()));
 
         io.kestra.plugin.fs.ftps.Downloads downloadsTask = io.kestra.plugin.fs.ftps.Downloads.builder()
-                .id(DownloadUploadTest.class.getSimpleName())
-                .type(DownloadUploadTest.class.getName())
-                .from(Property.ofValue(sftpPath))
-                .action(Property.ofValue(io.kestra.plugin.fs.ftp.Downloads.Action.DELETE))
-                .host(Property.ofValue("127.0.0.1"))
-                .port(Property.ofValue("6990"))
-                .username(USERNAME)
-                .password(PASSWORD)
-                .build();
+            .id(DownloadUploadTest.class.getSimpleName())
+            .type(DownloadUploadTest.class.getName())
+            .from(Property.ofValue(sftpPath))
+            .action(Property.ofValue(io.kestra.plugin.fs.ftp.Downloads.Action.DELETE))
+            .host(Property.ofValue("127.0.0.1"))
+            .port(Property.ofValue("6990"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
 
         Downloads.Output downloadsRun = downloadsTask.run(TestsUtils.mockRunContext(runContextFactory, downloadsTask, Map.of()));
 
         assertThat(uploadsRun.getFiles().size(), is(2));
         assertThat(downloadsRun.getFiles().size(), is(2));
         List<String> remoteFileUris = downloadsRun.getFiles().stream().map(File::getServerPath).map(URI::getPath).toList();
-        assertThat(uploadsRun.getFiles().stream().map(URI::getPath).toList(), Matchers.everyItem(
+        assertThat(
+            uploadsRun.getFiles().stream().map(URI::getPath).toList(), Matchers.everyItem(
                 Matchers.is(Matchers.in(remoteFileUris))
-        ));
+            )
+        );
     }
 
     private static void waitForPort(String host, int port, Duration timeout) throws Exception {

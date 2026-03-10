@@ -1,5 +1,12 @@
 package io.kestra.plugin.fs.sftp;
 
+import java.net.URI;
+import java.util.List;
+import java.util.Map;
+
+import org.hamcrest.Matchers;
+import org.junit.jupiter.api.Test;
+
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
@@ -7,18 +14,12 @@ import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.vfs.Uploads.Output;
 import io.kestra.plugin.fs.vfs.models.File;
-import jakarta.inject.Inject;
-import org.hamcrest.Matchers;
-import org.junit.jupiter.api.Test;
 
-import java.net.URI;
-import java.util.List;
-import java.util.Map;
+import jakarta.inject.Inject;
 
 import static io.kestra.plugin.fs.sftp.SftpUtils.PASSWORD;
 import static io.kestra.plugin.fs.sftp.SftpUtils.USERNAME;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.is;
 
 @KestraTest
@@ -98,8 +99,10 @@ class UploadsTest {
         assertThat(uploadsRun.getFiles().size(), is(2));
         assertThat(downloadsRun.getFiles().size(), is(2));
         List<String> remoteFileUris = downloadsRun.getFiles().stream().map(File::getServerPath).map(URI::getPath).toList();
-        assertThat(uploadsRun.getFiles().stream().map(URI::getPath).toList(), Matchers.everyItem(
+        assertThat(
+            uploadsRun.getFiles().stream().map(URI::getPath).toList(), Matchers.everyItem(
                 Matchers.is(Matchers.in(remoteFileUris))
-        ));
+            )
+        );
     }
 }

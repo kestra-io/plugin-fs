@@ -1,23 +1,20 @@
 package io.kestra.plugin.fs.local;
 
-import io.kestra.core.models.annotations.Example;
-import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.annotations.PluginProperty;
-import io.kestra.core.models.property.Property;
-import io.kestra.core.models.tasks.RunnableTask;
-import io.kestra.core.models.tasks.VoidOutput;
-import io.kestra.core.runners.RunContext;
-import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.*;
-import lombok.experimental.SuperBuilder;
-
-import jakarta.validation.constraints.NotNull;
-
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.stream.Stream;
 
-import static io.kestra.core.utils.Rethrow.throwFunction;
+import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.property.Property;
+import io.kestra.core.models.tasks.RunnableTask;
+import io.kestra.core.models.tasks.VoidOutput;
+import io.kestra.core.runners.RunContext;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
 
 @SuperBuilder
 @ToString
@@ -112,7 +109,7 @@ public class Copy extends AbstractLocalTask implements RunnableTask<VoidOutput> 
         }
 
         if (Files.exists(target) && !overwrite) {
-            throw new IllegalArgumentException("Target file already exists: " + target + " . Set 'overwrite: true' to replace the existing file." );
+            throw new IllegalArgumentException("Target file already exists: " + target + " . Set 'overwrite: true' to replace the existing file.");
         }
 
         Files.createDirectories(target.getParent());
@@ -133,7 +130,8 @@ public class Copy extends AbstractLocalTask implements RunnableTask<VoidOutput> 
         }
 
         try (Stream<Path> paths = Files.walk(sourceDir)) {
-            paths.forEach(source -> {
+            paths.forEach(source ->
+            {
                 try {
                     Path relativePath = sourceDir.relativize(source);
                     Path target = targetDir.resolve(relativePath);

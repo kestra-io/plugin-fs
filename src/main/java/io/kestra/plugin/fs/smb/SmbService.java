@@ -1,12 +1,13 @@
 package io.kestra.plugin.fs.smb;
 
-import io.kestra.core.exceptions.IllegalVariableEvaluationException;
-import io.kestra.core.runners.RunContext;
+import java.io.IOException;
+
 import org.apache.commons.vfs2.FileSystemOptions;
 import org.apache.commons.vfs2.auth.StaticUserAuthenticator;
 import org.apache.commons.vfs2.impl.DefaultFileSystemConfigBuilder;
 
-import java.io.IOException;
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
+import io.kestra.core.runners.RunContext;
 
 public abstract class SmbService {
     public static FileSystemOptions fsOptions(RunContext runContext, SmbInterface smbInterface) throws IOException, IllegalVariableEvaluationException {
@@ -16,7 +17,8 @@ public abstract class SmbService {
             new StaticUserAuthenticator(
                 "",
                 runContext.render(smbInterface.getUsername()).as(String.class).orElse(null),
-                runContext.render(smbInterface.getPassword()).as(String.class).orElse(null))
+                runContext.render(smbInterface.getPassword()).as(String.class).orElse(null)
+            )
         );
 
         return opts;
