@@ -70,18 +70,22 @@ public class Upload extends AbstractSmbTask implements RunnableTask<io.kestra.pl
 
     public io.kestra.plugin.fs.vfs.Upload.Output run(RunContext runContext) throws Exception {
         var ctx = createContext(runContext);
-        var rFrom = runContext.render(this.from).as(String.class).orElseThrow();
-        if (!rFrom.startsWith("kestra://")) {
-            throw new IllegalArgumentException("'from' must be a Kestra's internal storage URI");
+        try {
+            var rFrom = runContext.render(this.from).as(String.class).orElseThrow();
+            if (!rFrom.startsWith("kestra://")) {
+                throw new IllegalArgumentException("'from' must be a Kestra's internal storage URI");
+            }
+            var rTo = runContext.render(this.to).as(String.class).orElse(rFrom.substring(rFrom.lastIndexOf('/')));
+            return SmbService.upload(
+                runContext,
+                ctx,
+                this,
+                URI.create(rFrom),
+                rTo,
+                runContext.render(this.overwrite).as(Boolean.class).orElseThrow()
+            );
+        } finally {
+            ctx.close();
         }
-        var rTo = runContext.render(this.to).as(String.class).orElse(rFrom.substring(rFrom.lastIndexOf('/')));
-        return SmbService.upload(
-            runContext,
-            ctx,
-            this,
-            URI.create(rFrom),
-            rTo,
-            runContext.render(this.overwrite).as(Boolean.class).orElseThrow()
-        );
     }
 }

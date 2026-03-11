@@ -67,25 +67,29 @@ public class List extends AbstractSmbTask implements RunnableTask<io.kestra.plug
 
     public io.kestra.plugin.fs.vfs.List.Output run(RunContext runContext) throws Exception {
         var ctx = createContext(runContext);
-        var output = SmbService.list(
-            runContext,
-            ctx,
-            this,
-            runContext.render(this.from).as(String.class).orElseThrow(),
-            runContext.render(this.regExp).as(String.class).orElse(null),
-            runContext.render(this.recursive).as(Boolean.class).orElse(false)
-        );
+        try {
+            var output = SmbService.list(
+                runContext,
+                ctx,
+                this,
+                runContext.render(this.from).as(String.class).orElseThrow(),
+                runContext.render(this.regExp).as(String.class).orElse(null),
+                runContext.render(this.recursive).as(Boolean.class).orElse(false)
+            );
 
-        var files = output.getFiles();
+            var files = output.getFiles();
 
-        int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
-        if (files.size() > rMaxFiles) {
-            runContext.logger().warn("Too many files to process ({}), limiting to {}", files.size(), rMaxFiles);
-            files = files.subList(0, rMaxFiles);
+            int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
+            if (files.size() > rMaxFiles) {
+                runContext.logger().warn("Too many files to process ({}), limiting to {}", files.size(), rMaxFiles);
+                files = files.subList(0, rMaxFiles);
+            }
+
+            return io.kestra.plugin.fs.vfs.List.Output.builder()
+                .files(files)
+                .build();
+        } finally {
+            ctx.close();
         }
-
-        return io.kestra.plugin.fs.vfs.List.Output.builder()
-            .files(files)
-            .build();
     }
 }

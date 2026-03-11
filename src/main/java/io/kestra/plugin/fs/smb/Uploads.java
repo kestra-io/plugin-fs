@@ -87,41 +87,45 @@ public class Uploads extends AbstractSmbTask implements RunnableTask<Uploads.Out
 
     public Output run(RunContext runContext) throws Exception {
         var ctx = createContext(runContext);
-        var fileMappings = parseFromProperty(runContext);
+        try {
+            var fileMappings = parseFromProperty(runContext);
 
-        var rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
-        if (fileMappings.size() > rMaxFiles) {
-            runContext.logger().warn("Too many files to process ({}), limiting to {}", fileMappings.size(), rMaxFiles);
-            fileMappings = fileMappings.subList(0, rMaxFiles);
-        }
-
-        var outputs = fileMappings.stream().map(throwFunction(entry -> {
-            var destFileName = entry.getKey();
-            var fromURI = entry.getValue();
-            var rTo = runContext.render(this.to).as(String.class).orElseThrow();
-
-            String destPath;
-            if (destFileName != null) {
-                destPath = rTo + (rTo.endsWith("/") ? "" : "/") + destFileName;
-            } else {
-                destPath = rTo + fromURI.substring(fromURI.lastIndexOf('/') + (rTo.endsWith("/") ? 1 : 0));
+            var rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
+            if (fileMappings.size() > rMaxFiles) {
+                runContext.logger().warn("Too many files to process ({}), limiting to {}", fileMappings.size(), rMaxFiles);
+                fileMappings = fileMappings.subList(0, rMaxFiles);
             }
 
-            return SmbService.upload(
-                runContext,
-                ctx,
-                this,
-                URI.create(fromURI),
-                destPath
-            );
-        })).toList();
+            var outputs = fileMappings.stream().map(throwFunction(entry -> {
+                var destFileName = entry.getKey();
+                var fromURI = entry.getValue();
+                var rTo = runContext.render(this.to).as(String.class).orElseThrow();
 
-        return Output.builder()
-            .files(outputs.stream()
-                .map(io.kestra.plugin.fs.vfs.Upload.Output::getTo)
-                .toList()
-            )
-            .build();
+                String destPath;
+                if (destFileName != null) {
+                    destPath = rTo + (rTo.endsWith("/") ? "" : "/") + destFileName;
+                } else {
+                    destPath = rTo + fromURI.substring(fromURI.lastIndexOf('/') + (rTo.endsWith("/") ? 1 : 0));
+                }
+
+                return SmbService.upload(
+                    runContext,
+                    ctx,
+                    this,
+                    URI.create(fromURI),
+                    destPath
+                );
+            })).toList();
+
+            return Output.builder()
+                .files(outputs.stream()
+                    .map(io.kestra.plugin.fs.vfs.Upload.Output::getTo)
+                    .toList()
+                )
+                .build();
+        } finally {
+            ctx.close();
+        }
     }
 
     @SuppressWarnings("unchecked")

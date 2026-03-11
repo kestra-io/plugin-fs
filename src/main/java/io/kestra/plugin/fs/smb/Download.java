@@ -48,11 +48,15 @@ public class Download extends AbstractSmbTask implements RunnableTask<io.kestra.
 
     public io.kestra.plugin.fs.vfs.Download.Output run(RunContext runContext) throws Exception {
         var ctx = createContext(runContext);
-        return SmbService.download(
-            runContext,
-            ctx,
-            this,
-            runContext.render(this.from).as(String.class).orElseThrow()
-        );
+        try {
+            return SmbService.download(
+                runContext,
+                ctx,
+                this,
+                runContext.render(this.from).as(String.class).orElseThrow()
+            );
+        } finally {
+            ctx.close();
+        }
     }
 }

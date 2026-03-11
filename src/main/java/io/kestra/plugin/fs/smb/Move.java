@@ -63,13 +63,17 @@ public class Move extends AbstractSmbTask implements RunnableTask<io.kestra.plug
 
     public io.kestra.plugin.fs.vfs.Move.Output run(RunContext runContext) throws Exception {
         var ctx = createContext(runContext);
-        return SmbService.move(
-            runContext,
-            ctx,
-            this,
-            runContext.render(this.from).as(String.class).orElseThrow(),
-            runContext.render(this.to).as(String.class).orElseThrow(),
-            runContext.render(this.overwrite).as(Boolean.class).orElseThrow()
-        );
+        try {
+            return SmbService.move(
+                runContext,
+                ctx,
+                this,
+                runContext.render(this.from).as(String.class).orElseThrow(),
+                runContext.render(this.to).as(String.class).orElseThrow(),
+                runContext.render(this.overwrite).as(Boolean.class).orElseThrow()
+            );
+        } finally {
+            ctx.close();
+        }
     }
 }

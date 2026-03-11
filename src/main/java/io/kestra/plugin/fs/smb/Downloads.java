@@ -88,63 +88,67 @@ public class Downloads extends AbstractSmbTask implements RunnableTask<Downloads
         var logger = runContext.logger();
 
         var ctx = createContext(runContext);
-        var fromPath = runContext.render(this.from).as(String.class).orElseThrow();
+        try {
+            var fromPath = runContext.render(this.from).as(String.class).orElseThrow();
 
-        var run = SmbService.list(
-            runContext,
-            ctx,
-            this,
-            fromPath,
-            runContext.render(this.regExp).as(String.class).orElse(null),
-            runContext.render(this.recursive).as(Boolean.class).orElse(false)
-        );
-
-        var files = run.getFiles().stream()
-            .filter(file -> file.getFileType() == FileType.FILE)
-            .toList();
-
-        var rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
-        if (files.size() > rMaxFiles) {
-            logger.warn("Too many files to process ({}), limiting to {}", files.size(), rMaxFiles);
-            files = files.subList(0, rMaxFiles);
-        }
-
-        var list = files.stream()
-            .map(throwFunction(file -> {
-                var download = SmbService.download(
-                    runContext,
-                    ctx,
-                    this,
-                    file.getServerPath().getPath()
-                );
-
-                logger.debug("File '{}' download to '{}'", fromPath, download.getTo());
-
-                return file.withPath(download.getTo());
-            }))
-            .toList();
-
-        var outputFiles = list.stream()
-            .filter(file -> file.getFileType() != FileType.FOLDER)
-            .map(file -> new AbstractMap.SimpleEntry<>(file.getName(), file.getPath()))
-            .collect(Collectors.toMap(AbstractMap.SimpleEntry::getKey, AbstractMap.SimpleEntry::getValue));
-
-        if (this.action != null) {
-            var rAction = runContext.render(this.action).as(io.kestra.plugin.fs.vfs.Downloads.Action.class).orElse(null);
-            SmbService.performAction(
+            var run = SmbService.list(
                 runContext,
                 ctx,
                 this,
-                files,
-                rAction,
-                runContext.render(this.moveDirectory).as(String.class).orElse(null)
+                fromPath,
+                runContext.render(this.regExp).as(String.class).orElse(null),
+                runContext.render(this.recursive).as(Boolean.class).orElse(false)
             );
-        }
 
-        return Output.builder()
-            .files(list)
-            .outputFiles(outputFiles)
-            .build();
+            var files = run.getFiles().stream()
+                .filter(file -> file.getFileType() == FileType.FILE)
+                .toList();
+
+            var rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
+            if (files.size() > rMaxFiles) {
+                logger.warn("Too many files to process ({}), limiting to {}", files.size(), rMaxFiles);
+                files = files.subList(0, rMaxFiles);
+            }
+
+            var list = files.stream()
+                .map(throwFunction(file -> {
+                    var download = SmbService.download(
+                        runContext,
+                        ctx,
+                        this,
+                        file.getServerPath().getPath()
+                    );
+
+                    logger.debug("File '{}' download to '{}'", fromPath, download.getTo());
+
+                    return file.withPath(download.getTo());
+                }))
+                .toList();
+
+            var outputFiles = list.stream()
+                .filter(file -> file.getFileType() != FileType.FOLDER)
+                .map(file -> new AbstractMap.SimpleEntry<>(file.getName(), file.getPath()))
+                .collect(Collectors.toMap(AbstractMap.SimpleEntry::getKey, AbstractMap.SimpleEntry::getValue));
+
+            if (this.action != null) {
+                var rAction = runContext.render(this.action).as(io.kestra.plugin.fs.vfs.Downloads.Action.class).orElse(null);
+                SmbService.performAction(
+                    runContext,
+                    ctx,
+                    this,
+                    files,
+                    rAction,
+                    runContext.render(this.moveDirectory).as(String.class).orElse(null)
+                );
+            }
+
+            return Output.builder()
+                .files(list)
+                .outputFiles(outputFiles)
+                .build();
+        } finally {
+            ctx.close();
+        }
     }
 
     @Builder

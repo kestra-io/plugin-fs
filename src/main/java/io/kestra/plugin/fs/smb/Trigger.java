@@ -207,126 +207,130 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         var rStateTtl = runContext.render(stateTtl).as(Duration.class);
 
         var ctx = SmbService.createContext(runContext, this);
-        var fromPath = runContext.render(this.from).as(String.class).orElseThrow();
-
-        io.kestra.plugin.fs.vfs.List.Output run; // FQCN needed: naming conflict with smb.List
         try {
-            run = SmbService.list(
-                runContext,
-                ctx,
-                this,
-                fromPath,
-                runContext.render(this.regExp).as(String.class).orElse(null),
-                runContext.render(this.recursive).as(Boolean.class).orElse(false)
-            );
-        } catch (org.codelibs.jcifs.smb.impl.SmbException e) {
-            logger.debug("From path doesn't exist '{}'", fromPath);
-            return Optional.empty();
-        }
+            var fromPath = runContext.render(this.from).as(String.class).orElseThrow();
 
-        if (run.getFiles().isEmpty()) {
-            return Optional.empty();
-        }
-
-        var files = run.getFiles().stream()
-            .filter(file -> file.getFileType() == FileType.FILE)
-            .toList();
-
-        var state = readState(runContext, rStateKey, rStateTtl);
-
-        var pendingFiles = new ArrayList<PendingFile>();
-
-        for (File file : files) {
-            if (file.getFileType().equals(FileType.FOLDER)) {
-                continue;
+            io.kestra.plugin.fs.vfs.List.Output run; // FQCN needed: naming conflict with smb.List
+            try {
+                run = SmbService.list(
+                    runContext,
+                    ctx,
+                    this,
+                    fromPath,
+                    runContext.render(this.regExp).as(String.class).orElse(null),
+                    runContext.render(this.recursive).as(Boolean.class).orElse(false)
+                );
+            } catch (org.codelibs.jcifs.smb.impl.SmbException e) {
+                logger.debug("From path doesn't exist '{}'", fromPath);
+                return Optional.empty();
             }
 
-            var remotePath = file.getServerPath().getPath();
-            var updatedDate = Optional.ofNullable(file.getUpdatedDate()).orElse(Instant.EPOCH);
-            var size = Optional.ofNullable(file.getSize()).orElse(0L);
-            var version = String.format("%d_%d_%s", updatedDate.toEpochMilli(), size, remotePath);
-
-            var candidate = Entry.candidate(remotePath, version, updatedDate);
-            var prev = state.get(remotePath);
-
-            if (!shouldFire(prev, version, rOn)) {
-                computeAndUpdateState(state, candidate, rOn);
-                continue;
+            if (run.getFiles().isEmpty()) {
+                return Optional.empty();
             }
 
-            var changeType = prev == null ? ChangeType.CREATE : ChangeType.UPDATE;
-            pendingFiles.add(new PendingFile(file, candidate, changeType));
-        }
+            var files = run.getFiles().stream()
+                .filter(file -> file.getFileType() == FileType.FILE)
+                .toList();
 
-        var rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
-        java.util.List<PendingFile> limitedPending = pendingFiles; // reassigned below
-        if (pendingFiles.size() > rMaxFiles) {
-            logger.warn("Too many files to process ({}), limiting to {}", pendingFiles.size(), rMaxFiles);
-            limitedPending = pendingFiles.subList(0, rMaxFiles);
-        }
+            var state = readState(runContext, rStateKey, rStateTtl);
 
-        if (limitedPending.isEmpty()) {
+            var pendingFiles = new ArrayList<PendingFile>();
+
+            for (File file : files) {
+                if (file.getFileType().equals(FileType.FOLDER)) {
+                    continue;
+                }
+
+                var remotePath = file.getServerPath().getPath();
+                var updatedDate = Optional.ofNullable(file.getUpdatedDate()).orElse(Instant.EPOCH);
+                var size = Optional.ofNullable(file.getSize()).orElse(0L);
+                var version = String.format("%d_%d_%s", updatedDate.toEpochMilli(), size, remotePath);
+
+                var candidate = Entry.candidate(remotePath, version, updatedDate);
+                var prev = state.get(remotePath);
+
+                if (!shouldFire(prev, version, rOn)) {
+                    computeAndUpdateState(state, candidate, rOn);
+                    continue;
+                }
+
+                var changeType = prev == null ? ChangeType.CREATE : ChangeType.UPDATE;
+                pendingFiles.add(new PendingFile(file, candidate, changeType));
+            }
+
+            var rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
+            java.util.List<PendingFile> limitedPending = pendingFiles; // reassigned below
+            if (pendingFiles.size() > rMaxFiles) {
+                logger.warn("Too many files to process ({}), limiting to {}", pendingFiles.size(), rMaxFiles);
+                limitedPending = pendingFiles.subList(0, rMaxFiles);
+            }
+
+            if (limitedPending.isEmpty()) {
+                writeState(runContext, rStateKey, state, rStateTtl);
+                return Optional.empty();
+            }
+
+            var actionFiles = new ArrayList<File>();
+            var toFire = new ArrayList<TriggeredFile>();
+
+            // 1) Download first, do NOT update state yet.
+            for (PendingFile pending : limitedPending) {
+                var download = SmbService.download(
+                    runContext,
+                    ctx,
+                    this,
+                    pending.file.getServerPath().getPath()
+                );
+
+                logger.debug("File '{}' download to '{}'", fromPath, download.getTo());
+
+                var downloaded = pending.file.withPath(download.getTo());
+                actionFiles.add(downloaded);
+
+                toFire.add(TriggeredFile.builder()
+                    .file(downloaded)
+                    .changeType(pending.changeType)
+                    .build());
+            }
+
+            if (toFire.isEmpty()) {
+                writeState(runContext, rStateKey, state, rStateTtl);
+                return Optional.empty();
+            }
+
+            // 2) Perform remote action BEFORE committing state.
+            if (this.action != null) {
+                var rAction = runContext.render(this.action).as(Downloads.Action.class).orElse(null);
+
+                SmbService.performAction(
+                    runContext,
+                    ctx,
+                    this,
+                    actionFiles,
+                    rAction,
+                    runContext.render(this.moveDirectory).as(String.class).orElse(null)
+                );
+            }
+
+            // 3) Only now that downloads + actions succeeded, commit state for fired files.
+            for (PendingFile pending : limitedPending) {
+                computeAndUpdateState(state, pending.candidate, rOn);
+            }
+
             writeState(runContext, rStateKey, state, rStateTtl);
-            return Optional.empty();
-        }
 
-        var actionFiles = new ArrayList<File>();
-        var toFire = new ArrayList<TriggeredFile>();
-
-        // 1) Download first, do NOT update state yet.
-        for (PendingFile pending : limitedPending) {
-            var download = SmbService.download(
-                runContext,
-                ctx,
+            var execution = TriggerService.generateExecution(
                 this,
-                pending.file.getServerPath().getPath()
+                conditionContext,
+                context,
+                Output.builder().files(toFire).build()
             );
 
-            logger.debug("File '{}' download to '{}'", fromPath, download.getTo());
-
-            var downloaded = pending.file.withPath(download.getTo());
-            actionFiles.add(downloaded);
-
-            toFire.add(TriggeredFile.builder()
-                .file(downloaded)
-                .changeType(pending.changeType)
-                .build());
+            return Optional.of(execution);
+        } finally {
+            ctx.close();
         }
-
-        if (toFire.isEmpty()) {
-            writeState(runContext, rStateKey, state, rStateTtl);
-            return Optional.empty();
-        }
-
-        // 2) Perform remote action BEFORE committing state.
-        if (this.action != null) {
-            var rAction = runContext.render(this.action).as(Downloads.Action.class).orElse(null);
-
-            SmbService.performAction(
-                runContext,
-                ctx,
-                this,
-                actionFiles,
-                rAction,
-                runContext.render(this.moveDirectory).as(String.class).orElse(null)
-            );
-        }
-
-        // 3) Only now that downloads + actions succeeded, commit state for fired files.
-        for (PendingFile pending : limitedPending) {
-            computeAndUpdateState(state, pending.candidate, rOn);
-        }
-
-        writeState(runContext, rStateKey, state, rStateTtl);
-
-        var execution = TriggerService.generateExecution(
-            this,
-            conditionContext,
-            context,
-            Output.builder().files(toFire).build()
-        );
-
-        return Optional.of(execution);
     }
 
     public enum ChangeType {

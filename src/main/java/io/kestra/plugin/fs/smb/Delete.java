@@ -54,12 +54,16 @@ public class Delete extends AbstractSmbTask implements RunnableTask<io.kestra.pl
 
     public io.kestra.plugin.fs.vfs.Delete.Output run(RunContext runContext) throws Exception {
         var ctx = createContext(runContext);
-        return SmbService.delete(
-            runContext,
-            ctx,
-            this,
-            runContext.render(this.uri).as(String.class).orElseThrow(),
-            runContext.render(this.errorOnMissing).as(Boolean.class).orElse(false)
-        );
+        try {
+            return SmbService.delete(
+                runContext,
+                ctx,
+                this,
+                runContext.render(this.uri).as(String.class).orElseThrow(),
+                runContext.render(this.errorOnMissing).as(Boolean.class).orElse(false)
+            );
+        } finally {
+            ctx.close();
+        }
     }
 }
