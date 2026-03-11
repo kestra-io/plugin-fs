@@ -1,5 +1,24 @@
 package io.kestra.plugin.fs.vfs;
 
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
+import com.jcraft.jsch.JSch;
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
+import io.kestra.core.models.conditions.ConditionContext;
+import io.kestra.core.models.executions.Execution;
+import io.kestra.core.models.property.Property;
+import io.kestra.core.models.triggers.*;
+import io.kestra.core.runners.RunContext;
+import io.kestra.plugin.fs.vfs.models.File;
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
+import org.apache.commons.vfs2.FileNotFolderException;
+import org.apache.commons.vfs2.FileSystemOptions;
+import org.apache.commons.vfs2.FileType;
+import org.apache.commons.vfs2.impl.StandardFileSystemManager;
+import org.slf4j.Logger;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -8,28 +27,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Optional;
-
-import org.apache.commons.vfs2.FileNotFolderException;
-import org.apache.commons.vfs2.FileSystemOptions;
-import org.apache.commons.vfs2.FileType;
-import org.apache.commons.vfs2.impl.StandardFileSystemManager;
-import org.slf4j.Logger;
-
-import com.fasterxml.jackson.annotation.JsonUnwrapped;
-import com.jcraft.jsch.JSch;
-
-import io.kestra.core.exceptions.IllegalVariableEvaluationException;
-import io.kestra.core.models.conditions.ConditionContext;
-import io.kestra.core.models.executions.Execution;
-import io.kestra.core.models.property.Property;
-import io.kestra.core.models.triggers.*;
-import io.kestra.core.runners.RunContext;
-import io.kestra.plugin.fs.vfs.models.File;
-
-import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotNull;
-import lombok.*;
-import lombok.experimental.SuperBuilder;
 
 import static io.kestra.core.models.triggers.StatefulTriggerService.*;
 
@@ -220,12 +217,10 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                 var downloaded = pending.file.withPath(download.getTo());
                 actionFiles.add(downloaded);
 
-                toFire.add(
-                    TriggeredFile.builder()
-                        .file(downloaded)
-                        .changeType(pending.changeType)
-                        .build()
-                );
+                toFire.add(TriggeredFile.builder()
+                    .file(downloaded)
+                    .changeType(pending.changeType)
+                    .build());
             }
 
             if (toFire.isEmpty()) {

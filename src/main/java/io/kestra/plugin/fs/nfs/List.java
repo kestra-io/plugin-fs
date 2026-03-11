@@ -1,5 +1,18 @@
 package io.kestra.plugin.fs.nfs;
 
+import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.property.Property;
+import io.kestra.core.models.tasks.RunnableTask;
+import io.kestra.core.models.tasks.Task;
+import io.kestra.core.runners.RunContext;
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.inject.Inject;
+import jakarta.validation.constraints.NotNull;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
+import org.slf4j.Logger;
+
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
@@ -7,22 +20,8 @@ import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Instant;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import org.slf4j.Logger;
-
-import io.kestra.core.models.annotations.Example;
-import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.property.Property;
-import io.kestra.core.models.tasks.RunnableTask;
-import io.kestra.core.models.tasks.Task;
-import io.kestra.core.runners.RunContext;
-
-import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.inject.Inject;
-import jakarta.validation.constraints.NotNull;
-import lombok.*;
-import lombok.experimental.SuperBuilder;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -41,16 +40,16 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
             full = true,
             title = "List files in an NFS directory.",
             code = """
-                    id: nfs_list
-                    namespace: company.team
+                id: nfs_list
+                namespace: company.team
 
-                    tasks:
-                      - id: list_files
-                        type: io.kestra.plugin.fs.nfs.List
-                        from: /mnt/nfs/shared/documents
-                        regExp: ".*\\.pdf$"
-                        recursive: true
-                """
+                tasks:
+                  - id: list_files
+                    type: io.kestra.plugin.fs.nfs.List
+                    from: /mnt/nfs/shared/documents
+                    regExp: ".*\\.pdf$"
+                    recursive: true
+            """
         )
     }
 

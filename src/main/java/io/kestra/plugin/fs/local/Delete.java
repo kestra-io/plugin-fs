@@ -1,20 +1,21 @@
 package io.kestra.plugin.fs.local;
 
-import java.io.IOException;
-import java.nio.file.*;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.util.NoSuchElementException;
-
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
+import io.kestra.core.models.tasks.VoidOutput;
 import io.kestra.core.runners.RunContext;
-
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+
+import java.io.IOException;
+import java.net.URI;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.NoSuchElementException;
 
 @SuperBuilder(toBuilder = true)
 @ToString
@@ -80,10 +81,8 @@ public class Delete extends AbstractLocalTask implements RunnableTask<Delete.Out
 
         if (!Files.exists(sourcePath)) {
             if (runContext.render(this.errorOnMissing).as(Boolean.class).orElse(true)) {
-                throw new NoSuchElementException(
-                    "File does not exist '" + sourcePath +
-                        "'. To avoid this error, configure `errorOnMissing: false` in your configuration."
-                );
+                throw new NoSuchElementException("File does not exist '" + sourcePath +
+                    "'. To avoid this error, configure `errorOnMissing: false` in your configuration.");
             }
 
             runContext.logger().debug("File doesn't exist '{}'", sourcePath);
@@ -95,16 +94,14 @@ public class Delete extends AbstractLocalTask implements RunnableTask<Delete.Out
 
         Output.OutputBuilder outputBuilder = Output.builder();
 
-        if (
-            Boolean.TRUE.equals(runContext.render(this.recursive).as(Boolean.class).orElse(false))
-                && Files.isDirectory(sourcePath)
-        ) {
+        if (Boolean.TRUE.equals(runContext.render(this.recursive).as(Boolean.class).orElse(false))
+            && Files.isDirectory(sourcePath)) {
             outputBuilder.deleted(deleteDirectoryRecursively(sourcePath));
 
             runContext.logger().debug("Deleted directory '{}'", sourcePath);
         } else {
-            outputBuilder.deleted(Files.deleteIfExists(sourcePath));
-            runContext.logger().debug("Deleted file '{}'", sourcePath);
+           outputBuilder.deleted(Files.deleteIfExists(sourcePath));
+           runContext.logger().debug("Deleted file '{}'", sourcePath);
         }
 
         return outputBuilder

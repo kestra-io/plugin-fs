@@ -2,7 +2,6 @@ package io.kestra.plugin.fs.ftp;
 
 import io.kestra.plugin.fs.AbstractFileTriggerTest;
 import io.kestra.plugin.fs.AbstractUtils;
-
 import jakarta.inject.Inject;
 
 class TriggerTest extends AbstractFileTriggerTest {

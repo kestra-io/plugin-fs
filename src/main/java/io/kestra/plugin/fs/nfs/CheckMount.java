@@ -1,22 +1,20 @@
 package io.kestra.plugin.fs.nfs;
 
-import java.io.IOException;
-import java.nio.file.Path;
-
-import org.slf4j.Logger;
-
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
-
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.inject.Inject;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import org.slf4j.Logger;
+
+import java.io.IOException;
+import java.nio.file.Path;
 
 @SuperBuilder
 @ToString
@@ -39,12 +37,12 @@ import lombok.experimental.SuperBuilder;
                   - id: check_mount
                     type: io.kestra.plugin.fs.nfs.CheckMount
                     path: /mnt/nfs/data
-                """
+                """ 
         )
     }
 )
 public class CheckMount extends Task implements RunnableTask<CheckMount.Output> {
-
+    
     @Inject
     @Builder.Default
     private NfsService nfsService = NfsService.getInstance();
@@ -57,7 +55,7 @@ public class CheckMount extends Task implements RunnableTask<CheckMount.Output> 
 
     @Override
     public Output run(RunContext runContext) throws Exception {
-
+                
         Logger logger = runContext.logger();
         String rPath = runContext.render(this.path).as(String.class).orElseThrow(() -> new IllegalArgumentException("`path` cannot be null or empty"));
         Path nfsPath = nfsService.toNfsPath(rPath);
@@ -68,8 +66,9 @@ public class CheckMount extends Task implements RunnableTask<CheckMount.Output> 
 
             logger.info("Path {} is on a file store of type: {}. Is NFS: {}", nfsPath, storeType, isNfs);
 
+            
             return Output.builder()
-                .path(rPath)
+                .path(rPath) 
                 .isNfsMount(isNfs)
                 .fileStoreType(storeType)
                 .build();

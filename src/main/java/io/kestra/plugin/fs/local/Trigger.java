@@ -1,13 +1,6 @@
 package io.kestra.plugin.fs.local;
 
-import java.nio.file.Files;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.time.Duration;
-import java.util.*;
-import java.util.stream.Stream;
-
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
-
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.conditions.ConditionContext;
@@ -16,11 +9,17 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.triggers.*;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.fs.local.models.File;
-
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+
+import java.nio.file.Files;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.*;
+import java.util.stream.Stream;
 
 import static io.kestra.core.models.triggers.StatefulTriggerService.*;
 import static io.kestra.core.utils.Rethrow.throwFunction;
@@ -107,8 +106,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @Builder.Default
     private Property<Downloads.Action> action = Property.ofValue(Downloads.Action.NONE);
 
-    @Builder.Default
-    private final Property<On> on = Property.ofValue(On.CREATE_OR_UPDATE);
+    @Builder.Default private final Property<On> on = Property.ofValue(On.CREATE_OR_UPDATE);
 
     private Property<String> stateKey;
 
@@ -149,8 +147,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         java.util.List<File> actionFiles = new ArrayList<>();
 
         java.util.List<TriggeredFile> toFire = listOutput.getFiles().stream()
-            .flatMap(throwFunction(fileItem ->
-            {
+            .flatMap(throwFunction(fileItem -> {
                 if (fileItem.isDirectory()) {
                     return Stream.empty();
                 }
@@ -179,12 +176,10 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
                     actionFiles.add(fileItem);
 
-                    return Stream.of(
-                        TriggeredFile.builder()
-                            .file(downloaded)
-                            .changeType(changeType)
-                            .build()
-                    );
+                    return Stream.of(TriggeredFile.builder()
+                        .file(downloaded)
+                        .changeType(changeType)
+                        .build());
                 }
                 return Stream.empty();
             }))
@@ -210,7 +205,9 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             return Optional.empty();
         }
 
-        Downloads.Action selectedAction = this.action != null ? runContext.render(this.action).as(Downloads.Action.class).orElse(Downloads.Action.NONE) : Downloads.Action.NONE;
+        Downloads.Action selectedAction = this.action != null ?
+            runContext.render(this.action).as(Downloads.Action.class).orElse(Downloads.Action.NONE) :
+            Downloads.Action.NONE;
 
         java.util.List<File> filesToProcess = limitedActionFiles.stream()
             .filter(file -> !file.isDirectory())

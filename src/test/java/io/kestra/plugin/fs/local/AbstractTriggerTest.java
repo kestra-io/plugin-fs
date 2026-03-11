@@ -1,16 +1,6 @@
 package io.kestra.plugin.fs.local;
 
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.Objects;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-
-import org.junit.jupiter.api.Test;
-
 import com.devskiller.friendly_id.FriendlyId;
-
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.queues.QueueFactoryInterface;
@@ -18,17 +8,24 @@ import io.kestra.core.queues.QueueInterface;
 import io.kestra.core.repositories.LocalFlowRepositoryLoader;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.runners.Worker;
+import io.kestra.scheduler.AbstractScheduler;
 import io.kestra.core.services.FlowListenersInterface;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.jdbc.runner.JdbcScheduler;
 import io.kestra.plugin.fs.vfs.models.File;
-import io.kestra.scheduler.AbstractScheduler;
-
 import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
+import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
+
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.Objects;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -74,8 +71,7 @@ public abstract class AbstractTriggerTest {
             AtomicReference<Execution> last = new AtomicReference<>();
 
             // wait for execution
-            Flux<Execution> receive = TestsUtils.receive(executionQueue, execution ->
-            {
+            Flux<Execution> receive = TestsUtils.receive(executionQueue, execution -> {
                 if (execution.getLeft().getFlowId().equals(triggeringFlowId())) {
                     last.set(execution.getLeft());
 
@@ -128,8 +124,7 @@ public abstract class AbstractTriggerTest {
             // wait for execution
             Flux<Execution> receive = TestsUtils.receive(
                 executionQueue,
-                execution ->
-                {
+                execution -> {
                     if (execution.getLeft().getFlowId().equals(triggeringFlowId() + "-none-action")) {
                         last.set(execution.getLeft());
                         queueCount.countDown();
@@ -161,3 +156,4 @@ public abstract class AbstractTriggerTest {
         }
     }
 }
+

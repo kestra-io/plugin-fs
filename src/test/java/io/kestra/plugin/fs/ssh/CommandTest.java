@@ -1,23 +1,21 @@
 package io.kestra.plugin.fs.ssh;
 
-import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Map;
-
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
-
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.ssh.SshInterface.AuthMethod;
-
 import jakarta.inject.Inject;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Map;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -42,15 +40,13 @@ class CommandTest {
             .authMethod(Property.ofValue(AuthMethod.PASSWORD))
             .password(PASSWORD)
             .port(Property.ofValue("2222"))
-            .commands(
-                new String[] {
-                    "echo 0",
-                    "echo 1",
-                    ">&2 echo 2",
-                    "echo '::{\"outputs\":{\"out\":\"1\"}}::'",
-                    ">&2 echo '::{\"outputs\":{\"err\":\"2\"}}::'",
-                }
-            )
+            .commands(new String[] {
+                "echo 0",
+                "echo 1",
+                ">&2 echo 2",
+                "echo '::{\"outputs\":{\"out\":\"1\"}}::'",
+                ">&2 echo '::{\"outputs\":{\"err\":\"2\"}}::'",
+            })
             .build();
 
         Command.Output run = command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));
@@ -75,29 +71,23 @@ class CommandTest {
             .password(PASSWORD)
             .port(Property.ofValue("2222"))
             .proxyCommand(Property.ofValue("nc {{ inputs.proxyHost }} {{ inputs.proxyPort }}"))
-            .commands(
-                new String[] {
-                    "echo 0",
-                    "echo 1",
-                    ">&2 echo 2",
-                    "echo '::{\"outputs\":{\"out\":\"1\"}}::'",
-                    ">&2 echo '::{\"outputs\":{\"err\":\"2\"}}::'",
-                }
-            )
+            .commands(new String[] {
+                "echo 0",
+                "echo 1",
+                ">&2 echo 2",
+                "echo '::{\"outputs\":{\"out\":\"1\"}}::'",
+                ">&2 echo '::{\"outputs\":{\"err\":\"2\"}}::'",
+            })
             .build();
 
-        var exception = Assertions.assertThrows(
-            Exception.class, () -> command.run(
-                TestsUtils.mockRunContext(
-                    runContextFactory,
-                    command,
-                    Map.of(
-                        "proxyHost", "127.0.0.1",
-                        "proxyPort", "1"
-                    )
-                )
+        var exception = Assertions.assertThrows(Exception.class, () -> command.run(TestsUtils.mockRunContext(
+            runContextFactory,
+            command,
+            Map.of(
+                "proxyHost", "127.0.0.1",
+                "proxyPort", "1"
             )
-        );
+        )));
 
         assertThat(String.valueOf(exception.getMessage()).contains("UnknownHostException"), is(false));
     }
@@ -135,14 +125,12 @@ class CommandTest {
             .authMethod(Property.ofValue(AuthMethod.PASSWORD))
             .password(PASSWORD)
             .port(Property.ofValue("2222"))
-            .commands(
-                new String[] {
-                    "mkdir -p ~/.ssh",
-                    "chmod 700 ~/.ssh",
-                    "printf '%s\\n' '" + publicKeyContent + "' >> ~/.ssh/authorized_keys",
-                    "chmod 600 ~/.ssh/authorized_keys"
-                }
-            )
+            .commands(new String[] {
+                "mkdir -p ~/.ssh",
+                "chmod 700 ~/.ssh",
+                "printf '%s\\n' '" + publicKeyContent + "' >> ~/.ssh/authorized_keys",
+                "chmod 600 ~/.ssh/authorized_keys"
+            })
             .build();
 
         setupAuthorizedKey.run(TestsUtils.mockRunContext(runContextFactory, setupAuthorizedKey, Map.of()));
@@ -155,15 +143,13 @@ class CommandTest {
             .authMethod(Property.ofValue(AuthMethod.PUBLIC_KEY))
             .privateKey(Property.ofValue(keyFileContent))
             .port(Property.ofValue("2222"))
-            .commands(
-                new String[] {
-                    "echo 0",
-                    "echo 1",
-                    ">&2 echo 2",
-                    "echo '::{\"outputs\":{\"out\":\"1\"}}::'",
-                    ">&2 echo '::{\"outputs\":{\"err\":\"2\"}}::'",
-                }
-            )
+            .commands(new String[] {
+                "echo 0",
+                "echo 1",
+                ">&2 echo 2",
+                "echo '::{\"outputs\":{\"out\":\"1\"}}::'",
+                ">&2 echo '::{\"outputs\":{\"err\":\"2\"}}::'",
+            })
             .build();
 
         Command.Output run = command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));
@@ -187,15 +173,13 @@ class CommandTest {
             .password(PASSWORD)
             .authMethod(Property.ofValue(AuthMethod.OPEN_SSH))
             .port(Property.ofValue("2222"))
-            .commands(
-                new String[] {
-                    "echo 0",
-                    "echo 1",
-                    ">&2 echo 2",
-                    "echo '::{\"outputs\":{\"out\":\"1\"}}::'",
-                    ">&2 echo '::{\"outputs\":{\"err\":\"2\"}}::'",
-                }
-            )
+            .commands(new String[] {
+                "echo 0",
+                "echo 1",
+                ">&2 echo 2",
+                "echo '::{\"outputs\":{\"out\":\"1\"}}::'",
+                ">&2 echo '::{\"outputs\":{\"err\":\"2\"}}::'",
+            })
             .build();
 
         Command.Output run = command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));

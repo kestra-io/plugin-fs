@@ -1,5 +1,21 @@
 package io.kestra.plugin.fs.tcp;
 
+import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.conditions.ConditionContext;
+import io.kestra.core.models.executions.Execution;
+import io.kestra.core.models.property.Property;
+import io.kestra.core.models.triggers.*;
+import io.kestra.core.runners.RunContext;
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.inject.Inject;
+import jakarta.validation.constraints.NotNull;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
+import org.reactivestreams.Publisher;
+import org.slf4j.Logger;
+import reactor.core.publisher.Flux;
+
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
@@ -10,23 +26,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.reactivestreams.Publisher;
-import org.slf4j.Logger;
-
-import io.kestra.core.models.annotations.Example;
-import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.conditions.ConditionContext;
-import io.kestra.core.models.executions.Execution;
-import io.kestra.core.models.property.Property;
-import io.kestra.core.models.triggers.*;
-import io.kestra.core.runners.RunContext;
-
-import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.inject.Inject;
-import jakarta.validation.constraints.NotNull;
-import lombok.*;
-import lombok.experimental.SuperBuilder;
-import reactor.core.publisher.Flux;
 
 @SuperBuilder
 @ToString
@@ -87,6 +86,7 @@ public class RealtimeTrigger extends AbstractTrigger
         RunContext runContext = conditionContext.getRunContext();
         Logger logger = runContext.logger();
 
+        
         String rHost = runContext.render(this.host).as(String.class).orElse("0.0.0.0");
         Integer rPort = runContext.render(this.port).as(Integer.class)
             .orElseThrow(() -> new IllegalArgumentException("`port` is required"));
@@ -94,8 +94,7 @@ public class RealtimeTrigger extends AbstractTrigger
 
         active.set(true);
 
-        return Flux.<Execution> create(emitter ->
-        {
+        return Flux.<Execution>create(emitter -> {
             try {
                 serverSocket = new ServerSocket();
                 serverSocket.bind(new InetSocketAddress(rHost, rPort));
@@ -103,8 +102,7 @@ public class RealtimeTrigger extends AbstractTrigger
 
                 while (active.get()) {
                     try (Socket client = serverSocket.accept()) {
-                        if (!active.get())
-                            break;
+                        if (!active.get()) break;
 
                         String sourceIp = client.getInetAddress().getHostAddress();
                         int sourcePort = client.getPort();
@@ -120,8 +118,7 @@ public class RealtimeTrigger extends AbstractTrigger
                         }
 
                         String message = sb.toString().trim();
-                        if (message.isEmpty())
-                            continue;
+                        if (message.isEmpty()) continue;
 
                         logger.info("Received TCP message from {}:{} -> {}", sourceIp, sourcePort, message);
 
@@ -151,8 +148,7 @@ public class RealtimeTrigger extends AbstractTrigger
                 closeServerSocket(logger, rPort);
                 emitter.complete();
             }
-        }).doOnCancel(() ->
-        {
+        }).doOnCancel(() -> {
             logger.info("TCP RealtimeTrigger cancelled by flow change or stop request.");
             stop();
         });

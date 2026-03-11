@@ -1,7 +1,6 @@
 package io.kestra.plugin.fs.ssh;
 
 import io.kestra.core.models.property.Property;
-
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 

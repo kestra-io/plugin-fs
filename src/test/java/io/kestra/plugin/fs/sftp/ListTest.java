@@ -1,10 +1,5 @@
 package io.kestra.plugin.fs.sftp;
 
-import java.util.Map;
-import java.util.concurrent.CopyOnWriteArrayList;
-
-import org.junit.jupiter.api.Test;
-
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.executions.LogEntry;
 import io.kestra.core.models.property.Property;
@@ -13,9 +8,12 @@ import io.kestra.core.queues.QueueInterface;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
-
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
+import org.junit.jupiter.api.Test;
+
+import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import static io.kestra.plugin.fs.sftp.SftpUtils.PASSWORD;
 import static io.kestra.plugin.fs.sftp.SftpUtils.USERNAME;

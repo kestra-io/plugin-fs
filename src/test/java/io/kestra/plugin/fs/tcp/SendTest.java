@@ -1,5 +1,12 @@
 package io.kestra.plugin.fs.tcp;
 
+import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.runners.RunContext;
+import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.models.property.Property;
+import jakarta.inject.Inject;
+import org.junit.jupiter.api.Test;
+
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.ServerSocket;
@@ -7,15 +14,6 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-
-import org.junit.jupiter.api.Test;
-
-import io.kestra.core.junit.annotations.KestraTest;
-import io.kestra.core.models.property.Property;
-import io.kestra.core.runners.RunContext;
-import io.kestra.core.runners.RunContextFactory;
-
-import jakarta.inject.Inject;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -33,14 +31,10 @@ class SendTest {
         try (ServerSocket serverSocket = new ServerSocket(0)) {
             port = serverSocket.getLocalPort();
 
-            Future<String> listener = Executors.newSingleThreadExecutor().submit(() ->
-            {
-                try (
-                    Socket socket = serverSocket.accept();
-                    BufferedReader reader = new BufferedReader(
-                        new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8)
-                    )
-                ) {
+            Future<String> listener = Executors.newSingleThreadExecutor().submit(() -> {
+                try (Socket socket = serverSocket.accept();
+                     BufferedReader reader = new BufferedReader(
+                         new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8))) {
                     return reader.readLine();
                 }
             });

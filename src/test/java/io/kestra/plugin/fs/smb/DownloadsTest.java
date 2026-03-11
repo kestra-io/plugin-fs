@@ -1,23 +1,21 @@
 package io.kestra.plugin.fs.smb;
 
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Stream;
-
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.platform.commons.util.StringUtils;
-
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.vfs.models.File;
-
 import jakarta.inject.Inject;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.platform.commons.util.StringUtils;
+
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Stream;
 
 import static io.kestra.plugin.fs.smb.SmbUtils.PASSWORD;
 import static io.kestra.plugin.fs.smb.SmbUtils.USERNAME;
@@ -61,10 +59,10 @@ class DownloadsTest {
 
     private static Stream<Arguments> moveAfterDownloadsDelimiterAndFileExtension() {
         return Stream.of(
-            Arguments.of("", ""),
-            Arguments.of("", ".txt"),
-            Arguments.of("/", ""),
-            Arguments.of("/", ".txt")
+          Arguments.of("", ""),
+          Arguments.of("", ".txt"),
+          Arguments.of("/", ""),
+          Arguments.of("/", ".txt")
         );
     }
 

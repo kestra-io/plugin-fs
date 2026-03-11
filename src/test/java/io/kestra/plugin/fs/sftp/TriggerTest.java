@@ -1,14 +1,6 @@
 package io.kestra.plugin.fs.sftp;
 
-import java.time.Duration;
-import java.util.Map;
-import java.util.Optional;
-
-import org.apache.commons.vfs2.FileSystemException;
-import org.junit.jupiter.api.Test;
-
 import com.devskiller.friendly_id.FriendlyId;
-
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.triggers.StatefulTriggerInterface;
@@ -18,8 +10,13 @@ import io.kestra.plugin.fs.AbstractFileTriggerTest;
 import io.kestra.plugin.fs.AbstractUtils;
 import io.kestra.plugin.fs.vfs.Upload;
 import io.kestra.plugin.fs.vfs.models.File;
-
 import jakarta.inject.Inject;
+import org.apache.commons.vfs2.FileSystemException;
+import org.junit.jupiter.api.Test;
+
+import java.time.Duration;
+import java.util.Map;
+import java.util.Optional;
 
 import static io.kestra.plugin.fs.sftp.SftpUtils.PASSWORD;
 import static io.kestra.plugin.fs.sftp.SftpUtils.USERNAME;
@@ -67,8 +64,7 @@ public class TriggerTest extends AbstractFileTriggerTest {
         java.util.List<File> urls = (java.util.List<File>) execution.get().getTrigger().getVariables().get("files");
         assertThat(urls.size(), is(1));
 
-        assertThrows(FileSystemException.class, () ->
-        {
+        assertThrows(FileSystemException.class, () -> {
             Download task = Download.builder()
                 .id(AbstractFileTriggerTest.class.getSimpleName())
                 .type(Download.class.getName())
@@ -200,7 +196,8 @@ public class TriggerTest extends AbstractFileTriggerTest {
 
         assertThat(execution.isPresent(), is(true));
         @SuppressWarnings("unchecked")
-        java.util.List<Object> rawFiles = (java.util.List<Object>) execution.get().getTrigger().getVariables().get("files");
+        java.util.List<Object> rawFiles =
+            (java.util.List<Object>) execution.get().getTrigger().getVariables().get("files");
         assertThat(rawFiles, hasSize(10));
     }
 }

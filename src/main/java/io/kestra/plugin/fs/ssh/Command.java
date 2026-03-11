@@ -1,19 +1,8 @@
 package io.kestra.plugin.fs.ssh;
 
-import java.io.*;
-import java.net.Socket;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.jcraft.jsch.*;
-
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -22,13 +11,22 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.models.tasks.runners.PluginUtilsService;
 import io.kestra.core.runners.RunContext;
-
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import lombok.extern.slf4j.Slf4j;
+
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.net.Socket;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @SuperBuilder
 @ToString
@@ -218,11 +216,9 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
             throw new IllegalArgumentException("Private key is necessary for given SSH auth method: " + AuthMethod.PUBLIC_KEY);
         }
 
-        if (
-            AuthMethod.OPEN_SSH.equals(renderedAuthMethod) &&
-                (runContext.pluginConfiguration(ALLOW_OPEN_SSH_CONFIG).isEmpty() ||
-                    !runContext.<Boolean> pluginConfiguration(ALLOW_OPEN_SSH_CONFIG).orElse(false))
-        ) {
+        if (AuthMethod.OPEN_SSH.equals(renderedAuthMethod) &&
+            (runContext.pluginConfiguration(ALLOW_OPEN_SSH_CONFIG).isEmpty() ||
+                !runContext.<Boolean>pluginConfiguration(ALLOW_OPEN_SSH_CONFIG).orElse(false))) {
             throw new IllegalArgumentException("You need to allow access to the host OpenSSH configuration via the plugin configuration `" + ALLOW_OPEN_SSH_CONFIG + "`");
         }
 
@@ -416,10 +412,10 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
 
         private static String[] shellCommand(String command) {
             if (System.getProperty("os.name").toLowerCase().contains("win")) {
-                return new String[] { "cmd.exe", "/c", command };
+                return new String[] {"cmd.exe", "/c", command};
             }
 
-            return new String[] { "/bin/sh", "-c", command };
+            return new String[] {"/bin/sh", "-c", command};
         }
 
         @Override

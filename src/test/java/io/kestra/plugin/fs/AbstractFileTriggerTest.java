@@ -1,15 +1,6 @@
 package io.kestra.plugin.fs;
 
-import java.net.URI;
-import java.util.Objects;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-
-import org.junit.jupiter.api.Test;
-
 import com.devskiller.friendly_id.FriendlyId;
-
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.queues.QueueFactoryInterface;
@@ -23,11 +14,17 @@ import io.kestra.jdbc.runner.JdbcScheduler;
 import io.kestra.plugin.fs.vfs.models.File;
 import io.kestra.scheduler.AbstractScheduler;
 import io.kestra.worker.DefaultWorker;
-
 import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
+import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
+
+import java.net.URI;
+import java.util.Objects;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -72,8 +69,7 @@ public abstract class AbstractFileTriggerTest {
             AtomicReference<Execution> last = new AtomicReference<>();
 
             // wait for execution
-            Flux<Execution> receive = TestsUtils.receive(executionQueue, execution ->
-            {
+            Flux<Execution> receive = TestsUtils.receive(executionQueue, execution -> {
                 if (execution.getLeft().getFlowId().equals(triggeringFlowId())) {
                     last.set(execution.getLeft());
 
@@ -125,8 +121,7 @@ public abstract class AbstractFileTriggerTest {
             AtomicReference<Execution> last = new AtomicReference<>();
 
             // wait for execution
-            Flux<Execution> receive = TestsUtils.receive(executionQueue, execution ->
-            {
+            Flux<Execution> receive = TestsUtils.receive(executionQueue, execution -> {
                 if (execution.getLeft().getFlowId().equals(triggeringFlowId() + "-none-action")) {
                     last.set(execution.getLeft());
 
@@ -175,8 +170,7 @@ public abstract class AbstractFileTriggerTest {
             DefaultWorker worker = applicationContext.createBean(DefaultWorker.class, IdUtils.create(), 8, null)
         ) {
             // wait for execution
-            Flux<Execution> receive = TestsUtils.receive(executionQueue, execution ->
-            {
+            Flux<Execution> receive = TestsUtils.receive(executionQueue, execution -> {
                 if (execution.getLeft().getFlowId().equals(triggeringFlowId() + "-missing")) {
                     last.set(execution.getLeft());
 
@@ -209,7 +203,9 @@ public abstract class AbstractFileTriggerTest {
         try {
             var list = utils().list(dir);
             for (File file : list.getFiles()) {
-                String deletePath = file.getServerPath() != null ? file.getServerPath().getPath() : file.getPath().toString();
+                String deletePath = file.getServerPath() != null ?
+                    file.getServerPath().getPath() :
+                    file.getPath().toString();
                 utils().delete(deletePath);
             }
         } catch (Exception ignored) {

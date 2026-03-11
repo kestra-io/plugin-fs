@@ -1,12 +1,5 @@
 package io.kestra.plugin.fs.ftp;
 
-import java.util.Map;
-
-import org.apache.commons.io.FilenameUtils;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
-
 import io.kestra.core.exceptions.KestraRuntimeException;
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
@@ -14,8 +7,13 @@ import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
-
 import jakarta.inject.Inject;
+import org.apache.commons.io.FilenameUtils;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+
+import java.util.Map;
 
 import static io.kestra.plugin.fs.ftp.FtpUtils.PASSWORD;
 import static io.kestra.plugin.fs.ftp.FtpUtils.USERNAME;
@@ -62,7 +60,7 @@ class MoveTest {
     @Test
     void moveDirectory() throws Exception {
         String from = "upload/" + IdUtils.create() + "/" + IdUtils.create() + ".yaml";
-        String to = "upload/" + IdUtils.create() + "-move/" + IdUtils.create() + "/";
+        String to = "upload/" + IdUtils.create() + "-move/"  + IdUtils.create() + "/";
 
         ftpUtils.upload(from);
 
@@ -91,7 +89,7 @@ class MoveTest {
     }
 
     @ParameterizedTest
-    @ValueSource(booleans = { true, false })
+    @ValueSource(booleans =  {true, false})
     void moveFile_fileExistsInDestination(boolean overwrite) throws Exception {
         String fileName = "testFileName-" + IdUtils.create();
         String from = "upload/" + IdUtils.create() + "/" + fileName + ".yaml";

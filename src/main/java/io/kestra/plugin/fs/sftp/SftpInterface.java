@@ -1,7 +1,6 @@
 package io.kestra.plugin.fs.sftp;
 
 import io.kestra.core.models.property.Property;
-
 import io.swagger.v3.oas.annotations.media.Schema;
 
 public interface SftpInterface {

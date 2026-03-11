@@ -1,8 +1,5 @@
 package io.kestra.plugin.fs.local;
 
-import java.net.URI;
-import java.nio.file.*;
-
 import io.kestra.core.exceptions.KestraRuntimeException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
@@ -10,11 +7,16 @@ import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
-
+import io.kestra.core.utils.FileUtils;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+
+import jakarta.validation.constraints.NotNull;
+import org.apache.commons.io.FilenameUtils;
+
+import java.net.URI;
+import java.nio.file.*;
 
 @SuperBuilder
 @ToString
@@ -103,18 +105,16 @@ public class Upload extends AbstractLocalTask implements RunnableTask<Upload.Out
         }
 
         if (Files.exists(destinationPath) && !runContext.render(overwrite).as(Boolean.class).orElse(false)) {
-            throw new KestraRuntimeException(
-                String.format(
-                    """
-                        Target file already exists: %s.
-                        Set 'overwrite: true' to replace the existing file.
-                        """,
-                    destinationPath
-                )
-            );
+            throw new KestraRuntimeException(String.format(
+                """
+                Target file already exists: %s.
+                Set 'overwrite: true' to replace the existing file.
+                """,
+                destinationPath
+            ));
         }
 
-        Files.createDirectories(destinationPath.getParent() != null ? destinationPath.getParent() : destinationPath);
+        Files.createDirectories(destinationPath.getParent()!=null ? destinationPath.getParent() : destinationPath);
 
         CopyOption[] options = runContext.render(overwrite).as(Boolean.class).orElse(true)
             ? new CopyOption[] { StandardCopyOption.REPLACE_EXISTING }

@@ -1,20 +1,20 @@
 package io.kestra.plugin.fs.tcp;
 
+import jakarta.inject.Singleton;
+
 import java.io.*;
 import java.net.*;
 import java.nio.charset.Charset;
 import java.time.Duration;
 import java.util.Base64;
 
-import jakarta.inject.Singleton;
 
 @Singleton
 public class TcpService {
 
     private static TcpService instance;
 
-    private TcpService() {
-    }
+    private TcpService() {}
 
     public static TcpService getInstance() {
         if (instance == null) {

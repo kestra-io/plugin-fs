@@ -1,24 +1,22 @@
 package io.kestra.plugin.fs.vfs;
 
-import java.net.URI;
-import java.util.AbstractMap.SimpleEntry;
-import java.util.Arrays;
-import java.util.Map;
-import java.util.Objects;
-
-import org.apache.commons.vfs2.impl.StandardFileSystemManager;
-
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Data;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
-
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import org.apache.commons.vfs2.impl.StandardFileSystemManager;
+
+import java.net.URI;
+import java.util.AbstractMap.SimpleEntry;
+import java.util.Arrays;
+import java.util.Map;
+import java.util.Objects;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -67,8 +65,7 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
                 fileMappings = fileMappings.subList(0, rMaxFiles);
             }
 
-            java.util.List<Upload.Output> outputs = fileMappings.stream().map(throwFunction(entry ->
-            {
+            java.util.List<Upload.Output> outputs = fileMappings.stream().map(throwFunction(entry -> {
                 String destFileName = entry.getKey();
                 String fromURI = entry.getValue();
                 var rTo = runContext.render(this.to).as(String.class).orElseThrow();
@@ -92,10 +89,9 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
             })).toList();
 
             return Output.builder()
-                .files(
-                    outputs.stream()
-                        .map(Upload.Output::getTo)
-                        .toList()
+                .files(outputs.stream()
+                    .map(Upload.Output::getTo)
+                    .toList()
                 )
                 .build();
         }
@@ -105,14 +101,10 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
     private java.util.List<Map.Entry<String, String>> parseFromProperty(RunContext runContext) throws Exception {
         if (this.from instanceof Map<?, ?> fromMap) {
             return ((Map<String, String>) fromMap).entrySet().stream()
-                .map(
-                    throwFunction(
-                        e -> new SimpleEntry<>(
-                            runContext.render(e.getKey()),
-                            runContext.render(e.getValue())
-                        )
-                    )
-                )
+                .map(throwFunction(e -> new SimpleEntry<>(
+                    runContext.render(e.getKey()),
+                    runContext.render(e.getValue())
+                )))
                 .map(e -> (Map.Entry<String, String>) e)
                 .toList();
         }
@@ -122,18 +114,18 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
 
             if (rFrom.startsWith("[") && rFrom.endsWith("]")) {
                 String[] uris = JacksonMapper.ofJson().readValue(rFrom, String[].class);
-                return Arrays.stream(uris).<Map.Entry<String, String>> map(uri -> new SimpleEntry<>(null, uri))
+                return Arrays.stream(uris)
+                    .<Map.Entry<String, String>>map(uri -> new SimpleEntry<>(null, uri))
                     .toList();
             }
         }
 
-        return Objects.requireNonNull(
-            Data.from(this.from)
-                .readAs(runContext, String.class, Object::toString)
-                .map(throwFunction(runContext::render)).<Map.Entry<String, String>> map(uri -> new SimpleEntry<>(null, uri))
-                .collectList()
-                .block()
-        );
+        return Objects.requireNonNull(Data.from(this.from)
+            .readAs(runContext, String.class, Object::toString)
+            .map(throwFunction(runContext::render))
+            .<Map.Entry<String, String>>map(uri -> new SimpleEntry<>(null, uri))
+            .collectList()
+            .block());
     }
 
     @Builder

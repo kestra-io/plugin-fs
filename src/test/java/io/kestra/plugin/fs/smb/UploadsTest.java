@@ -1,20 +1,18 @@
 package io.kestra.plugin.fs.smb;
 
-import java.net.URI;
-import java.util.List;
-import java.util.Map;
-
-import org.hamcrest.Matchers;
-import org.junit.jupiter.api.Test;
-
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.vfs.models.File;
-
 import jakarta.inject.Inject;
+import org.hamcrest.Matchers;
+import org.junit.jupiter.api.Test;
+
+import java.net.URI;
+import java.util.List;
+import java.util.Map;
 
 import static io.kestra.plugin.fs.smb.SmbUtils.PASSWORD;
 import static io.kestra.plugin.fs.smb.SmbUtils.USERNAME;
@@ -56,11 +54,8 @@ class UploadsTest {
             .username(USERNAME)
             .password(PASSWORD)
             .build();
-        Uploads.Output uploadsRunTemplate = uploadsTask.run(
-            TestsUtils.mockRunContext(
-                runContextFactory, uploadsTask,
-                Map.of("uris", "[\"" + uri3.toString() + "\",\"" + uri4.toString() + "\"]")
-            )
+        Uploads.Output uploadsRunTemplate = uploadsTask.run(TestsUtils.mockRunContext(runContextFactory, uploadsTask,
+            Map.of("uris", "[\"" + uri3.toString() + "\",\"" + uri4.toString() + "\"]"))
         );
 
         Downloads downloadsTask = Downloads.builder()
@@ -79,15 +74,11 @@ class UploadsTest {
         assertThat(uploadsRunTemplate.getFiles().size(), is(2));
         assertThat(downloadsRun.getFiles().size(), is(4));
         List<String> remoteFileUris = downloadsRun.getFiles().stream().map(File::getServerPath).map(URI::getPath).toList();
-        assertThat(
-            uploadsRun.getFiles().stream().map(URI::getPath).toList(), Matchers.everyItem(
-                Matchers.is(Matchers.in(remoteFileUris))
-            )
-        );
-        assertThat(
-            uploadsRunTemplate.getFiles().stream().map(URI::getPath).toList(), Matchers.everyItem(
-                Matchers.is(Matchers.in(remoteFileUris))
-            )
-        );
+        assertThat(uploadsRun.getFiles().stream().map(URI::getPath).toList(), Matchers.everyItem(
+            Matchers.is(Matchers.in(remoteFileUris))
+        ));
+        assertThat(uploadsRunTemplate.getFiles().stream().map(URI::getPath).toList(), Matchers.everyItem(
+            Matchers.is(Matchers.in(remoteFileUris))
+        ));
     }
 }

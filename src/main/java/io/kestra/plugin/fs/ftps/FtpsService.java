@@ -1,19 +1,17 @@
 package io.kestra.plugin.fs.ftps;
 
-import java.io.IOException;
-import java.security.cert.X509Certificate;
-
-import javax.net.ssl.X509TrustManager;
-
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
+import io.kestra.core.runners.RunContext;
+import io.kestra.plugin.fs.ftp.FtpInterface;
+import io.kestra.plugin.fs.ftp.FtpService;
 import org.apache.commons.vfs2.FileSystemOptions;
 import org.apache.commons.vfs2.provider.ftps.FtpsDataChannelProtectionLevel;
 import org.apache.commons.vfs2.provider.ftps.FtpsFileSystemConfigBuilder;
 import org.apache.commons.vfs2.provider.ftps.FtpsMode;
 
-import io.kestra.core.exceptions.IllegalVariableEvaluationException;
-import io.kestra.core.runners.RunContext;
-import io.kestra.plugin.fs.ftp.FtpInterface;
-import io.kestra.plugin.fs.ftp.FtpService;
+import javax.net.ssl.X509TrustManager;
+import java.io.IOException;
+import java.security.cert.X509Certificate;
 
 public abstract class FtpsService {
     public static FileSystemOptions fsOptions(RunContext runContext, FtpInterface ftpInterface, FtpsInterface ftpsInterface) throws IOException, IllegalVariableEvaluationException {

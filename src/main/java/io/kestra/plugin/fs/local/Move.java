@@ -1,10 +1,5 @@
 package io.kestra.plugin.fs.local;
 
-import java.io.IOException;
-import java.nio.file.*;
-import java.util.Comparator;
-import java.util.stream.Stream;
-
 import io.kestra.core.exceptions.KestraRuntimeException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
@@ -12,11 +7,16 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.VoidOutput;
 import io.kestra.core.runners.RunContext;
-
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+
+import jakarta.validation.constraints.NotNull;
+
+import java.io.IOException;
+import java.nio.file.*;
+import java.util.Comparator;
+import java.util.stream.Stream;
 
 @SuperBuilder
 @ToString
@@ -112,11 +112,8 @@ public class Move extends AbstractLocalTask implements RunnableTask<VoidOutput> 
         }
 
         if (Files.exists(finalTarget) && !overwrite) {
-            throw new KestraRuntimeException(
-                String.format(
-                    "Target file already exists : %s.\nSet 'overwrite: true' to replace the existing file.", finalTarget
-                )
-            );
+            throw new KestraRuntimeException(String.format(
+                "Target file already exists : %s.\nSet 'overwrite: true' to replace the existing file.", finalTarget));
         }
 
         Files.createDirectories(finalTarget.getParent());
@@ -151,8 +148,7 @@ public class Move extends AbstractLocalTask implements RunnableTask<VoidOutput> 
         }
 
         try (Stream<Path> paths = Files.walk(sourceDir)) {
-            paths.forEach(source ->
-            {
+            paths.forEach(source -> {
                 try {
                     Path relativePath = sourceDir.relativize(source);
                     Path target = targetDir.resolve(relativePath);
@@ -180,8 +176,7 @@ public class Move extends AbstractLocalTask implements RunnableTask<VoidOutput> 
         }
 
         try (Stream<Path> pathsToDelete = Files.walk(sourceDir).sorted(Comparator.reverseOrder())) {
-            pathsToDelete.forEach(path ->
-            {
+            pathsToDelete.forEach(path -> {
                 try {
                     Files.delete(path);
                 } catch (IOException e) {

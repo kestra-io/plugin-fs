@@ -1,13 +1,10 @@
 package io.kestra.plugin.fs.vfs;
 
-import java.io.FileOutputStream;
-import java.io.OutputStream;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.NoSuchElementException;
-import java.util.Objects;
-import java.util.stream.Stream;
-
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
+import io.kestra.core.exceptions.KestraRuntimeException;
+import io.kestra.core.runners.RunContext;
+import io.kestra.core.utils.FileUtils;
+import io.kestra.plugin.fs.vfs.models.File;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -16,11 +13,14 @@ import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 import org.apache.commons.vfs2.provider.AbstractFileObject;
 import org.apache.commons.vfs2.util.URIUtils;
 
-import io.kestra.core.exceptions.IllegalVariableEvaluationException;
-import io.kestra.core.exceptions.KestraRuntimeException;
-import io.kestra.core.runners.RunContext;
-import io.kestra.core.utils.FileUtils;
-import io.kestra.plugin.fs.vfs.models.File;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -40,7 +40,8 @@ public abstract class VfsService {
         String port,
         String username,
         String password,
-        String filepath) throws IllegalVariableEvaluationException, URISyntaxException {
+        String filepath
+    ) throws IllegalVariableEvaluationException, URISyntaxException {
         return uri(
             scheme,
             runContext.render(host),
@@ -57,7 +58,8 @@ public abstract class VfsService {
         Integer port,
         String username,
         String password,
-        String filepath) throws URISyntaxException {
+        String filepath
+    ) throws URISyntaxException {
         return new URI(
             scheme,
             basicAuth(username, password),
@@ -85,7 +87,8 @@ public abstract class VfsService {
         FileSystemOptions fileSystemOptions,
         URI from,
         String regExp,
-        boolean recursive) throws Exception {
+        boolean recursive
+    ) throws Exception {
         try (FileObject local = fsm.resolveFile(from.toString(), fileSystemOptions)) {
             FileObject[] children = local.findFiles(new FileSelector() {
                 @Override
@@ -124,7 +127,8 @@ public abstract class VfsService {
         RunContext runContext,
         StandardFileSystemManager fsm,
         FileSystemOptions fileSystemOptions,
-        URI from) throws Exception {
+        URI from
+    ) throws Exception {
         java.io.File tempFile = runContext.workingDir().createTempFile(FileUtils.getExtension(from)).toFile();
 
         try (
@@ -149,7 +153,8 @@ public abstract class VfsService {
         StandardFileSystemManager fsm,
         FileSystemOptions fileSystemOptions,
         URI from,
-        URI to) throws Exception {
+        URI to
+    ) throws Exception {
         return upload(runContext, fsm, fileSystemOptions, from, to, true);
     }
 
@@ -159,7 +164,8 @@ public abstract class VfsService {
         FileSystemOptions fileSystemOptions,
         URI from,
         URI to,
-        boolean overwrite) throws Exception {
+        boolean overwrite
+    ) throws Exception {
         // copy from to a temp files
         java.io.File tempFile = runContext.workingDir().createTempFile().toFile();
 
@@ -169,21 +175,18 @@ public abstract class VfsService {
         }
 
         // upload
-        try (
-            FileObject local = fsm.resolveFile(tempFile.toURI());
-            FileObject remote = fsm.resolveFile(to.toString(), fileSystemOptions)
+        try (FileObject local = fsm.resolveFile(tempFile.toURI());
+             FileObject remote = fsm.resolveFile(to.toString(), fileSystemOptions)
         ) {
             //Avoid overriding a folder with a file when the remote folder exists
             if (!overwrite && remote.isFolder() && remote.exists() && !to.getPath().endsWith("/")) {
-                throw new KestraRuntimeException(
-                    String.format(
-                        """
-                            Overwrite field is set to `false`. Folder %s will be overwritten with current file.
-                            If you want the folder to be overwritten with the file, set `overwrite: true`.
-                            """,
-                        remote.getName().getPath()
-                    )
-                );
+                throw new KestraRuntimeException(String.format(
+                    """
+                    Overwrite field is set to `false`. Folder %s will be overwritten with current file.
+                    If you want the folder to be overwritten with the file, set `overwrite: true`.
+                    """,
+                    remote.getName().getPath()
+                ));
             }
             remote.copyFrom(local, Selectors.SELECT_SELF);
         }
@@ -201,7 +204,8 @@ public abstract class VfsService {
         StandardFileSystemManager fsm,
         FileSystemOptions fileSystemOptions,
         URI from,
-        Boolean errorOnMissing) throws Exception {
+        Boolean errorOnMissing
+    ) throws Exception {
         try (FileObject local = fsm.resolveFile(from.toString(), fileSystemOptions)) {
             if (!local.exists() && Boolean.TRUE.equals(errorOnMissing)) {
                 throw new NoSuchElementException("Unable to find file '" + VfsService.uriWithoutAuth(from) + "'");
@@ -226,7 +230,8 @@ public abstract class VfsService {
         FileSystemOptions fileSystemOptions,
         URI from,
         URI to,
-        boolean overwrite) throws Exception {
+        boolean overwrite
+    ) throws Exception {
         // user pass a destination without filename, we add it
         if (!isDirectory(from) && isDirectory(to)) {
             to = to.resolve(URIUtils.encodePath(StringUtils.stripEnd(to.getPath(), "/") + "/" + FilenameUtils.getName(from.getPath())));
@@ -246,9 +251,7 @@ public abstract class VfsService {
                     if (overwrite) {
                         runContext.logger().warn("File '%s' already exists in the remote server and will be overwritten.");
                     } else {
-                        throw new KestraRuntimeException(
-                            String.format("File '%s' already exists in the remote server and cannot be overwritten. If you want to ignore this, set `overwrite` to `true`.", remoteFileName)
-                        );
+                        throw new KestraRuntimeException(String.format("File '%s' already exists in the remote server and cannot be overwritten. If you want to ignore this, set `overwrite` to `true`.", remoteFileName));
                     }
                 }
             } else {
@@ -283,7 +286,8 @@ public abstract class VfsService {
         FileSystemOptions fileSystemOptions,
         java.util.List<io.kestra.plugin.fs.vfs.models.File> blobList,
         Downloads.Action action,
-        URI moveDirectory) throws Exception {
+        URI moveDirectory
+    ) throws Exception {
         if (action == Downloads.Action.DELETE) {
             for (io.kestra.plugin.fs.vfs.models.File file : blobList) {
                 VfsService.delete(
