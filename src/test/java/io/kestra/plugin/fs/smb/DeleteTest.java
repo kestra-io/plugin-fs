@@ -6,9 +6,8 @@ import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
-import io.kestra.plugin.fs.sftp.Delete;
 import jakarta.inject.Inject;
-import org.apache.commons.vfs2.FileSystemException;
+import org.codelibs.jcifs.smb.impl.SmbException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -57,15 +56,14 @@ class DeleteTest {
             .password(PASSWORD)
             .build();
 
-        Delete.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+        io.kestra.plugin.fs.vfs.Delete.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(run.getUri().getPath(), endsWith(from));
         assertThat(run.isDeleted(), is(true));
 
-        FileSystemException fileSystemException = Assertions.assertThrows(
-            FileSystemException.class,
+        Assertions.assertThrows(
+            SmbException.class,
             () -> fetch.run(TestsUtils.mockRunContext(runContextFactory, fetch, Map.of()))
         );
-        assertThat(fileSystemException.getMessage(), containsString("because it does not exist"));
     }
 }

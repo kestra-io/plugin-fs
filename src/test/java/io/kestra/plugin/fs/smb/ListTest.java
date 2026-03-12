@@ -45,7 +45,7 @@ class ListTest {
 
         List task = builder.build();
 
-        List.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+        io.kestra.plugin.fs.vfs.List.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(run.getFiles().size(), is(7));
 
@@ -101,7 +101,7 @@ class ListTest {
             .recursive(Property.ofValue(true))
             .build();
 
-        List.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+        io.kestra.plugin.fs.vfs.List.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(run.getFiles().size(), is(1));
 

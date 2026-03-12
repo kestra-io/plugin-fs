@@ -9,7 +9,7 @@ import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import jakarta.inject.Inject;
 import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.vfs2.FileSystemException;
+import org.codelibs.jcifs.smb.impl.SmbException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -41,12 +41,12 @@ class MoveTest {
 
         Move task = createMoveTask(from, to);
 
-        Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+        io.kestra.plugin.fs.vfs.Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(run.getTo().getPath(), endsWith(to));
 
         Download fetchFrom = createDownloadTask(from);
-        Assertions.assertThrows(FileSystemException.class, () -> fetchFrom.run(TestsUtils.mockRunContext(runContextFactory, fetchFrom, Map.of())));
+        Assertions.assertThrows(SmbException.class, () -> fetchFrom.run(TestsUtils.mockRunContext(runContextFactory, fetchFrom, Map.of())));
 
         Download fetchTo = fetchFrom.toBuilder()
             .from(Property.ofValue(to))
@@ -63,12 +63,12 @@ class MoveTest {
 
         Move task = createMoveTask(from, to);
 
-        Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+        io.kestra.plugin.fs.vfs.Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(run.getTo().getPath(), endsWith(to + FilenameUtils.getName(from)));
 
         Download fetchFrom = createDownloadTask(from);
-        Assertions.assertThrows(FileSystemException.class, () -> fetchFrom.run(TestsUtils.mockRunContext(runContextFactory, fetchFrom, Map.of())));
+        Assertions.assertThrows(SmbException.class, () -> fetchFrom.run(TestsUtils.mockRunContext(runContextFactory, fetchFrom, Map.of())));
 
         Download fetchTo = fetchFrom.toBuilder()
             .from(Property.ofValue(to + "/" + FilenameUtils.getName(from)))
@@ -85,12 +85,12 @@ class MoveTest {
 
         Move task = createMoveTask(from, to);
 
-        Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+        io.kestra.plugin.fs.vfs.Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(run.getTo().getPath(), endsWith(to + FilenameUtils.getName(from)));
 
         Download fetchFrom = createDownloadTask(from);
-        Assertions.assertThrows(FileSystemException.class, () -> fetchFrom.run(TestsUtils.mockRunContext(runContextFactory, fetchFrom, Map.of())));
+        Assertions.assertThrows(SmbException.class, () -> fetchFrom.run(TestsUtils.mockRunContext(runContextFactory, fetchFrom, Map.of())));
 
         Download fetchTo = fetchFrom.toBuilder()
                 .from(Property.ofValue(to + "/" + FilenameUtils.getName(from)))
@@ -115,12 +115,12 @@ class MoveTest {
             .password(PASSWORD)
             .build();
 
-        Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+        io.kestra.plugin.fs.vfs.Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(run.getTo().getPath(), endsWith(to));
 
         Download fetchFrom = createDownloadTask(from);
-        Assertions.assertThrows(FileSystemException.class, () -> fetchFrom.run(TestsUtils.mockRunContext(runContextFactory, fetchFrom, Map.of())));
+        Assertions.assertThrows(SmbException.class, () -> fetchFrom.run(TestsUtils.mockRunContext(runContextFactory, fetchFrom, Map.of())));
 
         Download fetchTo = fetchFrom.toBuilder()
             .from(Property.ofValue(to + "/" + FilenameUtils.getName(from)))
@@ -139,7 +139,7 @@ class MoveTest {
 
         //First move should be successful because nothing in direction folder
         Move task = createMoveTask(from, to);
-        io.kestra.plugin.fs.sftp.Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+        io.kestra.plugin.fs.vfs.Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
         assertThat(run.getTo().getPath(), containsString(to));
 
         //Do the same move again
@@ -149,7 +149,7 @@ class MoveTest {
 
         //If overwrite then no exception, otherwise throw exception
         if (overwrite) {
-            io.kestra.plugin.fs.sftp.Move.Output secondMove = secondMoveTask.run(runContext);
+            io.kestra.plugin.fs.vfs.Move.Output secondMove = secondMoveTask.run(runContext);
             assertThat(secondMove.getTo().getPath(), containsString(to));
         } else {
             KestraRuntimeException exception = assertThrows(KestraRuntimeException.class, () -> secondMoveTask.run(runContext));

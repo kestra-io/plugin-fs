@@ -12,8 +12,6 @@ import org.apache.commons.vfs2.FileType;
 import org.apache.commons.vfs2.provider.AbstractFileObject;
 import org.apache.commons.vfs2.provider.GenericFileName;
 import org.apache.commons.vfs2.provider.URLFileName;
-import org.apache.commons.vfs2.provider.smb.SmbFileName;
-
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -76,27 +74,16 @@ public class File {
                     urlFileName.getQueryString(),
                     null
                 );
-            case GenericFileName genericFileName -> {
-                String share = extractShareForSmb(genericFileName);
-                yield  new URI(
+            case GenericFileName genericFileName -> new URI(
                     genericFileName.getScheme(),
                     VfsService.basicAuth(genericFileName.getUserName(), genericFileName.getPassword()),
                     genericFileName.getHostName(),
                     genericFileName.getPort(),
-                    share == null ? genericFileName.getPath() : String.join("", "/", share, genericFileName.getPath()),
+                    genericFileName.getPath(),
                     null,
                     null
                 );
-            }
             default -> fileObject.getURI();
-        };
-    }
-
-    private static String extractShareForSmb(GenericFileName genericFileName) {
-        return switch (genericFileName) {
-            case SmbFileName smbFileName -> smbFileName.getShare();
-            case net.idauto.oss.jcifsng.vfs2.provider.SmbFileName smbFileName -> smbFileName.getShare();
-            default -> null;
         };
     }
 }
