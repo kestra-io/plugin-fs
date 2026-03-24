@@ -33,7 +33,7 @@ public abstract class Delete extends AbstractVfsTask implements RunnableTask<Del
         description = "If true, deletes directory contents recursively."
     )
     @Builder.Default
-    private final Property<Boolean> recursive = Property.ofValue(true);
+    private final Property<Boolean> recursive = Property.ofValue(false);
 
     public Output run(RunContext runContext) throws Exception {
         try (var fsm = new KestraStandardFileSystemManager(runContext)) {
@@ -46,7 +46,7 @@ public abstract class Delete extends AbstractVfsTask implements RunnableTask<Del
                 this.fsOptions(runContext),
                 this.uri(runContext, runContext.render(this.uri).as(String.class).orElseThrow()),
                 runContext.render(this.errorOnMissing).as(Boolean.class).orElse(false),
-                runContext.render(this.recursive).as(Boolean.class).orElse(true)
+                runContext.render(this.recursive).as(Boolean.class).orElse(false)
             );
         }
     }
