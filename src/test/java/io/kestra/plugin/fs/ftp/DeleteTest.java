@@ -62,6 +62,7 @@ class DeleteTest {
             .uri(Property.ofValue(directory))
             .host(Property.ofValue("localhost"))
             .port(Property.ofValue("6621"))
+            .recursive(Property.ofValue(false))
             .username(USERNAME)
             .password(PASSWORD)
             .build();
