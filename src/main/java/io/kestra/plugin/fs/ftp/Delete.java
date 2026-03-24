@@ -19,8 +19,8 @@ import java.net.Proxy;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Delete a remote FTP file",
-    description = "Removes the specified file on the server. Defaults: port 21, passive mode on, remote IP verification on, paths relative to user home."
+    title = "Delete a remote FTP file or directory",
+    description = "Removes the specified file or directory on the server. Directory deletion is recursive by default. Defaults: port 21, passive mode on, remote IP verification on, paths relative to user home."
 )
 @Plugin(
     examples = {

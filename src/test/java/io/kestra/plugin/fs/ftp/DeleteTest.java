@@ -5,7 +5,7 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
-import io.kestra.plugin.fs.sftp.Delete;
+import io.kestra.plugin.fs.vfs.Delete;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
@@ -23,13 +23,13 @@ class DeleteTest {
     private RunContextFactory runContextFactory;
 
     @Inject
-    private FtpUtils sftpUtils;
+    private FtpUtils ftpUtils;
 
     @Test
     void run() throws Exception {
         String from = IdUtils.create() + "/" + IdUtils.create() + ".yaml";
 
-        sftpUtils.upload(from);
+        ftpUtils.upload(from);
 
         io.kestra.plugin.fs.ftp.Delete task;
         task = io.kestra.plugin.fs.ftp.Delete.builder()
@@ -46,5 +46,31 @@ class DeleteTest {
 
         assertThat(run.getUri().getPath(), containsString(from));
         assertThat(run.isDeleted(), is(true));
+    }
+
+    @Test
+    void runDirectoryRecursive() throws Exception {
+        String directory = IdUtils.create();
+        String nestedFile = directory + "/" + IdUtils.create() + "/" + IdUtils.create() + ".yaml";
+
+        ftpUtils.upload(nestedFile);
+
+        io.kestra.plugin.fs.ftp.Delete task;
+        task = io.kestra.plugin.fs.ftp.Delete.builder()
+            .id(DeleteTest.class.getSimpleName())
+            .type(DeleteTest.class.getName())
+            .uri(Property.ofValue(directory))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6621"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+
+        Delete.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+        Delete.Output nestedFileDelete = ftpUtils.delete(nestedFile);
+
+        assertThat(run.getUri().getPath(), containsString(directory));
+        assertThat(run.isDeleted(), is(true));
+        assertThat(nestedFileDelete.isDeleted(), is(false));
     }
 }

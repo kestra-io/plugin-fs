@@ -1,6 +1,5 @@
 package io.kestra.plugin.fs.vfs;
 
-import com.jcraft.jsch.JSch;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
@@ -19,7 +18,7 @@ import java.net.URI;
 @NoArgsConstructor
 public abstract class Delete extends AbstractVfsTask implements RunnableTask<Delete.Output> {
     @Schema(
-        title = "URI of the file to delete")
+        title = "URI of the file or directory to delete")
     @NotNull
     private Property<String> uri;
 
@@ -28,6 +27,13 @@ public abstract class Delete extends AbstractVfsTask implements RunnableTask<Del
     )
     @Builder.Default
     private final Property<Boolean> errorOnMissing = Property.ofValue(false);
+
+    @Schema(
+        title = "Include subdirectories",
+        description = "If true, deletes directory contents recursively."
+    )
+    @Builder.Default
+    private final Property<Boolean> recursive = Property.ofValue(true);
 
     public Output run(RunContext runContext) throws Exception {
         try (var fsm = new KestraStandardFileSystemManager(runContext)) {
@@ -39,7 +45,8 @@ public abstract class Delete extends AbstractVfsTask implements RunnableTask<Del
                 fsm,
                 this.fsOptions(runContext),
                 this.uri(runContext, runContext.render(this.uri).as(String.class).orElseThrow()),
-                runContext.render(this.errorOnMissing).as(Boolean.class).orElse(false)
+                runContext.render(this.errorOnMissing).as(Boolean.class).orElse(false),
+                runContext.render(this.recursive).as(Boolean.class).orElse(true)
             );
         }
     }
@@ -48,12 +55,12 @@ public abstract class Delete extends AbstractVfsTask implements RunnableTask<Del
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
-            title = "The deleted uri"
+            title = "The deleted URI"
         )
         private final URI uri;
 
         @Schema(
-            title = "If the files was really deleted"
+            title = "Whether the file or directory was deleted"
         )
         private final boolean deleted;
     }

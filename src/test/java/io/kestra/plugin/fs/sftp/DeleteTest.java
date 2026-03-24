@@ -45,4 +45,29 @@ class DeleteTest {
         assertThat(run.getUri().getPath(), containsString(from));
         assertThat(run.isDeleted(), is(true));
     }
+
+    @Test
+    void runDirectoryRecursive() throws Exception {
+        String directory = "upload/" + IdUtils.create();
+        String nestedFile = directory + "/" + IdUtils.create() + "/" + IdUtils.create() + ".yaml";
+
+        sftpUtils.upload(nestedFile);
+
+        Delete task = Delete.builder()
+            .id(DeleteTest.class.getSimpleName())
+            .type(DeleteTest.class.getName())
+            .uri(Property.ofValue(directory))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+
+        Delete.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+        Delete.Output nestedFileDelete = sftpUtils.delete(nestedFile);
+
+        assertThat(run.getUri().getPath(), containsString(directory));
+        assertThat(run.isDeleted(), is(true));
+        assertThat(nestedFileDelete.isDeleted(), is(false));
+    }
 }
