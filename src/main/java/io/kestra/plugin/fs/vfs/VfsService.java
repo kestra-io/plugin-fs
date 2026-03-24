@@ -204,22 +204,27 @@ public abstract class VfsService {
         StandardFileSystemManager fsm,
         FileSystemOptions fileSystemOptions,
         URI from,
-        Boolean errorOnMissing
+        Boolean errorOnMissing,
+        Boolean recursive
     ) throws Exception {
         try (FileObject local = fsm.resolveFile(from.toString(), fileSystemOptions)) {
-            if (!local.exists() && Boolean.TRUE.equals(errorOnMissing)) {
+            boolean exists = local.exists();
+
+            if (!exists && Boolean.TRUE.equals(errorOnMissing)) {
                 throw new NoSuchElementException("Unable to find file '" + VfsService.uriWithoutAuth(from) + "'");
             }
 
-            if (local.exists()) {
-                runContext.logger().debug("Deleted file '{}'", VfsService.uriWithoutAuth(from));
+            boolean deleted = Boolean.TRUE.equals(recursive) ? local.deleteAll() > 0 : local.delete();
+
+            if (exists) {
+                runContext.logger().debug("Deleted path '{}'", VfsService.uriWithoutAuth(from));
             } else {
-                runContext.logger().debug("File doesn't exists '{}'", VfsService.uriWithoutAuth(from));
+                runContext.logger().debug("Path doesn't exist '{}'", VfsService.uriWithoutAuth(from));
             }
 
             return Delete.Output.builder()
                 .uri(VfsService.uriWithoutAuth(from))
-                .deleted(local.delete())
+                .deleted(deleted)
                 .build();
         }
     }
@@ -295,6 +300,7 @@ public abstract class VfsService {
                     fsm,
                     fileSystemOptions,
                     file.getServerPath(),
+                    false,
                     false
                 );
             }
