@@ -52,7 +52,7 @@ dependencies {
 
     // libs
     api group: 'org.apache.commons', name: 'commons-vfs2', version: '2.10.0'
-    api group: 'com.github.mwiede', name: 'jsch', version: '2.27.9'
+    api group: 'com.github.mwiede', name: 'jsch', version: '2.28.0'
     api 'commons-net:commons-net:3.13.0'
     api group: 'org.codelibs', name: 'jcifs', version: '3.0.2'
 
