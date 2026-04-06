@@ -1,5 +1,6 @@
 package io.kestra.plugin.fs.vfs;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Data;
 import io.kestra.core.models.property.Property;
@@ -120,10 +121,8 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
             }
 
             if (rFrom.startsWith("{") && rFrom.endsWith("}")) {
-                Map<String, String> jsonMap = JacksonMapper.ofJson().readValue(
-                    rFrom,
-                    new com.fasterxml.jackson.core.type.TypeReference<Map<String, String>>() {}
-                );
+                Map<String, String> jsonMap = JacksonMapper.ofJson().readValue(rFrom, new TypeReference<Map<String, String>>() {});
+
                 return jsonMap.entrySet().stream()
                     .<Map.Entry<String, String>>map(e -> new SimpleEntry<>(e.getKey(), e.getValue()))
                     .toList();
