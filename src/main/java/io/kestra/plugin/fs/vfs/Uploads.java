@@ -118,6 +118,16 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
                     .<Map.Entry<String, String>>map(uri -> new SimpleEntry<>(null, uri))
                     .toList();
             }
+
+            if (rFrom.startsWith("{") && rFrom.endsWith("}")) {
+                Map<String, String> jsonMap = JacksonMapper.ofJson().readValue(
+                    rFrom,
+                    new com.fasterxml.jackson.core.type.TypeReference<Map<String, String>>() {}
+                );
+                return jsonMap.entrySet().stream()
+                    .<Map.Entry<String, String>>map(e -> new SimpleEntry<>(e.getKey(), e.getValue()))
+                    .toList();
+            }
         }
 
         return Objects.requireNonNull(Data.from(this.from)

@@ -67,6 +67,43 @@ class UploadsTest {
     }
 
     @Test
+    void run_withJsonMapStringShouldPreserveFilenames() throws Exception {
+        URI uri1 = sftpUtils.uploadToStorage();
+        URI uri2 = sftpUtils.uploadToStorage();
+        // Simulates {{ outputs.download_files.outputFiles }} rendering to a JSON object string
+        String jsonMapFrom = "{\"report.csv\":\"" + uri1 + "\",\"data.json\":\"" + uri2 + "\"}";
+        Uploads uploads = Uploads.builder()
+            .id(UploadsTest.class.getSimpleName())
+            .type(UploadsTest.class.getName())
+            .from(jsonMapFrom)
+            .to(Property.ofValue("/upload/" + random))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+        Output uploadsRun = uploads.run(TestsUtils.mockRunContext(runContextFactory, uploads, Map.of()));
+
+        assertThat(uploadsRun.getFiles().size(), is(2));
+        List<String> filePaths = uploadsRun.getFiles().stream().map(URI::getPath).toList();
+        assertThat(filePaths.stream().anyMatch(p -> p.endsWith("/report.csv")), is(true));
+        assertThat(filePaths.stream().anyMatch(p -> p.endsWith("/data.json")), is(true));
+
+        // Cleanup
+        Downloads task = Downloads.builder()
+            .id(UploadsTest.class.getSimpleName())
+            .type(UploadsTest.class.getName())
+            .from(Property.ofValue("/upload/" + random + "/"))
+            .action(Property.ofValue(Downloads.Action.DELETE))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+        task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+    }
+
+    @Test
     void run() throws Exception {
         URI uri1 = sftpUtils.uploadToStorage();
         URI uri2 = sftpUtils.uploadToStorage();
