@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -87,6 +88,7 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
         title = "Directory to list"
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> from;
 
     @Schema(
@@ -98,23 +100,27 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
     @Schema(
         title = "Destination directory when action is MOVE"
     )
+    @PluginProperty(group = "destination")
     private Property<String> moveDirectory;
 
     @Schema(
         title = "Regexp filter on full path"
     )
+    @PluginProperty(group = "processing")
     private Property<String> regExp;
 
     @Schema(
         title = "List files recursively"
     )
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private Property<Boolean> recursive = Property.ofValue(false);
 
     @Builder.Default
     @Schema(
         title = "Maximum files to retrieve"
     )
+    @PluginProperty(group = "processing")
     private Property<Integer> maxFiles = Property.ofValue(25);
 
     static void performAction(

@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -46,23 +47,27 @@ public class List extends AbstractSmbTask implements RunnableTask<io.kestra.plug
         title = "Directory URI to list"
     )
     @NotNull
+    @PluginProperty(group = "main")
     protected Property<String> from;
 
     @Schema(
         title = "Regexp filter on full path"
     )
+    @PluginProperty(group = "processing")
     private Property<String> regExp;
 
     @Schema(
         title = "List files recursively"
     )
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private Property<Boolean> recursive = Property.ofValue(false);
 
     @Builder.Default
     @Schema(
         title = "Maximum files to retrieve"
     )
+    @PluginProperty(group = "processing")
     private Property<Integer> maxFiles = Property.ofValue(25);
 
     public io.kestra.plugin.fs.vfs.List.Output run(RunContext runContext) throws Exception {

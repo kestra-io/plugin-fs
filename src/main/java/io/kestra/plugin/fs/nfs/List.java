@@ -24,6 +24,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -58,23 +59,28 @@ public class List extends Task implements RunnableTask<List.Output> {
 
     @Inject
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private NfsService nfsService = NfsService.getInstance();
 
     @Schema(title = "Directory path to list")
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> from;
 
     @Schema(title = "Regular expression to filter files")
+    @PluginProperty(group = "processing")
     private Property<String> regExp;
 
     @Schema(title = "List files recursively")
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private Property<Boolean> recursive = Property.ofValue(false);
 
     @Builder.Default
     @Schema(
         title = "The maximum number of files to retrieve at once"
     )
+    @PluginProperty(group = "processing")
     private Property<Integer> maxFiles = Property.ofValue(25);
 
     @Override

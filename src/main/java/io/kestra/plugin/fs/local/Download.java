@@ -15,6 +15,7 @@ import jakarta.validation.constraints.NotNull;
 import java.io.File;
 import java.net.URI;
 import java.nio.file.*;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -62,6 +63,7 @@ public class Download extends AbstractLocalTask implements RunnableTask<Download
         description = "Absolute local path of the file to download"
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> from;
 
     @Override

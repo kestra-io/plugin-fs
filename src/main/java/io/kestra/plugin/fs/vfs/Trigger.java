@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static io.kestra.core.models.triggers.StatefulTriggerService.*;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -38,6 +39,7 @@ import static io.kestra.core.models.triggers.StatefulTriggerService.*;
 public abstract class Trigger extends AbstractTrigger implements PollingTriggerInterface, AbstractVfsInterface, TriggerOutput<Trigger.Output>, StatefulTriggerInterface {
     @Schema(title = "Interval between trigger checks")
     @Builder.Default
+    @PluginProperty(group = "execution")
     private final Duration interval = Duration.ofSeconds(60);
 
     protected Property<String> host;
@@ -46,6 +48,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
 
     @Schema(title = "Directory URI to watch")
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> from;
 
     @Schema(title = "Action to perform on retrieved files", description = "If NONE, handle files in the Flow to avoid reprocessing.")
@@ -53,18 +56,22 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
     private Property<Downloads.Action> action;
 
     @Schema(title = "Destination directory when action is MOVE")
+    @PluginProperty(group = "advanced")
     private Property<String> moveDirectory;
 
     @Schema(title = "Regexp filter on full path")
+    @PluginProperty(group = "advanced")
     private Property<String> regExp;
 
     @Schema(title = "List files recursively")
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private Property<Boolean> recursive = Property.ofValue(false);
 
     @Builder.Default
     @Schema(title = "Enable RSA/SHA1 algorithm", description = "Disabled by default; enable only if the remote server requires it.")
     @NotNull
+    @PluginProperty(group = "main")
     private Property<Boolean> enableSshRsa1 = Property.ofValue(false);
 
     @Builder.Default
@@ -75,6 +82,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
 
     @Builder.Default
     @Schema(title = "Maximum files to process per poll")
+    @PluginProperty(group = "execution")
     private Property<Integer> maxFiles = Property.ofValue(25);
 
     private static class PendingFile {

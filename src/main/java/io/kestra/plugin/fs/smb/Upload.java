@@ -52,13 +52,14 @@ public class Upload extends AbstractSmbTask implements RunnableTask<io.kestra.pl
         title = "Source file (kestra:// URI)"
     )
     @NotNull
-    @PluginProperty(internalStorageURI = true)
+    @PluginProperty(internalStorageURI = true, group = "main")
     private Property<String> from;
 
     @Schema(
         title = "Destination path",
         description = "If unset, uses the source filename."
     )
+    @PluginProperty(group = "destination")
     private Property<String> to;
 
     @Schema(
@@ -66,6 +67,7 @@ public class Upload extends AbstractSmbTask implements RunnableTask<io.kestra.pl
         description = "If false (default), fails when the destination already exists."
     )
     @Builder.Default
+    @PluginProperty(group = "destination")
     private Property<Boolean> overwrite = Property.ofValue(false);
 
     public io.kestra.plugin.fs.vfs.Upload.Output run(RunContext runContext) throws Exception {

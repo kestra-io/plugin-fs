@@ -65,12 +65,14 @@ public class Copy extends AbstractLocalTask implements RunnableTask<VoidOutput> 
         title = "Source file or directory path"
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> from;
 
     @Schema(
         title = "Destination path on the local file system"
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> to;
 
     @Schema(
@@ -78,6 +80,7 @@ public class Copy extends AbstractLocalTask implements RunnableTask<VoidOutput> 
         description = "If false, the task fails when the destination already exists."
     )
     @Builder.Default
+    @PluginProperty(group = "destination")
     protected Property<Boolean> overwrite = Property.ofValue(false);
 
     @Override

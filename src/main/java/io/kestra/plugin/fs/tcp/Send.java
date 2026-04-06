@@ -17,6 +17,7 @@ import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import io.kestra.core.models.annotations.PluginProperty;
 
 
 @SuperBuilder
@@ -51,25 +52,31 @@ public class Send extends Task implements RunnableTask<Send.Output> {
 
     @Inject
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private TcpService tcpService = TcpService.getInstance();
 
     @Schema(title = "Target host or IP")
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> host;
 
     @Schema(title = "Target port")
     @NotNull
+    @PluginProperty(group = "main")
     private Property<Integer> port;
 
     @Schema(title = "Payload to send")
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> payload;
 
     @Schema(title = "Payload encoding", description = "Use BASE64 for binary data; otherwise UTF-8.", defaultValue = "UTF-8")
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private Property<String> encoding = Property.ofValue(StandardCharsets.UTF_8.name());
 
     @Schema(title = "Socket timeout", description = "Timeout for establishing the connection and IO; default 10s.")
+    @PluginProperty(group = "execution")
     private Property<Duration> timeout;
 
     @Override

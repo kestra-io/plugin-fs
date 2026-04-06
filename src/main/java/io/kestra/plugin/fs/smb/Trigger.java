@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static io.kestra.core.models.triggers.StatefulTriggerService.*;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -141,6 +142,7 @@ import static io.kestra.core.models.triggers.StatefulTriggerService.*;
 public class Trigger extends AbstractTrigger implements PollingTriggerInterface, SmbInterface, TriggerOutput<Trigger.Output>, StatefulTriggerInterface {
     @Schema(title = "Interval between trigger checks")
     @Builder.Default
+    @PluginProperty(group = "execution")
     private final Duration interval = Duration.ofSeconds(60);
 
     @NotNull
@@ -153,6 +155,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
     @Schema(title = "Directory URI to watch")
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> from;
 
     @Schema(title = "Action to perform on retrieved files", description = "If NONE, handle files in the Flow to avoid reprocessing.")
@@ -160,27 +163,34 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     private Property<Downloads.Action> action;
 
     @Schema(title = "Destination directory when action is MOVE")
+    @PluginProperty(group = "advanced")
     private Property<String> moveDirectory;
 
     @Schema(title = "Regexp filter on full path")
+    @PluginProperty(group = "advanced")
     private Property<String> regExp;
 
     @Schema(title = "List files recursively")
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private Property<Boolean> recursive = Property.ofValue(false);
 
     @Schema(title = "Change event type to react to")
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private Property<On> on = Property.ofValue(On.CREATE_OR_UPDATE);
 
     @Schema(title = "Custom state key for deduplication")
+    @PluginProperty(group = "connection")
     private Property<String> stateKey;
 
     @Schema(title = "TTL for state entries")
+    @PluginProperty(group = "advanced")
     private Property<Duration> stateTtl;
 
     @Builder.Default
     @Schema(title = "Maximum files to process per poll")
+    @PluginProperty(group = "execution")
     private Property<Integer> maxFiles = Property.ofValue(25);
 
     private static class PendingFile {

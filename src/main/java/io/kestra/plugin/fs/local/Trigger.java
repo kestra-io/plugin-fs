@@ -23,6 +23,7 @@ import java.util.stream.Stream;
 
 import static io.kestra.core.models.triggers.StatefulTriggerService.*;
 import static io.kestra.core.utils.Rethrow.throwFunction;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -80,24 +81,29 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
     @Schema(title = "Interval between checks")
     @Builder.Default
+    @PluginProperty(group = "execution")
     private final Duration interval = Duration.ofSeconds(60);
 
     @Schema(
         title = "Directory to watch"
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> from;
 
     @Schema(
         title = "Destination directory when action is MOVE"
     )
+    @PluginProperty(group = "advanced")
     private Property<String> moveDirectory;
 
     @Schema(title = "Regex pattern to match file names")
+    @PluginProperty(group = "advanced")
     private Property<String> regExp;
 
     @Schema(title = "Include files in subdirectories")
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private Property<Boolean> recursive = Property.ofValue(false);
 
     @Schema(
@@ -116,6 +122,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @Schema(
         title = "Maximum files to process per poll"
     )
+    @PluginProperty(group = "execution")
     private Property<Integer> maxFiles = Property.ofValue(25);
 
     @Override

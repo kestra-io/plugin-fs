@@ -15,6 +15,7 @@ import org.apache.commons.vfs2.FileSystemOptions;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder(toBuilder = true)
 @ToString
@@ -31,6 +32,7 @@ public abstract class AbstractVfsTask extends Task implements AbstractVfsInterfa
         title = "Enable the RSA/SHA1 algorithm (disabled by default)"
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<Boolean> enableSshRsa1 = Property.ofValue(false);
 
     protected abstract FileSystemOptions fsOptions(RunContext runContext) throws IllegalVariableEvaluationException, IOException;

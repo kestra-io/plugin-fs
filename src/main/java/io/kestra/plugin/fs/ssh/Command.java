@@ -117,14 +117,19 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class Command extends Task implements SshInterface, RunnableTask<Command.Output> {
     private static final long SLEEP_DELAY_MS = 25L;
 
+    @PluginProperty(group = "main")
     private Property<String> host;
 
     // Password Auth method
+    @PluginProperty(group = "connection")
     private Property<String> username;
+    @PluginProperty(group = "connection")
     private Property<String> password;
 
     // PubKey Auth method
+    @PluginProperty(group = "connection")
     private Property<String> privateKey;
+    @PluginProperty(group = "connection")
     private Property<String> privateKeyPassphrase;
 
     // OpenSSH config
@@ -134,12 +139,14 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
         description = "Deprecated; use `openSSHConfigPath` instead."
     )
     @Deprecated
+    @PluginProperty(group = "deprecated")
     private Property<String> openSSHConfigDir = Property.ofValue("~/.ssh/config");
 
     @Schema(
         title = "OpenSSH config file path",
         description = "Used when `authMethod` is OPEN_SSH. Access must be allowed via plugin configuration."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> openSSHConfigPath;
 
     @Schema(
@@ -166,30 +173,35 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
             """
     )
     @Builder.Default
+    @PluginProperty(group = "connection")
     private Property<AuthMethod> authMethod = Property.ofValue(AuthMethod.PASSWORD);
 
     @Builder.Default
+    @PluginProperty(group = "connection")
     private Property<String> port = Property.ofValue("22");
 
     @Schema(title = "Commands to execute")
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "main")
     @NotNull
     @NotEmpty
     private String[] commands;
 
     @Schema(title = "Strict host key checking", description = "One of yes|no|ask. Default no.")
     @Builder.Default
+    @PluginProperty(group = "connection")
     private Property<String> strictHostKeyChecking = Property.ofValue("no");
 
     @Schema(
         title = "Environment variables to pass to the SSH process."
     )
+    @PluginProperty(group = "execution")
     private Property<Map<String, String>> env;
 
     @Schema(
         title = "Not used anymore, will be removed soon"
     )
     @Deprecated
+    @PluginProperty(group = "deprecated")
     private Property<Boolean> warningOnStdErr;
 
     @Builder.Default
@@ -197,6 +209,7 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
         title = "Enable the disabled by default RSA/SHA1 algorithm"
     )
     @NotNull
+    @PluginProperty(group = "advanced")
     private Property<Boolean> enableSshRsa1 = Property.ofValue(false);
 
     @Override
@@ -381,6 +394,7 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
 
     private static final class ProcessProxyCommand implements Proxy {
         private final String command;
+        @PluginProperty(group = "connection")
         private final String username;
 
         private Process process;

@@ -27,6 +27,7 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 import static io.kestra.core.models.triggers.StatefulTriggerService.*;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -70,33 +71,41 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     
     @Schema(title = "Directory path to watch")
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> from;
 
     @Schema(title = "Regular expression to filter files")
+    @PluginProperty(group = "advanced")
     private Property<String> regExp;
 
     @Schema(title = "List files recursively")
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private Boolean recursive = false;
 
     @Schema(title = "Interval between checks")
     @Builder.Default
+    @PluginProperty(group = "execution")
     private Duration interval = Duration.ofSeconds(60);
 
     @Schema(title = "Trigger condition (CREATE, UPDATE, CREATE_OR_UPDATE)")
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private Property<On> on = Property.ofValue(On.CREATE_OR_UPDATE);
 
     @Schema(title = "Unique key for storing the trigger state")
+    @PluginProperty(group = "connection")
     private Property<String> stateKey;
 
     @Schema(title = "Time-to-live for the trigger state")
+    @PluginProperty(group = "advanced")
     private Property<Duration> stateTtl;
 
     @Builder.Default
     @Schema(
         title = "The maximum number of files to retrieve at once"
     )
+    @PluginProperty(group = "execution")
     private Property<Integer> maxFiles = Property.ofValue(25);
 
     private static class PendingFile {

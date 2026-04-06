@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -29,6 +30,7 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
         title = "Directory URI to list"
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> from;
 
     @Schema(
@@ -39,23 +41,27 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
     @Schema(
         title = "Destination directory when action is MOVE"
     )
+    @PluginProperty(group = "advanced")
     private Property<String> moveDirectory;
 
     @Schema(
         title = "Regexp filter on full path"
     )
+    @PluginProperty(group = "advanced")
     private Property<String> regExp;
 
     @Schema(
         title = "List files recursively"
     )
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private Property<Boolean> recursive = Property.ofValue(false);
 
     @Builder.Default
     @Schema(
         title = "Maximum files to retrieve"
     )
+    @PluginProperty(group = "execution")
     private Property<Integer> maxFiles = Property.ofValue(25);
 
     public Output run(RunContext runContext) throws Exception {

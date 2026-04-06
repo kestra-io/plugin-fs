@@ -10,6 +10,7 @@ import lombok.experimental.SuperBuilder;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 
 import java.net.URI;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -21,6 +22,7 @@ public abstract class Download extends AbstractVfsTask implements RunnableTask<D
         title = "Source URI to download"
     )
     @NotNull
+    @PluginProperty(group = "main")
     protected Property<String> from;
 
     public Output run(RunContext runContext) throws Exception {

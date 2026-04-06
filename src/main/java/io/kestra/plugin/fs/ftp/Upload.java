@@ -12,6 +12,7 @@ import org.apache.commons.vfs2.FileSystemOptions;
 
 import java.io.IOException;
 import java.net.Proxy;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -48,18 +49,25 @@ import java.net.Proxy;
     }
 )
 public class Upload extends io.kestra.plugin.fs.vfs.Upload implements FtpInterface {
+    @PluginProperty(group = "connection")
     protected Property<String> proxyHost;
+    @PluginProperty(group = "connection")
     protected Property<String> proxyPort;
     protected Property<Proxy.Type> proxyType;
     @Builder.Default
+    @PluginProperty(group = "advanced")
     protected Property<Boolean> rootDir = Property.ofValue(true);
     @Builder.Default
+    @PluginProperty(group = "connection")
     protected Property<String> port = Property.ofValue("21");
     @Builder.Default
+    @PluginProperty(group = "advanced")
     protected Property<Boolean> passiveMode = Property.ofValue(true);
     @Builder.Default
+    @PluginProperty(group = "advanced")
     protected Property<Boolean> remoteIpVerification = Property.ofValue(true);
     @Builder.Default
+    @PluginProperty(group = "advanced")
     protected Options options = Options.builder().build();
 
     @Override

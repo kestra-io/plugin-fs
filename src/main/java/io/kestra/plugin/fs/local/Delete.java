@@ -16,6 +16,7 @@ import java.net.URI;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.NoSuchElementException;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder(toBuilder = true)
 @ToString
@@ -59,10 +60,12 @@ public class Delete extends AbstractLocalTask implements RunnableTask<Delete.Out
 
     @Schema(title = "Local path to delete")
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> from;
 
     @Schema(title = "Raise an error if missing")
     @Builder.Default
+    @PluginProperty(group = "reliability")
     private Property<Boolean> errorOnMissing = Property.ofValue(false);
 
     @Schema(
@@ -70,6 +73,7 @@ public class Delete extends AbstractLocalTask implements RunnableTask<Delete.Out
         description = "If true, deletes directory contents recursively."
     )
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private Property<Boolean> recursive = Property.ofValue(true);
 
     @Override
