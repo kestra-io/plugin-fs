@@ -5,7 +5,6 @@ import io.kestra.core.models.property.Data;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
-import io.kestra.core.serializers.JacksonMapper;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -14,9 +13,10 @@ import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 
 import java.net.URI;
 import java.util.AbstractMap.SimpleEntry;
-import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -109,28 +109,27 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
                 .toList();
         }
 
-        if (this.from instanceof String fromStr) {
-            var rFrom = runContext.render(fromStr).trim();
+        Data data = Data.from(this.from);
 
-            if (rFrom.startsWith("[") && rFrom.endsWith("]")) {
-                String[] uris = JacksonMapper.ofJson().readValue(rFrom, String[].class);
-                return Arrays.stream(uris)
-                    .<Map.Entry<String, String>>map(uri -> new SimpleEntry<>(null, uri))
-                    .toList();
-            }
-
-            if (rFrom.startsWith("{") && rFrom.endsWith("}")) {
-                Map<String, String> jsonMap = JacksonMapper.ofJson().readValue(
-                    rFrom,
-                    new com.fasterxml.jackson.core.type.TypeReference<Map<String, String>>() {}
-                );
-                return jsonMap.entrySet().stream()
+        try {
+            Function<Map<String, Object>, Map<String, String>> toStringMap = map -> {
+                Map<String, String> result = new HashMap<>();
+                for (Map.Entry<String, Object> entry : map.entrySet()) {
+                    result.put(entry.getKey(), entry.getValue().toString());
+                }
+                return result;
+            };
+            Map<String, String> map = data.readAs(runContext, (Class<Map<String, String>>) Map.of().getClass(), toStringMap).blockFirst();
+            if (map != null) {
+                return map.entrySet().stream()
                     .<Map.Entry<String, String>>map(e -> new SimpleEntry<>(e.getKey(), e.getValue()))
                     .toList();
             }
+        } catch (Exception e) {
+            runContext.logger().debug("'from' is not a Map, trying as list/URI...", e);
         }
 
-        return Objects.requireNonNull(Data.from(this.from)
+        return Objects.requireNonNull(data
             .readAs(runContext, String.class, Object::toString)
             .map(throwFunction(runContext::render))
             .<Map.Entry<String, String>>map(uri -> new SimpleEntry<>(null, uri))
