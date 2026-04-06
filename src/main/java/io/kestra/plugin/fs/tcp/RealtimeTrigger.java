@@ -25,6 +25,7 @@ import java.net.SocketException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicBoolean;
+import io.kestra.core.models.annotations.PluginProperty;
 
 
 @SuperBuilder
@@ -68,14 +69,17 @@ public class RealtimeTrigger extends AbstractTrigger
 
     @Schema(title = "Interface to bind", defaultValue = "0.0.0.0")
     @Builder.Default
+    @PluginProperty(group = "connection")
     private Property<String> host = Property.ofValue("0.0.0.0");
 
     @Schema(title = "TCP port to listen on")
     @NotNull
+    @PluginProperty(group = "main")
     private Property<Integer> port;
 
     @Schema(title = "Encoding for incoming data", defaultValue = "UTF-8")
     @Builder.Default
+    @PluginProperty(group = "processing")
     private Property<String> encoding = Property.ofValue(StandardCharsets.UTF_8.name());
 
     private transient final AtomicBoolean active = new AtomicBoolean(false);

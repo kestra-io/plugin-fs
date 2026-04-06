@@ -22,13 +22,14 @@ public abstract class Upload extends AbstractVfsTask implements RunnableTask<Upl
         title = "Source file (kestra:// URI)"
     )
     @NotNull
-    @PluginProperty(internalStorageURI = true)
+    @PluginProperty(internalStorageURI = true, group = "main")
     private Property<String> from;
 
     @Schema(
         title = "Destination path",
         description = "If unset, uses the source filename."
     )
+    @PluginProperty(group = "destination")
     private Property<String> to;
 
     @Schema(
@@ -36,6 +37,7 @@ public abstract class Upload extends AbstractVfsTask implements RunnableTask<Upl
         description = "If false (default), fails when the destination already exists."
     )
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private Property<Boolean> overwrite = Property.ofValue(false);
 
     public Upload.Output run(RunContext runContext) throws Exception {

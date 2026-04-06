@@ -18,6 +18,7 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -50,14 +51,17 @@ public class Copy extends Task implements RunnableTask<Copy.Output> {
 
     @Inject
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private NfsService nfsService = NfsService.getInstance();
 
     @Schema(title = "Source file path")
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> from;
 
     @Schema(title = "Destination path")
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> to;
 
     @Override

@@ -8,16 +8,19 @@ import lombok.extern.jackson.Jacksonized;
 
 import java.net.Proxy;
 import java.time.Duration;
+import io.kestra.core.models.annotations.PluginProperty;
 
 public interface FtpInterface {
     @Schema(
         title = "FTP proxy hostname"
     )
+    @PluginProperty(group = "connection")
     Property<String> getProxyHost();
 
     @Schema(
         title = "FTP proxy port"
     )
+    @PluginProperty(group = "connection")
     Property<String> getProxyPort();
 
     @Schema(
@@ -29,18 +32,21 @@ public interface FtpInterface {
         title = "Treat path as user home root",
         description = "If true (default), remote paths are resolved relative to the authenticated user's home directory."
     )
+    @PluginProperty(group = "advanced")
     Property<Boolean> getRootDir();
 
     @Schema(
         title = "Use passive data connections",
         description = "Passive mode avoids most firewall and NAT issues and is enabled by default (`true`). Set to `false` to force active mode."
     )
+    @PluginProperty(group = "advanced")
     Property<Boolean> getPassiveMode();
 
     @Schema(
         title = "Verify data channel IP",
         description = "Ensures the responding server IP matches the control connection to prevent spoofed data channels."
     )
+    @PluginProperty(group = "advanced")
     Property<Boolean> getRemoteIpVerification();
 
     Options getOptions();

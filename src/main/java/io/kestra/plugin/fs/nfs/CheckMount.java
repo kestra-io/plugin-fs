@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -45,12 +46,14 @@ public class CheckMount extends Task implements RunnableTask<CheckMount.Output> 
     
     @Inject
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private NfsService nfsService = NfsService.getInstance();
 
     @Schema(
         title = "NFS path to check"
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> path;
 
     @Override

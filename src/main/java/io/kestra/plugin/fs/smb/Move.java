@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -45,6 +46,7 @@ public class Move extends AbstractSmbTask implements RunnableTask<io.kestra.plug
         title = "Source file or directory URI"
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> from;
 
     @Schema(
@@ -52,6 +54,7 @@ public class Move extends AbstractSmbTask implements RunnableTask<io.kestra.plug
         description = "Full target path. If it ends with `/`, the source name is kept. Existing targets are replaced when `overwrite` is true."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> to;
 
     @Schema(
@@ -59,6 +62,7 @@ public class Move extends AbstractSmbTask implements RunnableTask<io.kestra.plug
         description = "If false (default), fails when the destination already exists."
     )
     @Builder.Default
+    @PluginProperty(group = "destination")
     protected Property<Boolean> overwrite = Property.ofValue(false);
 
     public io.kestra.plugin.fs.vfs.Move.Output run(RunContext runContext) throws Exception {

@@ -15,6 +15,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
+import io.kestra.core.models.annotations.PluginProperty;
 
 
 @SuperBuilder
@@ -48,18 +49,22 @@ import java.nio.charset.StandardCharsets;
 public class Send extends Task implements RunnableTask<Send.Output> {
     @Schema(title = "Target host or IP")
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> host;
 
     @Schema(title = "Target UDP port")
     @NotNull
+    @PluginProperty(group = "main")
     private Property<Integer> port;
 
     @Schema(title = "Payload to send")
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> payload;
 
     @Schema(title = "Payload encoding", description = "UTF-8 default; use an alternate charset for binary-safe payloads.", defaultValue = "UTF-8")
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private Property<String> encoding = Property.ofValue("UTF-8");
 
     @Override

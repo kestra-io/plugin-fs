@@ -17,6 +17,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Objects;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -64,12 +65,14 @@ public class List extends AbstractLocalTask implements RunnableTask<List.Output>
         title = "Directory to scan"
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> from;
 
     @Schema(
         title = "Regular expression filter",
         description = "Only files matching this regex are listed."
     )
+    @PluginProperty(group = "processing")
     private Property<String> regExp;
 
     @Schema(
@@ -77,12 +80,14 @@ public class List extends AbstractLocalTask implements RunnableTask<List.Output>
         description = "If true, list files recursively."
     )
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private Property<Boolean> recursive = Property.ofValue(false);
 
     @Builder.Default
     @Schema(
         title = "Maximum files to retrieve"
     )
+    @PluginProperty(group = "processing")
     private Property<Integer> maxFiles = Property.ofValue(25);
 
     @Override

@@ -18,6 +18,7 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -50,14 +51,17 @@ public class Delete extends Task implements RunnableTask<Delete.Output> {
     
     @Inject
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private NfsService nfsService = NfsService.getInstance();
 
     @Schema(title = "Path of the file to delete")
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> uri;
 
     @Schema(title = "Raise an error if missing")
     @Builder.Default
+    @PluginProperty(group = "reliability")
     private boolean errorOnMissing = true;
 
     @Override

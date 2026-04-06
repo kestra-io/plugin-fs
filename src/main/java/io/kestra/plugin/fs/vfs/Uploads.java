@@ -36,7 +36,7 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
         },
         description = "Kestra internal storage URIs; accepts a single URI string, a list of URIs, a map of destination filenames to URIs (to preserve original filenames), or a URI pointing to a file that contains URIs."
     )
-    @PluginProperty(dynamic = true, internalStorageURI = true)
+    @PluginProperty(dynamic = true, internalStorageURI = true, group = "main")
     @NotNull
     private Object from;
 
@@ -44,12 +44,14 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
         title = "Destination directory"
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> to;
 
     @Builder.Default
     @Schema(
         title = "Maximum files to upload"
     )
+    @PluginProperty(group = "execution")
     private Property<Integer> maxFiles = Property.ofValue(25);
 
     public Output run(RunContext runContext) throws Exception {

@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder(toBuilder = true)
 @ToString
@@ -44,12 +45,14 @@ public class Delete extends AbstractSmbTask implements RunnableTask<io.kestra.pl
         title = "URI of the file to delete"
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> uri;
 
     @Schema(
         title = "Raise error if missing"
     )
     @Builder.Default
+    @PluginProperty(group = "reliability")
     private final Property<Boolean> errorOnMissing = Property.ofValue(false);
 
     public io.kestra.plugin.fs.vfs.Delete.Output run(RunContext runContext) throws Exception {

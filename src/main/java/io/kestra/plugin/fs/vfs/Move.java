@@ -10,6 +10,7 @@ import lombok.experimental.SuperBuilder;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 
 import java.net.URI;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -21,6 +22,7 @@ public abstract class Move extends AbstractVfsTask implements RunnableTask<Move.
         title = "Source file or directory URI"
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> from;
 
     @Schema(
@@ -28,6 +30,7 @@ public abstract class Move extends AbstractVfsTask implements RunnableTask<Move.
         description = "Full target path. If it ends with `/`, the source name is kept. Existing targets are replaced when `overwrite` is true."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> to;
 
     @Schema(
@@ -35,6 +38,7 @@ public abstract class Move extends AbstractVfsTask implements RunnableTask<Move.
         description = "If false (default), fails when the destination already exists."
     )
     @Builder.Default
+    @PluginProperty(group = "advanced")
     protected Property<Boolean> overwrite = Property.ofValue(false);
 
     public Output run(RunContext runContext) throws Exception {

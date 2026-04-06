@@ -9,6 +9,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -20,23 +21,27 @@ public abstract class List extends AbstractVfsTask implements RunnableTask<List.
         title = "Directory URI to list"
     )
     @NotNull
+    @PluginProperty(group = "main")
     protected Property<String> from;
 
     @Schema(
         title = "Regexp filter on full path"
     )
+    @PluginProperty(group = "advanced")
     private Property<String> regExp;
 
     @Schema(
         title = "List files recursively"
     )
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private Property<Boolean> recursive = Property.ofValue(false);
 
     @Builder.Default
     @Schema(
         title = "Maximum files to retrieve"
     )
+    @PluginProperty(group = "execution")
     private Property<Integer> maxFiles = Property.ofValue(25);
 
     public Output run(RunContext runContext) throws Exception {

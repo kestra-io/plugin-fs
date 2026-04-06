@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder(toBuilder = true)
 @ToString
@@ -44,6 +45,7 @@ public class Download extends AbstractSmbTask implements RunnableTask<io.kestra.
         title = "Source URI to download"
     )
     @NotNull
+    @PluginProperty(group = "main")
     protected Property<String> from;
 
     public io.kestra.plugin.fs.vfs.Download.Output run(RunContext runContext) throws Exception {

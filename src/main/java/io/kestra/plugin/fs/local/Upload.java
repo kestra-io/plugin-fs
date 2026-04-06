@@ -70,13 +70,14 @@ public class Upload extends AbstractLocalTask implements RunnableTask<Upload.Out
         description = "Kestra internal storage URI of the file to upload"
     )
     @NotNull
-    @PluginProperty(internalStorageURI = true)
+    @PluginProperty(internalStorageURI = true, group = "main")
     private Property<String> from;
 
     @Schema(
         title = "Destination path",
         description = "Optional local path; defaults to the source filename when omitted"
     )
+    @PluginProperty(group = "destination")
     private Property<String> to;
 
     @Schema(
@@ -84,6 +85,7 @@ public class Upload extends AbstractLocalTask implements RunnableTask<Upload.Out
         description = "If false, the task fails when the target file already exists"
     )
     @Builder.Default
+    @PluginProperty(group = "destination")
     private Property<Boolean> overwrite = Property.ofValue(true);
 
     @Override

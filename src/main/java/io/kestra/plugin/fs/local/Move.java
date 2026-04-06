@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.nio.file.*;
 import java.util.Comparator;
 import java.util.stream.Stream;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -64,12 +65,14 @@ public class Move extends AbstractLocalTask implements RunnableTask<VoidOutput> 
         title = "Source file or directory path"
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> from;
 
     @Schema(
         title = "Destination path on the local file system"
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> to;
 
     @Schema(
@@ -77,6 +80,7 @@ public class Move extends AbstractLocalTask implements RunnableTask<VoidOutput> 
         description = "If false, the task fails when the destination already exists."
     )
     @Builder.Default
+    @PluginProperty(group = "destination")
     protected Property<Boolean> overwrite = Property.ofValue(false);
 
     @Override

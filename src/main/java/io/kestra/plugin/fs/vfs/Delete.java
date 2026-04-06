@@ -10,6 +10,7 @@ import lombok.experimental.SuperBuilder;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 
 import java.net.URI;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder(toBuilder = true)
 @ToString
@@ -20,12 +21,14 @@ public abstract class Delete extends AbstractVfsTask implements RunnableTask<Del
     @Schema(
         title = "URI of the file or directory to delete")
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> uri;
 
     @Schema(
         title = "Raise error if missing"
     )
     @Builder.Default
+    @PluginProperty(group = "reliability")
     private final Property<Boolean> errorOnMissing = Property.ofValue(false);
 
     @Schema(
@@ -33,6 +36,7 @@ public abstract class Delete extends AbstractVfsTask implements RunnableTask<Del
         description = "If true, deletes directory contents recursively."
     )
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private final Property<Boolean> recursive = Property.ofValue(false);
 
     public Output run(RunContext runContext) throws Exception {
