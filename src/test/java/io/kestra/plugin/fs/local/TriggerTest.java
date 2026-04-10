@@ -20,6 +20,7 @@ import java.util.Optional;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import io.kestra.core.models.conditions.ConditionContext;
 
 class TriggerTest extends AbstractTriggerTest {
     @Inject
@@ -52,8 +53,8 @@ class TriggerTest extends AbstractTriggerTest {
         String out = FriendlyId.createFriendlyId();
         Upload.Output upload = utils().upload("/tmp/trigger/" + out + ".yml");
 
-        var context = TestsUtils.mockTrigger(runContextFactory, trigger);
-        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
+        Map.Entry<ConditionContext, io.kestra.core.scheduler.model.TriggerState> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue().context());
 
         assertThat(execution.isPresent(), is(true));
 
@@ -121,8 +122,8 @@ class TriggerTest extends AbstractTriggerTest {
                 .recursive(Property.ofValue(false))
                 .build();
 
-            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
-            Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
+            Map.Entry<ConditionContext, io.kestra.core.scheduler.model.TriggerState> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue().context());
 
             assertThat(execution.isPresent(), is(true));
 
@@ -139,7 +140,7 @@ class TriggerTest extends AbstractTriggerTest {
             assertThat("Matching file 1 should be removed from source", Files.exists(sourceDir.resolve(matchingFile1)), is(false));
             assertThat("Matching file 2 should be removed from source", Files.exists(sourceDir.resolve(matchingFile2)), is(false));
 
-            Optional<Execution> secondExecution = trigger.evaluate(context.getKey(), context.getValue());
+            Optional<Execution> secondExecution = trigger.evaluate(context.getKey(), context.getValue().context());
 
             assertThat("Second execution should be empty since no files match regex", secondExecution.isPresent(), is(false));
         } finally {
@@ -164,8 +165,8 @@ class TriggerTest extends AbstractTriggerTest {
                 .maxFiles(Property.ofValue(1))
                 .build();
 
-            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
-            Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
+            Map.Entry<ConditionContext, io.kestra.core.scheduler.model.TriggerState> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue().context());
 
             assertThat(execution.isPresent(), is(true));
             @SuppressWarnings("unchecked")
@@ -211,8 +212,8 @@ class TriggerTest extends AbstractTriggerTest {
                 .recursive(Property.ofValue(true))
                 .build();
 
-            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
-            Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
+            Map.Entry<ConditionContext, io.kestra.core.scheduler.model.TriggerState> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue().context());
 
             assertThat(execution.isPresent(), is(true));
 
@@ -299,8 +300,8 @@ class TriggerTest extends AbstractTriggerTest {
                 .recursive(Property.ofValue(true))
                 .build();
 
-            var context1 = TestsUtils.mockTrigger(runContextFactory, trigger1);
-            Optional<Execution> execution1 = trigger1.evaluate(context1.getKey(), context1.getValue());
+            Map.Entry<ConditionContext, io.kestra.core.scheduler.model.TriggerState> context1 = TestsUtils.mockTrigger(runContextFactory, trigger1);
+            Optional<Execution> execution1 = trigger1.evaluate(context1.getKey(), context1.getValue().context());
 
             assertThat("files should be processed when regex matches directory names in the path", execution1.isPresent(), is(true));
 
@@ -321,8 +322,8 @@ class TriggerTest extends AbstractTriggerTest {
                 .recursive(Property.ofValue(true))
                 .build();
 
-            var context2 = TestsUtils.mockTrigger(runContextFactory, trigger2);
-            Optional<Execution> execution2 = trigger2.evaluate(context2.getKey(), context2.getValue());
+            Map.Entry<ConditionContext, io.kestra.core.scheduler.model.TriggerState> context2 = TestsUtils.mockTrigger(runContextFactory, trigger2);
+            Optional<Execution> execution2 = trigger2.evaluate(context2.getKey(), context2.getValue().context());
 
             assertThat(execution2.isPresent(), is(true));
 
@@ -363,8 +364,8 @@ class TriggerTest extends AbstractTriggerTest {
             Path file = dir.resolve("file.txt");
             Files.writeString(file, "hello create");
 
-            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
-            Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
+            Map.Entry<ConditionContext, io.kestra.core.scheduler.model.TriggerState> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue().context());
 
             assertThat(execution.isPresent(), is(true));
         } finally {
@@ -389,13 +390,13 @@ class TriggerTest extends AbstractTriggerTest {
             Path file = dir.resolve("file.txt");
             Files.writeString(file, "initial content");
 
-            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
-            trigger.evaluate(context.getKey(), context.getValue());
+            Map.Entry<ConditionContext, io.kestra.core.scheduler.model.TriggerState> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            trigger.evaluate(context.getKey(), context.getValue().context());
 
             Thread.sleep(1000);
             Files.writeString(file, "updated content");
 
-            Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
+            Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue().context());
             assertThat(execution.isPresent(), is(true));
         } finally {
             cleanup(dir);
@@ -419,14 +420,14 @@ class TriggerTest extends AbstractTriggerTest {
             Path file = dir.resolve("file.txt");
             Files.writeString(file, "hello world");
 
-            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            Map.Entry<ConditionContext, io.kestra.core.scheduler.model.TriggerState> context = TestsUtils.mockTrigger(runContextFactory, trigger);
 
-            Optional<Execution> createExecution = trigger.evaluate(context.getKey(), context.getValue());
+            Optional<Execution> createExecution = trigger.evaluate(context.getKey(), context.getValue().context());
             assertThat(createExecution.isPresent(), is(true));
 
             Files.writeString(file, "new content");
 
-            Optional<Execution> updateExecution = trigger.evaluate(context.getKey(), context.getValue());
+            Optional<Execution> updateExecution = trigger.evaluate(context.getKey(), context.getValue().context());
             assertThat(updateExecution.isPresent(), is(true));
         } finally {
             cleanup(dir);
