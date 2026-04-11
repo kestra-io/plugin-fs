@@ -6,13 +6,7 @@ import io.kestra.core.models.executions.Execution;
 import io.kestra.core.queues.DispatchQueueInterface;
 import io.kestra.core.repositories.LocalFlowRepositoryLoader;
 import io.kestra.core.runners.RunContextFactory;
-import io.kestra.core.services.FlowListenersInterface;
-import io.kestra.core.utils.IdUtils;
-import io.kestra.jdbc.runner.JdbcScheduler;
 import io.kestra.plugin.fs.vfs.models.File;
-import io.kestra.scheduler.AbstractScheduler;
-import io.kestra.worker.DefaultWorker;
-import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
@@ -27,14 +21,8 @@ import static org.hamcrest.Matchers.is;
 
 // FIXME Remove once Worker closing has been reworked (Micronaut 4 PR)
 //  We need to rebuild the context for each tests as currently Workers can't be closed properly (they keep listening to queues they shouldn't)
-@KestraTest(rebuildContext = true)
+@KestraTest(rebuildContext = true, startRunner = true, startScheduler = true)
 public abstract class AbstractFileTriggerTest {
-    @Inject
-    private ApplicationContext applicationContext;
-
-    @Inject
-    private FlowListenersInterface flowListenersService;
-
     @Inject
     private DispatchQueueInterface<Execution> executionQueue;
 
@@ -50,145 +38,101 @@ public abstract class AbstractFileTriggerTest {
 
     @Test
     void moveAction() throws Exception {
-        // mock flow listeners
         CountDownLatch queueCount = new CountDownLatch(1);
+        AtomicReference<Execution> last = new AtomicReference<>();
 
-        // scheduler
-        try (
-            AbstractScheduler scheduler = new JdbcScheduler(
-                this.applicationContext,
-                this.flowListenersService
-            );
-            DefaultWorker worker = applicationContext.createBean(DefaultWorker.class, IdUtils.create(), 8, null)
-        ) {
-            AtomicReference<Execution> last = new AtomicReference<>();
+        executionQueue.addListener(execution -> {
+            if (execution.getFlowId().equals(triggeringFlowId())) {
+                last.set(execution);
+                queueCount.countDown();
+            }
+        });
 
-            // wait for execution
-            executionQueue.addListener(execution -> {
-                if (execution.getFlowId().equals(triggeringFlowId())) {
-                    last.set(execution);
+        String out1 = FriendlyId.createFriendlyId();
+        String toUploadDir = "/upload/trigger";
+        cleanupRemoteDir(toUploadDir);
+        cleanupRemoteDir(toUploadDir + "-move");
+        utils().upload(toUploadDir + "/" + out1);
+        String out2 = FriendlyId.createFriendlyId();
+        utils().upload(toUploadDir + "/" + out2);
 
-                    queueCount.countDown();
-                }
-            });
+        repositoryLoader.load(Objects.requireNonNull(AbstractFileTriggerTest.class.getClassLoader().getResource("flows")));
 
-            String out1 = FriendlyId.createFriendlyId();
-            String toUploadDir = "/upload/trigger";
-            cleanupRemoteDir(toUploadDir);
-            cleanupRemoteDir(toUploadDir + "-move");
-            utils().upload(toUploadDir + "/" + out1);
-            String out2 = FriendlyId.createFriendlyId();
-            utils().upload(toUploadDir + "/" + out2);
+        boolean await = queueCount.await(10, TimeUnit.SECONDS);
+        assertThat(await, is(true));
 
-            worker.run();
-            scheduler.run();
-            repositoryLoader.load(Objects.requireNonNull(AbstractFileTriggerTest.class.getClassLoader().getResource("flows")));
+        @SuppressWarnings("unchecked")
+        java.util.List<File> trigger = (java.util.List<File>) last.get().getTrigger().getVariables().get("files");
+        assertThat(trigger.size(), is(2));
 
-            boolean await = queueCount.await(10, TimeUnit.SECONDS);
-            assertThat(await, is(true));
+        assertThat(utils().list(toUploadDir).getFiles().isEmpty(), is(true));
+        assertThat(utils().list(toUploadDir + "-move").getFiles().size(), is(2));
 
-            @SuppressWarnings("unchecked")
-            java.util.List<File> trigger = (java.util.List<File>) last.get().getTrigger().getVariables().get("files");
-            assertThat(trigger.size(), is(2));
-
-            assertThat(utils().list(toUploadDir).getFiles().isEmpty(), is(true));
-            assertThat(utils().list(toUploadDir + "-move").getFiles().size(), is(2));
-
-            utils().delete(toUploadDir + "/" + out1);
-            utils().delete(toUploadDir + "/" + out2);
-        }
+        utils().delete(toUploadDir + "/" + out1);
+        utils().delete(toUploadDir + "/" + out2);
     }
 
     @Test
     void noneAction() throws Exception {
-        // mock flow listeners
         CountDownLatch queueCount = new CountDownLatch(1);
+        AtomicReference<Execution> last = new AtomicReference<>();
 
-        // scheduler
-        try (
-            AbstractScheduler scheduler = new JdbcScheduler(
-                this.applicationContext,
-                this.flowListenersService
-            );
-            DefaultWorker worker = applicationContext.createBean(DefaultWorker.class, IdUtils.create(), 8, null)
-        ) {
-            AtomicReference<Execution> last = new AtomicReference<>();
+        executionQueue.addListener(execution -> {
+            if (execution.getFlowId().equals(triggeringFlowId() + "-none-action")) {
+                last.set(execution);
+                queueCount.countDown();
+            }
+        });
 
-            // wait for execution
-            executionQueue.addListener(execution -> {
-                if (execution.getFlowId().equals(triggeringFlowId() + "-none-action")) {
-                    last.set(execution);
+        String out1 = FriendlyId.createFriendlyId();
+        String toUploadDir = "/upload/trigger-none";
+        cleanupRemoteDir(toUploadDir);
+        utils().upload(toUploadDir + "/" + out1);
+        String out2 = FriendlyId.createFriendlyId();
+        utils().upload(toUploadDir + "/" + out2);
 
-                    queueCount.countDown();
-                }
-            });
+        repositoryLoader.load(Objects.requireNonNull(AbstractFileTriggerTest.class.getClassLoader().getResource("flows")));
 
-            String out1 = FriendlyId.createFriendlyId();
-            String toUploadDir = "/upload/trigger-none";
-            cleanupRemoteDir(toUploadDir);
-            utils().upload(toUploadDir + "/" + out1);
-            String out2 = FriendlyId.createFriendlyId();
-            utils().upload(toUploadDir + "/" + out2);
+        boolean await = queueCount.await(10, TimeUnit.SECONDS);
+        assertThat(await, is(true));
 
-            worker.run();
-            scheduler.run();
-            repositoryLoader.load(Objects.requireNonNull(AbstractFileTriggerTest.class.getClassLoader().getResource("flows")));
+        @SuppressWarnings("unchecked")
+        java.util.List<File> trigger = (java.util.List<File>) last.get().getTrigger().getVariables().get("files");
+        assertThat(trigger.size(), is(2));
 
-            boolean await = queueCount.await(10, TimeUnit.SECONDS);
-            assertThat(await, is(true));
+        assertThat(utils().list(toUploadDir).getFiles().size(), is(2));
 
-            @SuppressWarnings("unchecked")
-            java.util.List<File> trigger = (java.util.List<File>) last.get().getTrigger().getVariables().get("files");
-            assertThat(trigger.size(), is(2));
-
-            assertThat(utils().list(toUploadDir).getFiles().size(), is(2));
-
-            utils().delete(toUploadDir + "/" + out1);
-            utils().delete(toUploadDir + "/" + out2);
-        }
+        utils().delete(toUploadDir + "/" + out1);
+        utils().delete(toUploadDir + "/" + out2);
     }
 
     @Test
     void missing() throws Exception {
-        // mock flow listeners
         CountDownLatch queueCount = new CountDownLatch(1);
-
         AtomicReference<Execution> last = new AtomicReference<>();
-        // scheduler
-        try (
-            AbstractScheduler scheduler = new JdbcScheduler(
-                this.applicationContext,
-                this.flowListenersService
-            );
-            DefaultWorker worker = applicationContext.createBean(DefaultWorker.class, IdUtils.create(), 8, null)
-        ) {
-            // wait for execution
-            executionQueue.addListener(execution -> {
-                if (execution.getFlowId().equals(triggeringFlowId() + "-missing")) {
-                    last.set(execution);
 
-                    queueCount.countDown();
-                }
-            });
+        executionQueue.addListener(execution -> {
+            if (execution.getFlowId().equals(triggeringFlowId() + "-missing")) {
+                last.set(execution);
+                queueCount.countDown();
+            }
+        });
 
-            String file = FriendlyId.createFriendlyId();
-            cleanupRemoteDir("/upload/trigger-missing");
-            utils().upload("/upload/trigger-missing/" + file);
+        String file = FriendlyId.createFriendlyId();
+        cleanupRemoteDir("/upload/trigger-missing");
+        utils().upload("/upload/trigger-missing/" + file);
 
-            worker.run();
-            scheduler.run();
-            repositoryLoader.load(Objects.requireNonNull(AbstractFileTriggerTest.class.getClassLoader().getResource("flows")));
+        repositoryLoader.load(Objects.requireNonNull(AbstractFileTriggerTest.class.getClassLoader().getResource("flows")));
 
-            boolean await = queueCount.await(10, TimeUnit.SECONDS);
-            assertThat(await, is(true));
+        boolean await = queueCount.await(10, TimeUnit.SECONDS);
+        assertThat(await, is(true));
 
-            @SuppressWarnings("unchecked")
-            java.util.List<URI> trigger = (java.util.List<URI>) last.get().getTrigger().getVariables().get("files");
+        @SuppressWarnings("unchecked")
+        java.util.List<URI> trigger = (java.util.List<URI>) last.get().getTrigger().getVariables().get("files");
 
-            assertThat(trigger.size(), is(1));
+        assertThat(trigger.size(), is(1));
 
-            utils().delete("/upload/trigger-missing/" + file);
-        }
+        utils().delete("/upload/trigger-missing/" + file);
     }
 
     private void cleanupRemoteDir(String dir) {
