@@ -7,14 +7,8 @@ import io.kestra.core.queues.QueueFactoryInterface;
 import io.kestra.core.queues.QueueInterface;
 import io.kestra.core.repositories.LocalFlowRepositoryLoader;
 import io.kestra.core.runners.RunContextFactory;
-import io.kestra.core.runners.Worker;
-import io.kestra.scheduler.AbstractScheduler;
-import io.kestra.core.services.FlowListenersInterface;
-import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
-import io.kestra.jdbc.runner.JdbcScheduler;
 import io.kestra.plugin.fs.vfs.models.File;
-import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import org.junit.jupiter.api.Test;
@@ -30,14 +24,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
-@KestraTest(rebuildContext = true)
+@KestraTest(startRunner = true, startScheduler = true, rebuildContext = true)
 public abstract class AbstractTriggerTest {
-    @Inject
-    private ApplicationContext applicationContext;
-
-    @Inject
-    private FlowListenersInterface flowListenersService;
-
     @Inject
     @Named(QueueFactoryInterface.EXECUTION_NAMED)
     private QueueInterface<Execution> executionQueue;
@@ -57,51 +45,35 @@ public abstract class AbstractTriggerTest {
         String toUploadDir = "/tmp/local-listen";
         Files.createDirectories(Paths.get(toUploadDir));
 
-        // mock flow listeners
         CountDownLatch queueCount = new CountDownLatch(1);
+        AtomicReference<Execution> last = new AtomicReference<>();
+        Flux<Execution> receive = TestsUtils.receive(executionQueue, execution -> {
+            if (execution.getLeft().getFlowId().equals(triggeringFlowId())) {
+                last.set(execution.getLeft());
+                queueCount.countDown();
+            }
+        });
 
-        // scheduler
-        try (
-            AbstractScheduler scheduler = new JdbcScheduler(
-                this.applicationContext,
-                this.flowListenersService
-            );
-            Worker worker = applicationContext.createBean(Worker.class, IdUtils.create(), 8, null)
-        ) {
-            AtomicReference<Execution> last = new AtomicReference<>();
+        String out1 = FriendlyId.createFriendlyId();
+        utils().upload(toUploadDir + "/" + out1);
 
-            // wait for execution
-            Flux<Execution> receive = TestsUtils.receive(executionQueue, execution -> {
-                if (execution.getLeft().getFlowId().equals(triggeringFlowId())) {
-                    last.set(execution.getLeft());
+        String out2 = FriendlyId.createFriendlyId();
+        utils().upload(toUploadDir + "/" + out2);
 
-                    queueCount.countDown();
-                }
-            });
+        repositoryLoader.load(Objects.requireNonNull(io.kestra.plugin.fs.local.AbstractTriggerTest.class.getClassLoader().getResource("flows")));
 
-            String out1 = FriendlyId.createFriendlyId();
-            utils().upload(toUploadDir + "/" + out1);
+        boolean await = queueCount.await(20, TimeUnit.SECONDS);
+        assertThat(await, is(true));
+        receive.blockLast();
 
-            String out2 = FriendlyId.createFriendlyId();
-            utils().upload(toUploadDir + "/" + out2);
+        @SuppressWarnings("unchecked")
+        java.util.List<File> trigger = (java.util.List<File>) last.get().getTrigger().getVariables().get("files");
+        assertThat(trigger.size(), greaterThanOrEqualTo(2));
 
-            worker.run();
-            scheduler.run();
-            repositoryLoader.load(Objects.requireNonNull(io.kestra.plugin.fs.local.AbstractTriggerTest.class.getClassLoader().getResource("flows")));
+        assertThat(utils().list(toUploadDir).getFiles().size(), is(0));
 
-            boolean await = queueCount.await(20, TimeUnit.SECONDS);
-            assertThat(await, is(true));
-            receive.blockLast();
-
-            @SuppressWarnings("unchecked")
-            java.util.List<File> trigger = (java.util.List<File>) last.get().getTrigger().getVariables().get("files");
-            assertThat(trigger.size(), greaterThanOrEqualTo(2));
-
-            assertThat(utils().list(toUploadDir).getFiles().size(), is(0));
-
-            assertThat(utils().list(toUploadDir + "-move").getFiles().size(), greaterThanOrEqualTo(2));
-            utils().delete(toUploadDir + "-move");
-        }
+        assertThat(utils().list(toUploadDir + "-move").getFiles().size(), greaterThanOrEqualTo(2));
+        utils().delete(toUploadDir + "-move");
     }
 
     @Test
@@ -110,50 +82,35 @@ public abstract class AbstractTriggerTest {
         Files.createDirectories(Paths.get(toUploadDir));
 
         CountDownLatch queueCount = new CountDownLatch(1);
-
-        // scheduler
-        try (
-            AbstractScheduler scheduler = new JdbcScheduler(
-                this.applicationContext,
-                this.flowListenersService
-            );
-            Worker worker = applicationContext.createBean(Worker.class, IdUtils.create(), 8, null)
-        ) {
-            AtomicReference<Execution> last = new AtomicReference<>();
-
-            // wait for execution
-            Flux<Execution> receive = TestsUtils.receive(
-                executionQueue,
-                execution -> {
-                    if (execution.getLeft().getFlowId().equals(triggeringFlowId() + "-none-action")) {
-                        last.set(execution.getLeft());
-                        queueCount.countDown();
-                    }
+        AtomicReference<Execution> last = new AtomicReference<>();
+        Flux<Execution> receive = TestsUtils.receive(
+            executionQueue,
+            execution -> {
+                if (execution.getLeft().getFlowId().equals(triggeringFlowId() + "-none-action")) {
+                    last.set(execution.getLeft());
+                    queueCount.countDown();
                 }
-            );
+            }
+        );
 
-            String out1 = FriendlyId.createFriendlyId();
-            utils().upload(toUploadDir + "/" + out1);
+        String out1 = FriendlyId.createFriendlyId();
+        utils().upload(toUploadDir + "/" + out1);
 
-            String out2 = FriendlyId.createFriendlyId();
-            utils().upload(toUploadDir + "/" + out2);
+        String out2 = FriendlyId.createFriendlyId();
+        utils().upload(toUploadDir + "/" + out2);
 
-            worker.run();
-            scheduler.run();
-            repositoryLoader.load(Objects.requireNonNull(io.kestra.plugin.fs.local.AbstractTriggerTest.class.getClassLoader().getResource("flows")));
+        repositoryLoader.load(Objects.requireNonNull(io.kestra.plugin.fs.local.AbstractTriggerTest.class.getClassLoader().getResource("flows")));
 
-            boolean await = queueCount.await(20, TimeUnit.SECONDS);
-            assertThat(await, is(true));
-            receive.blockLast();
+        boolean await = queueCount.await(20, TimeUnit.SECONDS);
+        assertThat(await, is(true));
+        receive.blockLast();
 
-            @SuppressWarnings("unchecked")
-            java.util.List<File> trigger = (java.util.List<File>) last.get().getTrigger().getVariables().get("files");
-            assertThat(trigger.size(), greaterThanOrEqualTo(2));
+        @SuppressWarnings("unchecked")
+        java.util.List<File> trigger = (java.util.List<File>) last.get().getTrigger().getVariables().get("files");
+        assertThat(trigger.size(), greaterThanOrEqualTo(2));
 
-            assertThat(utils().list(toUploadDir).getFiles().size(), greaterThanOrEqualTo(2));
+        assertThat(utils().list(toUploadDir).getFiles().size(), greaterThanOrEqualTo(2));
 
-            utils().delete(toUploadDir);
-        }
+        utils().delete(toUploadDir);
     }
 }
-
