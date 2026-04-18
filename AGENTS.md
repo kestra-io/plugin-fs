@@ -2,11 +2,13 @@
 
 ## What
 
-Perform file system tasks in Kestra data orchestration pipelines. Exposes 51 plugin components (tasks, triggers, and/or conditions).
+- Provides plugin components under `io.kestra.plugin.fs`.
+- Includes classes such as `Delete`, `Upload`, `List`, `Copy`.
 
 ## Why
 
-Enables Kestra workflows to interact with File system, allowing orchestration of File system-based operations as part of data pipelines and automation workflows.
+- This plugin integrates Kestra with FTP (File Transfer Protocol).
+- It provides tasks that list, transfer, move, delete, and watch files over FTP.
 
 ## How
 
@@ -90,24 +92,7 @@ plugin-fs/
 └── README.md
 ```
 
-### Important Commands
+## References
 
-```bash
-# Build the plugin
-./gradlew shadowJar
-
-# Run tests
-./gradlew test
-
-# Build without tests
-./gradlew shadowJar -x test
-```
-
-### Configuration
-
-All tasks and triggers accept standard Kestra plugin properties. Credentials should use
-`{{ secret('SECRET_NAME') }}` — never hardcode real values.
-
-## Agents
-
-**IMPORTANT:** This is a Kestra plugin repository (prefixed by `plugin-`, `storage-`, or `secret-`). You **MUST** delegate all coding tasks to the `kestra-plugin-developer` agent. Do NOT implement code changes directly — always use this agent.
+- https://kestra.io/docs/plugin-developer-guide
+- https://kestra.io/docs/plugin-developer-guide/contribution-guidelines
