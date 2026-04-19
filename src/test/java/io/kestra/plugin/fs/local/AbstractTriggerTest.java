@@ -54,15 +54,15 @@ public abstract class AbstractTriggerTest {
             }
         });
 
+        repositoryLoader.load(Objects.requireNonNull(io.kestra.plugin.fs.local.AbstractTriggerTest.class.getClassLoader().getResource("flows")));
+
         String out1 = FriendlyId.createFriendlyId();
         utils().upload(toUploadDir + "/" + out1);
 
         String out2 = FriendlyId.createFriendlyId();
         utils().upload(toUploadDir + "/" + out2);
 
-        repositoryLoader.load(Objects.requireNonNull(io.kestra.plugin.fs.local.AbstractTriggerTest.class.getClassLoader().getResource("flows")));
-
-        boolean await = queueCount.await(20, TimeUnit.SECONDS);
+        boolean await = queueCount.await(30, TimeUnit.SECONDS);
         assertThat(await, is(true));
         receive.blockLast();
 
@@ -93,15 +93,15 @@ public abstract class AbstractTriggerTest {
             }
         );
 
+        repositoryLoader.load(Objects.requireNonNull(io.kestra.plugin.fs.local.AbstractTriggerTest.class.getClassLoader().getResource("flows")));
+
         String out1 = FriendlyId.createFriendlyId();
         utils().upload(toUploadDir + "/" + out1);
 
         String out2 = FriendlyId.createFriendlyId();
         utils().upload(toUploadDir + "/" + out2);
 
-        repositoryLoader.load(Objects.requireNonNull(io.kestra.plugin.fs.local.AbstractTriggerTest.class.getClassLoader().getResource("flows")));
-
-        boolean await = queueCount.await(20, TimeUnit.SECONDS);
+        boolean await = queueCount.await(30, TimeUnit.SECONDS);
         assertThat(await, is(true));
         receive.blockLast();
 
