@@ -29,7 +29,7 @@ import io.kestra.core.models.annotations.PluginProperty;
             code = """
                 id: fs_sftp_delete
                 namespace: company.team
-                
+
                 tasks:
                   - id: delete
                     type: io.kestra.plugin.fs.sftp.Delete
