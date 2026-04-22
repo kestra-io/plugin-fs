@@ -9,13 +9,13 @@ public interface SftpInterface {
         title = "SSH private key (PEM)",
         description = "PEM-formatted private key for public key auth. Convert OpenSSH keys with `ssh-keygen -m PEM`."
     )
-    @PluginProperty(group = "connection")
+    @PluginProperty(secret = true, group = "connection")
     Property<String> getKeyfile();
 
     @Schema(
         title = "Passphrase for the SSH key"
     )
-    @PluginProperty(group = "advanced")
+    @PluginProperty(secret = true, group = "advanced")
     Property<String> getPassphrase();
 
     @Deprecated
@@ -49,13 +49,13 @@ public interface SftpInterface {
     @Schema(
         title = "SFTP proxy username"
     )
-    @PluginProperty(group = "connection")
+    @PluginProperty(secret = true, group = "connection")
     Property<String> getProxyUsername();
 
     @Schema(
         title = "SFTP proxy password"
     )
-    @PluginProperty(group = "connection")
+    @PluginProperty(secret = true, group = "connection")
     Property<String> getProxyPassword();
 
     @Schema(

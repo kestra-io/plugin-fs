@@ -147,7 +147,9 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
     @NotNull
     protected Property<String> host;
+    @PluginProperty(secret = true)
     protected Property<String> username;
+    @PluginProperty(secret = true)
     protected Property<String> password;
 
     @Builder.Default

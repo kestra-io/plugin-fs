@@ -43,7 +43,9 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
     private final Duration interval = Duration.ofSeconds(60);
 
     protected Property<String> host;
+    @PluginProperty(secret = true)
     protected Property<String> username;
+    @PluginProperty(secret = true)
     protected Property<String> password;
 
     @Schema(title = "Directory URI to watch")

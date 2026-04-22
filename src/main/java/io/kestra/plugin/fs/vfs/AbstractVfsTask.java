@@ -24,7 +24,9 @@ import io.kestra.core.models.annotations.PluginProperty;
 @NoArgsConstructor
 public abstract class AbstractVfsTask extends Task implements AbstractVfsInterface {
     protected Property<String> host;
+    @PluginProperty(secret = true)
     protected Property<String> username;
+    @PluginProperty(secret = true)
     protected Property<String> password;
 
     @Builder.Default

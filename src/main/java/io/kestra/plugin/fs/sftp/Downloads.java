@@ -47,9 +47,9 @@ import io.kestra.core.models.annotations.PluginProperty;
     }
 )
 public class Downloads extends io.kestra.plugin.fs.vfs.Downloads implements SftpInterface {
-    @PluginProperty(group = "connection")
+    @PluginProperty(secret = true, group = "connection")
     protected Property<String> keyfile;
-    @PluginProperty(group = "advanced")
+    @PluginProperty(secret = true, group = "advanced")
     protected Property<String> passphrase;
     @Deprecated
     @PluginProperty(group = "deprecated")
@@ -61,9 +61,9 @@ public class Downloads extends io.kestra.plugin.fs.vfs.Downloads implements Sftp
     @Deprecated
     @PluginProperty(group = "deprecated")
     protected Property<String> proxyUser;
-    @PluginProperty(group = "connection")
+    @PluginProperty(secret = true, group = "connection")
     protected Property<String> proxyUsername;
-    @PluginProperty(group = "connection")
+    @PluginProperty(secret = true, group = "connection")
     protected Property<String> proxyPassword;
     @PluginProperty(group = "advanced")
     protected Property<String> proxyType;
