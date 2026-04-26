@@ -43,9 +43,9 @@ import io.kestra.core.models.annotations.PluginProperty;
     }
 )
 public class Delete extends io.kestra.plugin.fs.vfs.Delete implements SftpInterface {
-    @PluginProperty(group = "connection")
+    @PluginProperty(secret = true, group = "connection")
     protected Property<String> keyfile;
-    @PluginProperty(group = "advanced")
+    @PluginProperty(secret = true, group = "advanced")
     protected Property<String> passphrase;
     @Deprecated
     @PluginProperty(group = "deprecated")
@@ -57,9 +57,9 @@ public class Delete extends io.kestra.plugin.fs.vfs.Delete implements SftpInterf
     @Deprecated
     @PluginProperty(group = "deprecated")
     protected Property<String> proxyUser;
-    @PluginProperty(group = "connection")
+    @PluginProperty(secret = true, group = "connection")
     protected Property<String> proxyUsername;
-    @PluginProperty(group = "connection")
+    @PluginProperty(secret = true, group = "connection")
     protected Property<String> proxyPassword;
     @PluginProperty(group = "advanced")
     protected Property<String> proxyType;

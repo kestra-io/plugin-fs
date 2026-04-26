@@ -121,15 +121,15 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
     private Property<String> host;
 
     // Password Auth method
-    @PluginProperty(group = "connection")
+    @PluginProperty(secret = true, group = "connection")
     private Property<String> username;
-    @PluginProperty(group = "connection")
+    @PluginProperty(secret = true, group = "connection")
     private Property<String> password;
 
     // PubKey Auth method
-    @PluginProperty(group = "connection")
+    @PluginProperty(secret = true, group = "connection")
     private Property<String> privateKey;
-    @PluginProperty(group = "connection")
+    @PluginProperty(secret = true, group = "connection")
     private Property<String> privateKeyPassphrase;
 
     // OpenSSH config
@@ -394,7 +394,7 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
 
     private static final class ProcessProxyCommand implements Proxy {
         private final String command;
-        @PluginProperty(group = "connection")
+        @PluginProperty(secret = true, group = "connection")
         private final String username;
 
         private Process process;

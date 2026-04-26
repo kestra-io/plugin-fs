@@ -1,5 +1,6 @@
 package io.kestra.plugin.fs.smb;
 
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
@@ -17,8 +18,10 @@ public abstract class AbstractSmbTask extends Task implements SmbInterface {
     @NotNull
     protected Property<String> host;
 
+    @PluginProperty(secret = true)
     protected Property<String> username;
 
+    @PluginProperty(secret = true)
     protected Property<String> password;
 
     @Builder.Default

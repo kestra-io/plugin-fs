@@ -32,28 +32,28 @@ public interface SshInterface {
         title = "Username",
         description = "Required for PASSWORD and PUBLIC_KEY methods."
     )
-    @PluginProperty(group = "connection")
+    @PluginProperty(secret = true, group = "connection")
     Property<String> getUsername();
 
     @Schema(
         title = "Password",
         description = "Required for PASSWORD auth; optional for OPEN_SSH when config supplies credentials."
     )
-    @PluginProperty(group = "connection")
+    @PluginProperty(secret = true, group = "connection")
     Property<String> getPassword();
 
     @Schema(
         title = "Private SSH key",
         description = "OpenSSH private key content for PUBLIC_KEY auth."
     )
-    @PluginProperty(group = "connection")
+    @PluginProperty(secret = true, group = "connection")
     Property<String> getPrivateKey();
 
     @Schema(
         title = "Private key passphrase",
         description = "Optional passphrase for the private key."
     )
-    @PluginProperty(group = "advanced")
+    @PluginProperty(secret = true, group = "advanced")
     Property<String> getPrivateKeyPassphrase();
 
     @Schema(

@@ -121,32 +121,33 @@ import java.io.IOException;
     }
 )
 public class Trigger extends io.kestra.plugin.fs.vfs.Trigger implements SftpInterface {
+    @PluginProperty(secret = true, group = "connection")
     protected Property<String> keyfile;
-
+    @PluginProperty(secret = true, group = "advanced")
     protected Property<String> passphrase;
-
     @Deprecated
+    @PluginProperty(group = "deprecated")
     protected Property<String> proxyHost;
-
+    @PluginProperty(group = "advanced")
     protected Property<String> proxyAddress;
-
+    @PluginProperty(group = "connection")
     protected Property<String> proxyPort;
     @Deprecated
-
+    @PluginProperty(group = "deprecated")
     protected Property<String> proxyUser;
-
+    @PluginProperty(secret = true, group = "connection")
     protected Property<String> proxyUsername;
-
+    @PluginProperty(secret = true, group = "connection")
     protected Property<String> proxyPassword;
-
+    @PluginProperty(group = "advanced")
     protected Property<String> proxyType;
     @Builder.Default
-
+    @PluginProperty(group = "advanced")
     protected Property<Boolean> rootDir = Property.ofValue(true);
-
     @Builder.Default
+    @PluginProperty(group = "connection")
     protected Property<String> port = Property.ofValue("22");
-
+    @PluginProperty(group = "connection")
     protected Property<String> keyExchangeAlgorithm;
 
     @Override

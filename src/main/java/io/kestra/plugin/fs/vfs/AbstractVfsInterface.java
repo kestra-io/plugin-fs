@@ -22,12 +22,12 @@ public interface AbstractVfsInterface {
     @Schema(
         title = "Username"
     )
-    @PluginProperty(group = "connection")
+    @PluginProperty(secret = true, group = "connection")
     Property<String> getUsername();
 
     @Schema(
         title = "Password"
     )
-    @PluginProperty(group = "connection")
+    @PluginProperty(secret = true, group = "connection")
     Property<String> getPassword();
 }
