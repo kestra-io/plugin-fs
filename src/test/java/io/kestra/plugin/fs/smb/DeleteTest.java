@@ -17,6 +17,7 @@ import static io.kestra.plugin.fs.smb.SmbUtils.PASSWORD;
 import static io.kestra.plugin.fs.smb.SmbUtils.USERNAME;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.hasSize;
 
 @KestraTest
 class DeleteTest {
@@ -65,5 +66,48 @@ class DeleteTest {
             SmbException.class,
             () -> fetch.run(TestsUtils.mockRunContext(runContextFactory, fetch, Map.of()))
         );
+    }
+
+    @Test
+    void runWithRegExp() throws Exception {
+        String dir = "/" + IdUtils.create();
+        String basePath = SmbUtils.SHARE_NAME + dir;
+
+        // Upload two CSV files and one YAML file into the same directory
+        smbUtils.upload(basePath + "/file1.csv");
+        smbUtils.upload(basePath + "/file2.csv");
+        smbUtils.upload(basePath + "/keep.yaml");
+
+        var task = io.kestra.plugin.fs.smb.Delete.builder()
+            .id(IdUtils.create())
+            .type(io.kestra.plugin.fs.smb.Delete.class.getName())
+            .uri(Property.ofValue(basePath + "/"))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("445"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .regExp(Property.ofValue(".*\\.csv"))
+            .build();
+
+        var output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        // Two CSV files deleted, the YAML file kept
+        assertThat(output.isDeleted(), is(true));
+        assertThat(output.getUris(), hasSize(2));
+
+        // Confirm the YAML file still exists
+        var listTask = List.builder()
+            .id(IdUtils.create())
+            .type(List.class.getName())
+            .from(Property.ofValue(basePath))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("445"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+
+        var listOutput = listTask.run(TestsUtils.mockRunContext(runContextFactory, listTask, Map.of()));
+        assertThat(listOutput.getFiles(), hasSize(1));
+        assertThat(listOutput.getFiles().getFirst().getName(), is("keep.yaml"));
     }
 }

@@ -17,8 +17,11 @@ import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -207,6 +210,80 @@ public abstract class VfsService {
         Boolean errorOnMissing,
         Boolean recursive
     ) throws Exception {
+        return delete(runContext, fsm, fileSystemOptions, from, errorOnMissing, recursive, null);
+    }
+
+    public static Delete.Output delete(
+        RunContext runContext,
+        StandardFileSystemManager fsm,
+        FileSystemOptions fileSystemOptions,
+        URI from,
+        Boolean errorOnMissing,
+        Boolean recursive,
+        String regExp
+    ) throws Exception {
+        if (regExp != null) {
+            try (FileObject dir = fsm.resolveFile(from.toString(), fileSystemOptions)) {
+                if (!dir.exists()) {
+                    if (Boolean.TRUE.equals(errorOnMissing)) {
+                        throw new NoSuchElementException("Unable to find directory '" + VfsService.uriWithoutAuth(from) + "'");
+                    }
+                    return Delete.Output.builder()
+                        .uri(VfsService.uriWithoutAuth(from))
+                        .deleted(false)
+                        .uris(java.util.List.of())
+                        .build();
+                }
+
+                final Pattern pattern;
+                try {
+                    pattern = Pattern.compile(regExp);
+                } catch (PatternSyntaxException e) {
+                    throw new IllegalArgumentException("Invalid regExp '" + regExp + "': " + e.getMessage(), e);
+                }
+
+                FileObject[] matches = dir.findFiles(new FileSelector() {
+                    @Override
+                    public boolean traverseDescendents(FileSelectInfo file) {
+                        return Boolean.TRUE.equals(recursive) || Objects.equals(file.getFile().getName().getPath(), dir.getName().getPath());
+                    }
+
+                    @Override
+                    public boolean includeFile(FileSelectInfo file) throws Exception {
+                        return file.getFile().isFile() && pattern.matcher(file.getFile().getName().getPath()).matches();
+                    }
+                });
+
+                if (matches == null || matches.length == 0) {
+                    runContext.logger().debug("No files matched regExp '{}' under '{}'", regExp, VfsService.uriWithoutAuth(from));
+                    return Delete.Output.builder()
+                        .uri(VfsService.uriWithoutAuth(from))
+                        .deleted(false)
+                        .uris(java.util.List.of())
+                        .build();
+                }
+
+                runContext.logger().warn("Deleting {} file(s) matching regExp '{}' under '{}'", matches.length, regExp, VfsService.uriWithoutAuth(from));
+
+                var deletedUris = new ArrayList<URI>();
+                for (var match : matches) {
+                    if (match.getType() == FileType.FOLDER) {
+                        continue;
+                    }
+                    var matchUri = VfsService.uriWithoutAuth(new URI(match.getName().getURI()));
+                    match.delete();
+                    deletedUris.add(matchUri);
+                    runContext.logger().debug("Deleted '{}'", matchUri);
+                }
+
+                return Delete.Output.builder()
+                    .uri(VfsService.uriWithoutAuth(from))
+                    .deleted(!deletedUris.isEmpty())
+                    .uris(java.util.List.copyOf(deletedUris))
+                    .build();
+            }
+        }
+
         try (FileObject local = fsm.resolveFile(from.toString(), fileSystemOptions)) {
             boolean exists = local.exists();
 
@@ -225,6 +302,7 @@ public abstract class VfsService {
             return Delete.Output.builder()
                 .uri(VfsService.uriWithoutAuth(from))
                 .deleted(deleted)
+                .uris(java.util.List.of())
                 .build();
         }
     }

@@ -13,7 +13,7 @@ import java.nio.file.*;
 import java.util.Map;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 @KestraTest
@@ -97,4 +97,103 @@ class DeleteTest {
         assertThat(output.isDeleted(), is(true));
         assertThat(Files.exists(testDir), is(false));
     }
+
+    @Test
+    void deleteWithRegExpMatchesFiles() throws Exception {
+        // use a dedicated directory so no pre-existing files interfere
+        Path regexpDir = tempDir.resolve("regexp-dir");
+        Files.createDirectory(regexpDir);
+
+        Path txtFile1 = regexpDir.resolve("report-2024.txt");
+        Path txtFile2 = regexpDir.resolve("report-2025.txt");
+        Path logFile  = regexpDir.resolve("app.log");
+        Files.createFile(txtFile1);
+        Files.createFile(txtFile2);
+        Files.createFile(logFile);
+
+        Delete task = Delete.builder()
+            .id(DeleteTest.class.getSimpleName())
+            .type(Delete.class.getName())
+            .from(Property.ofValue(regexpDir.toString()))
+            .regExp(Property.ofValue(".*\\.txt"))
+            .recursive(Property.ofValue(true))
+            .build();
+
+        Delete.Output output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(output.isDeleted(), is(true));
+        // only the two .txt files are deleted; the .log file survives
+        assertThat(output.getUris(), hasSize(2));
+        assertThat(Files.exists(txtFile1), is(false));
+        assertThat(Files.exists(txtFile2), is(false));
+        assertThat(Files.exists(logFile), is(true));
+    }
+
+    @Test
+    void deleteWithRegExpNoMatchReturnsNotDeleted() throws Exception {
+        // no file in testDir matches *.csv
+        Delete task = Delete.builder()
+            .id(DeleteTest.class.getSimpleName())
+            .type(Delete.class.getName())
+            .from(Property.ofValue(testDir.toString()))
+            .regExp(Property.ofValue(".*\\.csv"))
+            .recursive(Property.ofValue(true))
+            .build();
+
+        Delete.Output output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(output.isDeleted(), is(false));
+        assertThat(output.getUris(), is(empty()));
+    }
+
+    @Test
+    void deleteWithRegExpNonRecursiveIgnoresSubdirectoryFiles() throws Exception {
+        // use a dedicated directory so no pre-existing files interfere
+        Path regexpDir = tempDir.resolve("regexp-nonrecursive-dir");
+        Files.createDirectory(regexpDir);
+
+        // file directly in regexpDir (depth 1, within walk limit)
+        Path rootFile = regexpDir.resolve("root.txt");
+        // file in a nested subdirectory (depth 2, excluded when recursive=false)
+        Path subDir  = regexpDir.resolve("sub");
+        Path subFile = subDir.resolve("nested.txt");
+        Files.createFile(rootFile);
+        Files.createDirectories(subDir);
+        Files.createFile(subFile);
+
+        Delete task = Delete.builder()
+            .id(DeleteTest.class.getSimpleName())
+            .type(Delete.class.getName())
+            .from(Property.ofValue(regexpDir.toString()))
+            .regExp(Property.ofValue(".*\\.txt"))
+            .recursive(Property.ofValue(false))
+            .build();
+
+        Delete.Output output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        // only the root-level file is deleted; nested file survives
+        assertThat(output.isDeleted(), is(true));
+        assertThat(output.getUris(), hasSize(1));
+        assertThat(Files.exists(rootFile), is(false));
+        assertThat(Files.exists(subFile), is(true));
+    }
+
+    @Test
+    void deleteWithRegExpMissingDirectoryWithoutError() throws Exception {
+        Path missing = tempDir.resolve("no-such-dir");
+
+        Delete task = Delete.builder()
+            .id(DeleteTest.class.getSimpleName())
+            .type(Delete.class.getName())
+            .from(Property.ofValue(missing.toString()))
+            .regExp(Property.ofValue(".*\\.txt"))
+            .errorOnMissing(Property.ofValue(false))
+            .build();
+
+        Delete.Output output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(output.isDeleted(), is(false));
+        assertThat(output.getUris(), is(empty()));
+    }
+
 }
