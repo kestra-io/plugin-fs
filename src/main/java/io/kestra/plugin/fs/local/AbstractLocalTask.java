@@ -43,6 +43,12 @@ public abstract class AbstractLocalTask extends Task {
         return path;
     }
 
+    /**
+     * Validates a path against the list of allowed paths.
+     *
+     * @param path The path to validate
+     * @param runContext The run context
+     */
     protected void validatePath(Path path, RunContext runContext) {
 
         List<String> renderedAllowedPaths = allowedPaths(runContext);
