@@ -53,10 +53,10 @@ public abstract class AbstractLocalTask extends Task {
 
         List<String> renderedAllowedPaths = allowedPaths(runContext);
 
+        // gets real path also resolves symbolic links
         Path realPath;
         try {
             if (path.toFile().exists()) {
-                // gets real path also resolves symbolic links
                 realPath = path.toRealPath();
             } else {
                 // for non-existing paths need to check if the parent directory is allowed
