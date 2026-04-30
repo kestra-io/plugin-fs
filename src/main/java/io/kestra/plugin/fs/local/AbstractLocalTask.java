@@ -56,23 +56,35 @@ public abstract class AbstractLocalTask extends Task {
         // gets real path also resolves symbolic links
         Path realPath;
         try {
-            if (!path.toFile().exists()) {
-                // for non-existing paths need to check if the parent directory is allowed
-                Path parent = path.getParent();
-                if (parent != null && parent.toFile().exists()) {
-                    realPath = parent.toRealPath().resolve(path.getFileName());
-                } else {
-                    realPath = path.toAbsolutePath();
-                }
-            } else {
+            if (path.toFile().exists()) {
                 realPath = path.toRealPath();
+            } else {
+                // for non-existing paths need to check if the parent directory is allowed
+                Path absolute = path.toAbsolutePath().normalize();
+                Path ancestor = absolute;
+                Path suffix = Path.of("");
+                while (ancestor != null && !ancestor.toFile().exists()) {
+                    suffix = ancestor.getFileName() == null ? suffix : ancestor.getFileName().resolve(suffix);
+                    ancestor = ancestor.getParent();
+                }
+                if (ancestor != null) {
+                    realPath = ancestor.toRealPath().resolve(suffix);
+                } else {
+                    realPath = absolute;
+                }
             }
         } catch (IOException e) {
             throw new IllegalArgumentException("Invalid path: " + path + ". Error: " + e.getMessage(), e);
         }
 
         List<Path> normalizedAllowedPaths = renderedAllowedPaths.stream()
-            .map(allowed -> Paths.get(allowed).toAbsolutePath().normalize())
+            .map(allowed -> {
+                try {
+                    return Paths.get(allowed).toRealPath();
+                } catch (IOException e) {
+                    return Paths.get(allowed).toAbsolutePath().normalize();
+                }
+            })
             .toList();
 
         boolean isAllowed = normalizedAllowedPaths.stream()

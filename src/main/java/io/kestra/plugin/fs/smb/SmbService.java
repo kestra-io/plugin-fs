@@ -20,6 +20,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Instant;
 import java.util.*;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 public abstract class SmbService {
 
@@ -68,12 +70,21 @@ public abstract class SmbService {
 
     public static io.kestra.plugin.fs.vfs.List.Output list(
         RunContext runContext,
-        CIFSContext ctx,
+        CIFSContext cifsContext,
         SmbInterface smbInterface,
         String from,
         String regExp,
         boolean recursive
     ) throws Exception {
+        Pattern pattern = null;
+        if (regExp != null) {
+            try {
+                pattern = Pattern.compile(regExp);
+            } catch (PatternSyntaxException e) {
+                throw new IllegalArgumentException("Invalid regExp '" + regExp + "': " + e.getMessage(), e);
+            }
+        }
+
         var url = smbUrl(runContext, smbInterface, from);
         if (!url.endsWith("/")) {
             url += "/";
@@ -82,7 +93,7 @@ public abstract class SmbService {
         var rHost = runContext.render(smbInterface.getHost()).as(String.class).orElseThrow();
         var rPort = runContext.render(smbInterface.getPort()).as(String.class).orElse("445");
 
-        try (var dir = new SmbFile(url, ctx)) {
+        try (var dir = new SmbFile(url, cifsContext)) {
             if (!dir.exists()) {
                 return io.kestra.plugin.fs.vfs.List.Output.builder()
                     .files(java.util.List.of())
@@ -94,11 +105,11 @@ public abstract class SmbService {
             if (dir.isFile()) {
                 // Path points to a file, not a directory: return it as a single-element list
                 var file = smbFileToFile(dir, rHost, rPort);
-                if (regExp == null || extractPath(dir).matches(regExp)) {
+                if (pattern == null || pattern.matcher(extractPath(dir)).matches()) {
                     files.add(file);
                 }
             } else {
-                collectFiles(dir, regExp, recursive, files, rHost, rPort);
+                collectFiles(dir, pattern, recursive, files, rHost, rPort);
             }
 
             runContext.logger().debug("Found '{}' files from '{}'", files.size(), from);
@@ -111,7 +122,7 @@ public abstract class SmbService {
 
     private static void collectFiles(
         SmbFile dir,
-        String regExp,
+        Pattern pattern,
         boolean recursive,
         java.util.List<File> result,
         String host,
@@ -124,11 +135,11 @@ public abstract class SmbService {
             try {
                 if (child.isDirectory()) {
                     if (recursive) {
-                        collectFiles(child, regExp, true, result, host, port);
+                        collectFiles(child, pattern, true, result, host, port);
                     }
                 } else if (child.isFile()) {
                     var path = extractPath(child);
-                    if (regExp == null || path.matches(regExp)) {
+                    if (pattern == null || pattern.matcher(path).matches()) {
                         result.add(smbFileToFile(child, host, port));
                     }
                 }
@@ -140,7 +151,7 @@ public abstract class SmbService {
 
     public static io.kestra.plugin.fs.vfs.Download.Output download(
         RunContext runContext,
-        CIFSContext ctx,
+        CIFSContext cifsContext,
         SmbInterface smbInterface,
         String filepath
     ) throws Exception {
@@ -148,7 +159,7 @@ public abstract class SmbService {
         var ext = FileUtils.getExtension(filepath);
         var tempFile = runContext.workingDir().createTempFile(ext).toFile();
 
-        try (var remote = new SmbFile(url, ctx);
+        try (var remote = new SmbFile(url, cifsContext);
              var in = remote.getInputStream();
              var out = new FileOutputStream(tempFile)) {
             IOUtils.copy(in, out);
@@ -170,17 +181,17 @@ public abstract class SmbService {
 
     public static io.kestra.plugin.fs.vfs.Upload.Output upload(
         RunContext runContext,
-        CIFSContext ctx,
+        CIFSContext cifsContext,
         SmbInterface smbInterface,
         URI from,
         String toPath
     ) throws Exception {
-        return upload(runContext, ctx, smbInterface, from, toPath, false);
+        return upload(runContext, cifsContext, smbInterface, from, toPath, false);
     }
 
     public static io.kestra.plugin.fs.vfs.Upload.Output upload(
         RunContext runContext,
-        CIFSContext ctx,
+        CIFSContext cifsContext,
         SmbInterface smbInterface,
         URI from,
         String toPath,
@@ -190,13 +201,13 @@ public abstract class SmbService {
 
         // Ensure parent directories exist
         var parentUrl = url.substring(0, url.lastIndexOf('/') + 1);
-        try (var parentDir = new SmbFile(parentUrl, ctx)) {
+        try (var parentDir = new SmbFile(parentUrl, cifsContext)) {
             if (!parentDir.exists()) {
                 parentDir.mkdirs();
             }
         }
 
-        try (var remote = new SmbFile(url, ctx)) {
+        try (var remote = new SmbFile(url, cifsContext)) {
             // Check if destination is a folder that would be overwritten
             if (!overwrite && remote.exists() && remote.isDirectory() && !toPath.endsWith("/")) {
                 throw new KestraRuntimeException(String.format(
@@ -212,7 +223,7 @@ public abstract class SmbService {
             if (overwrite && remote.exists() && remote.isDirectory()) {
                 // Ensure we use a directory URL (ending with /) for proper listing
                 var dirUrl = url.endsWith("/") ? url : url + "/";
-                try (var dirFile = new SmbFile(dirUrl, ctx)) {
+                try (var dirFile = new SmbFile(dirUrl, cifsContext)) {
                     deleteRecursively(dirFile);
                 }
             }
@@ -237,17 +248,61 @@ public abstract class SmbService {
 
     public static io.kestra.plugin.fs.vfs.Delete.Output delete(
         RunContext runContext,
-        CIFSContext ctx,
+        CIFSContext cifsContext,
         SmbInterface smbInterface,
         String filepath,
         Boolean errorOnMissing
     ) throws Exception {
+        return delete(runContext, cifsContext, smbInterface, filepath, errorOnMissing, null);
+    }
+
+    public static io.kestra.plugin.fs.vfs.Delete.Output delete(RunContext runContext, CIFSContext cifsContext, SmbInterface smbInterface, String filepath, Boolean errorOnMissing, String regExp) throws Exception {
+        return delete(runContext, cifsContext, smbInterface, filepath, errorOnMissing, regExp, false);
+    }
+
+    public static io.kestra.plugin.fs.vfs.Delete.Output delete(RunContext runContext, CIFSContext cifsContext, SmbInterface smbInterface, String filepath, Boolean errorOnMissing, String regExp, boolean recursive) throws Exception {
+        if (regExp != null) {
+            var rHost = runContext.render(smbInterface.getHost()).as(String.class).orElseThrow();
+            var rPort = runContext.render(smbInterface.getPort()).as(String.class).orElse("445");
+
+            var listOutput = list(runContext, cifsContext, smbInterface, filepath, regExp, recursive);
+
+            if (listOutput.getFiles().isEmpty()) {
+                runContext.logger().debug("No files matched regExp '{}' under '{}'", regExp, filepath);
+                var dirUri = serverPathUri(rHost, rPort, filepath);
+                return io.kestra.plugin.fs.vfs.Delete.Output.builder()
+                    .uri(dirUri)
+                    .deleted(false)
+                    .uris(java.util.List.of())
+                    .build();
+            }
+
+            runContext.logger().warn("Deleting {} file(s) matching regExp '{}' under '{}'", listOutput.getFiles().size(), regExp, filepath);
+
+            var deletedUris = new ArrayList<URI>();
+            for (var file : listOutput.getFiles()) {
+                var fileUrl = smbUrl(runContext, smbInterface, file.getPath().getPath());
+                try (var remote = new SmbFile(fileUrl, cifsContext)) {
+                    remote.delete();
+                }
+                deletedUris.add(file.getPath());
+                runContext.logger().debug("Deleted '{}'", file.getPath());
+            }
+
+            var dirUri = serverPathUri(rHost, rPort, filepath);
+            return io.kestra.plugin.fs.vfs.Delete.Output.builder()
+                .uri(dirUri)
+                .deleted(!deletedUris.isEmpty())
+                .uris(java.util.List.copyOf(deletedUris))
+                .build();
+        }
+
         var url = smbUrl(runContext, smbInterface, filepath);
         var rHost = runContext.render(smbInterface.getHost()).as(String.class).orElseThrow();
         var rPort = runContext.render(smbInterface.getPort()).as(String.class).orElse("445");
         var fileUri = serverPathUri(rHost, rPort, filepath);
 
-        try (var remote = new SmbFile(url, ctx)) {
+        try (var remote = new SmbFile(url, cifsContext)) {
             if (!remote.exists()) {
                 if (Boolean.TRUE.equals(errorOnMissing)) {
                     throw new NoSuchElementException("Unable to find file '" + fileUri + "'");
@@ -256,6 +311,7 @@ public abstract class SmbService {
                 return io.kestra.plugin.fs.vfs.Delete.Output.builder()
                     .uri(fileUri)
                     .deleted(false)
+                    .uris(java.util.List.of())
                     .build();
             }
 
@@ -264,13 +320,14 @@ public abstract class SmbService {
             return io.kestra.plugin.fs.vfs.Delete.Output.builder()
                 .uri(fileUri)
                 .deleted(true)
+                .uris(java.util.List.of())
                 .build();
         }
     }
 
     public static io.kestra.plugin.fs.vfs.Move.Output move(
         RunContext runContext,
-        CIFSContext ctx,
+        CIFSContext cifsContext,
         SmbInterface smbInterface,
         String fromPath,
         String toPath,
@@ -301,13 +358,13 @@ public abstract class SmbService {
                 .build();
         }
 
-        try (var source = new SmbFile(fromUrl, ctx)) {
+        try (var source = new SmbFile(fromUrl, cifsContext)) {
             if (!source.exists()) {
                 var fromUri = serverPathUri(rHost, rPort, fromPath);
                 throw new NoSuchElementException("Unable to find file '" + fromUri + "'");
             }
 
-            try (var dest = new SmbFile(toUrl, ctx)) {
+            try (var dest = new SmbFile(toUrl, cifsContext)) {
                 if (dest.exists()) {
                     var destFileName = FilenameUtils.getName(extractPath(dest));
                     var srcFileName = FilenameUtils.getName(extractPath(source));
@@ -326,7 +383,7 @@ public abstract class SmbService {
                     // Create parent directories (strip trailing slash to get actual parent)
                     var trimmedUrl = toUrl.endsWith("/") ? toUrl.substring(0, toUrl.length() - 1) : toUrl;
                     var parentUrl = trimmedUrl.substring(0, trimmedUrl.lastIndexOf('/') + 1);
-                    try (var parentDir = new SmbFile(parentUrl, ctx)) {
+                    try (var parentDir = new SmbFile(parentUrl, cifsContext)) {
                         if (!parentDir.exists()) {
                             parentDir.mkdirs();
                             runContext.logger().debug("Create directory '{}'", parentUrl);
@@ -339,7 +396,7 @@ public abstract class SmbService {
                 var toShare = extractShareName(toUrl);
                 if (fromShare != null && toShare != null && !fromShare.equals(toShare)) {
                     // Cross-share move: renameTo won't work, use copy + delete
-                    copyRecursively(ctx, source, dest);
+                    copyRecursively(cifsContext, source, dest);
                     deleteRecursively(source);
                 } else {
                     source.renameTo(dest);
@@ -358,7 +415,7 @@ public abstract class SmbService {
 
     public static void performAction(
         RunContext runContext,
-        CIFSContext ctx,
+        CIFSContext cifsContext,
         SmbInterface smbInterface,
         java.util.List<File> blobList,
         io.kestra.plugin.fs.vfs.Downloads.Action action,
@@ -366,7 +423,7 @@ public abstract class SmbService {
     ) throws Exception {
         if (action == io.kestra.plugin.fs.vfs.Downloads.Action.DELETE) {
             for (File file : blobList) {
-                delete(runContext, ctx, smbInterface, file.getServerPath().getPath(), false);
+                delete(runContext, cifsContext, smbInterface, file.getServerPath().getPath(), false);
             }
         } else if (action == io.kestra.plugin.fs.vfs.Downloads.Action.MOVE) {
             for (File file : blobList) {
@@ -374,7 +431,7 @@ public abstract class SmbService {
                 if (!moveTo.endsWith("/")) {
                     moveTo += "/";
                 }
-                move(runContext, ctx, smbInterface, file.getServerPath().getPath(), moveTo, true);
+                move(runContext, cifsContext, smbInterface, file.getServerPath().getPath(), moveTo, true);
             }
         }
     }
@@ -424,7 +481,7 @@ public abstract class SmbService {
     /**
      * Recursively copy an SmbFile (file or directory) to a destination.
      */
-    private static void copyRecursively(CIFSContext ctx, SmbFile source, SmbFile dest) throws Exception {
+    private static void copyRecursively(CIFSContext cifsContext, SmbFile source, SmbFile dest) throws Exception {
         if (source.isDirectory()) {
             if (!dest.exists()) {
                 dest.mkdirs();
@@ -433,8 +490,8 @@ public abstract class SmbService {
             if (children != null) {
                 for (var child : children) {
                     var childName = child.getName();
-                    try (child; var childDest = new SmbFile(dest.getCanonicalPath() + childName, ctx)) {
-                        copyRecursively(ctx, child, childDest);
+                    try (child; var childDest = new SmbFile(dest.getCanonicalPath() + childName, cifsContext)) {
+                        copyRecursively(cifsContext, child, childDest);
                     }
                 }
             }
@@ -442,7 +499,7 @@ public abstract class SmbService {
             // Ensure parent directory exists
             var destUrl = dest.getCanonicalPath();
             var parentUrl = destUrl.substring(0, destUrl.lastIndexOf('/') + 1);
-            try (var parentDir = new SmbFile(parentUrl, ctx)) {
+            try (var parentDir = new SmbFile(parentUrl, cifsContext)) {
                 if (!parentDir.exists()) {
                     parentDir.mkdirs();
                 }

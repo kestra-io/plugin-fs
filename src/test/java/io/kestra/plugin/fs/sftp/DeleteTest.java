@@ -13,8 +13,7 @@ import java.util.Map;
 import static io.kestra.plugin.fs.sftp.SftpUtils.PASSWORD;
 import static io.kestra.plugin.fs.sftp.SftpUtils.USERNAME;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.*;
 
 @KestraTest
 class DeleteTest {
@@ -70,5 +69,65 @@ class DeleteTest {
         assertThat(run.getUri().getPath(), containsString(directory));
         assertThat(run.isDeleted(), is(true));
         assertThat(nestedFileDelete.isDeleted(), is(false));
+    }
+
+    @Test
+    void runRegExpMatchingFiles() throws Exception {
+        String directory = "upload/" + IdUtils.create();
+        String matchingFile = directory + "/" + IdUtils.create() + ".csv";
+        String nonMatchingFile = directory + "/" + IdUtils.create() + ".yaml";
+
+        sftpUtils.upload(matchingFile);
+        sftpUtils.upload(nonMatchingFile);
+
+        Delete task = Delete.builder()
+            .id(DeleteTest.class.getSimpleName())
+            .type(DeleteTest.class.getName())
+            .uri(Property.ofValue(directory))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .regExp(Property.ofValue(".*\\.csv"))
+            .build();
+
+        Delete.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(run.isDeleted(), is(true));
+        assertThat(run.getUris(), hasSize(1));
+        assertThat(run.getUris().getFirst().getPath(), containsString(".csv"));
+
+        // the .yaml file must still be present
+        var remaining = sftpUtils.list(directory);
+        assertThat(remaining.getFiles(), hasSize(1));
+        assertThat(remaining.getFiles().getFirst().getName(), endsWith(".yaml"));
+    }
+
+    @Test
+    void runRegExpNoMatch() throws Exception {
+        String directory = "upload/" + IdUtils.create();
+        String file = directory + "/" + IdUtils.create() + ".yaml";
+
+        sftpUtils.upload(file);
+
+        Delete task = Delete.builder()
+            .id(DeleteTest.class.getSimpleName())
+            .type(DeleteTest.class.getName())
+            .uri(Property.ofValue(directory))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .regExp(Property.ofValue(".*\\.csv"))
+            .build();
+
+        Delete.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(run.isDeleted(), is(false));
+        assertThat(run.getUris(), empty());
+
+        // the original file is untouched
+        var remaining = sftpUtils.list(directory);
+        assertThat(remaining.getFiles(), hasSize(1));
     }
 }
