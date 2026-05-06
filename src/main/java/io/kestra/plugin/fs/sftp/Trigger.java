@@ -33,12 +33,12 @@ import java.io.IOException;
 
                 tasks:
                   - id: for_each_file
-                    type: io.kestra.plugin.core.flow.ForEach
+                    type: io.kestra.plugin.core.flow.Loop
                     values: "{{ trigger.files }}"
                     tasks:
                       - id: return
                         type: io.kestra.plugin.core.debug.Return
-                        format: "{{ taskrun.value | jq('.path') }}"
+                        format: "{{ item.value | jq('.path') }}"
 
                 triggers:
                   - id: watch
@@ -62,19 +62,19 @@ import java.io.IOException;
 
                 tasks:
                   - id: for_each_file
-                    type: io.kestra.plugin.core.flow.ForEach
+                    type: io.kestra.plugin.core.flow.Loop
                     values: "{{ trigger.files | jq('.path') }}"
                     tasks:
                       - id: return
                         type: io.kestra.plugin.core.debug.Return
-                        format: "{{ taskrun.value }}"
+                        format: "{{ item.value }}"
                       - id: delete
                         type: io.kestra.plugin.fs.sftp.Delete
                         host: localhost
                         port: 6622
                         username: foo
                         password: "{{ secret('SFTP_PASSWORD') }}"
-                        uri: "/in/{{ taskrun.value }}"
+                        uri: "/in/{{ item.value }}"
 
                 triggers:
                   - id: watch
@@ -97,12 +97,12 @@ import java.io.IOException;
 
                 tasks:
                   - id: each
-                    type: io.kestra.plugin.core.flow.ForEach
+                    type: io.kestra.plugin.core.flow.Loop
                     values: "{{ trigger.files }}"
                     tasks:
                       - id: return
                         type: io.kestra.plugin.core.debug.Return
-                        format: "{{ taskrun.value | jq('.path') }}"
+                        format: "{{ item.value | jq('.path') }}"
 
                 triggers:
                   - id: watch
