@@ -14,7 +14,7 @@ plugins {
 def isBuildSnapshot = version.toString().endsWith("-SNAPSHOT")
 
 repositories {
-    mavenLocal()
+//    mavenLocal()
     mavenCentral()
     if (isBuildSnapshot) {
         maven { url "https://central.sonatype.com/repository/maven-snapshots/" }

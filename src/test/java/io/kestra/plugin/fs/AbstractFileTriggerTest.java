@@ -2,16 +2,18 @@ package io.kestra.plugin.fs;
 
 import com.devskiller.friendly_id.FriendlyId;
 import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.junit.annotations.LoadFlows;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.queues.DispatchQueueInterface;
-import io.kestra.core.repositories.LocalFlowRepositoryLoader;
 import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.runners.Scheduler;
 import io.kestra.plugin.fs.vfs.models.File;
 import jakarta.inject.Inject;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
-import java.util.Objects;
+import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -19,15 +21,13 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 
-// FIXME Remove once Worker closing has been reworked (Micronaut 4 PR)
-//  We need to rebuild the context for each tests as currently Workers can't be closed properly (they keep listening to queues they shouldn't)
-@KestraTest(rebuildContext = true, startRunner = true, startScheduler = true)
+@KestraTest(startRunner = true, startScheduler = true)
 public abstract class AbstractFileTriggerTest {
     @Inject
     private DispatchQueueInterface<Execution> executionQueue;
 
     @Inject
-    protected LocalFlowRepositoryLoader repositoryLoader;
+    protected Scheduler scheduler;
 
     @Inject
     protected RunContextFactory runContextFactory;
@@ -37,7 +37,14 @@ public abstract class AbstractFileTriggerTest {
     abstract protected AbstractUtils utils();
 
     @Test
+    @LoadFlows({
+        "flows/ftp-listen.yaml",
+        "flows/sftp-listen.yaml",
+        "flows/smb-listen.yaml"
+    })
     void moveAction() throws Exception {
+        Awaitility.await().atMost(Duration.ofSeconds(20)).pollInterval(Duration.ofMillis(100)).until(() -> scheduler.isActive());
+
         CountDownLatch queueCount = new CountDownLatch(1);
         AtomicReference<Execution> last = new AtomicReference<>();
 
@@ -56,9 +63,7 @@ public abstract class AbstractFileTriggerTest {
         String out2 = FriendlyId.createFriendlyId();
         utils().upload(toUploadDir + "/" + out2);
 
-        repositoryLoader.load(Objects.requireNonNull(AbstractFileTriggerTest.class.getClassLoader().getResource("flows")));
-
-        boolean await = queueCount.await(10, TimeUnit.SECONDS);
+        boolean await = queueCount.await(1, TimeUnit.MINUTES);
         assertThat(await, is(true));
 
         @SuppressWarnings("unchecked")
@@ -73,7 +78,14 @@ public abstract class AbstractFileTriggerTest {
     }
 
     @Test
+    @LoadFlows({
+        "flows/ftp-listen-none-action.yaml",
+        "flows/sftp-listen-none-action.yaml",
+        "flows/smb-listen-none-action.yaml"
+    })
     void noneAction() throws Exception {
+        Awaitility.await().atMost(Duration.ofSeconds(20)).pollInterval(Duration.ofMillis(100)).until(() -> scheduler.isActive());
+
         CountDownLatch queueCount = new CountDownLatch(1);
         AtomicReference<Execution> last = new AtomicReference<>();
 
@@ -91,9 +103,7 @@ public abstract class AbstractFileTriggerTest {
         String out2 = FriendlyId.createFriendlyId();
         utils().upload(toUploadDir + "/" + out2);
 
-        repositoryLoader.load(Objects.requireNonNull(AbstractFileTriggerTest.class.getClassLoader().getResource("flows")));
-
-        boolean await = queueCount.await(10, TimeUnit.SECONDS);
+        boolean await = queueCount.await(1, TimeUnit.MINUTES);
         assertThat(await, is(true));
 
         @SuppressWarnings("unchecked")
@@ -107,7 +117,14 @@ public abstract class AbstractFileTriggerTest {
     }
 
     @Test
+    @LoadFlows({
+        "flows/ftp-listen-missing.yaml",
+        "flows/sftp-listen-missing.yaml",
+        "flows/smb-listen-missing.yaml"
+    })
     void missing() throws Exception {
+        Awaitility.await().atMost(Duration.ofSeconds(20)).pollInterval(Duration.ofMillis(100)).until(() -> scheduler.isActive());
+
         CountDownLatch queueCount = new CountDownLatch(1);
         AtomicReference<Execution> last = new AtomicReference<>();
 
@@ -122,9 +139,7 @@ public abstract class AbstractFileTriggerTest {
         cleanupRemoteDir("/upload/trigger-missing");
         utils().upload("/upload/trigger-missing/" + file);
 
-        repositoryLoader.load(Objects.requireNonNull(AbstractFileTriggerTest.class.getClassLoader().getResource("flows")));
-
-        boolean await = queueCount.await(10, TimeUnit.SECONDS);
+        boolean await = queueCount.await(1, TimeUnit.MINUTES);
         assertThat(await, is(true));
 
         @SuppressWarnings("unchecked")
