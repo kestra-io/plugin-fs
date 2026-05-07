@@ -89,10 +89,6 @@ public class Delete extends AbstractLocalTask implements RunnableTask<Delete.Out
     )
     @PluginProperty(group = "advanced")
     private Property<String> regExp;
-<<<<<<< HEAD
-=======
->>>>>>> Stashed changes
->>>>>>> 4f9b401 (fix: v2 compatibility)
 
     @Override
     public Output run(RunContext runContext) throws Exception {
