@@ -41,7 +41,6 @@ public class TriggerTest extends AbstractFileTriggerTest {
         return sftpUtils;
     }
 
-    @Override
     protected AbstractTrigger createTrigger(String from, Downloads.Action action, String moveDirectory) {
         return Trigger.builder()
             .id(TriggerTest.class.getSimpleName())
