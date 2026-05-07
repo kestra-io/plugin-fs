@@ -10,4 +10,4 @@ tasks:
     type: io.kestra.plugin.core.execution.Assert
     conditions:
       - "{{ outputs.request.code == 200 }}"
-      - "{{ json(outputs.request.body).products[0].id == 1}}"
+      - "{{ fromJson(outputs.request.body).products[0].id == 1 }}"

@@ -48,12 +48,12 @@ import io.kestra.core.models.annotations.PluginProperty;
 
                 tasks:
                   - id: for_each_file
-                    type: io.kestra.plugin.core.flow.ForEach
+                    type: io.kestra.plugin.core.flow.Loop
                     values: "{{ trigger.files }}"
                     tasks:
                       - id: return
                         type: io.kestra.plugin.core.debug.Return
-                        format: "{{ taskrun.value | jq('.path') }}"
+                        format: "{{ item.value | jq('.path') }}"
 
                 triggers:
                   - id: watch
@@ -79,19 +79,19 @@ import io.kestra.core.models.annotations.PluginProperty;
 
                 tasks:
                   - id: for_each_file
-                    type: io.kestra.plugin.core.flow.ForEach
+                    type: io.kestra.plugin.core.flow.Loop
                     values: "{{ trigger.files }}"
                     tasks:
                       - id: return
                         type: io.kestra.plugin.core.debug.Return
-                        format: "{{ taskrun.value | jq('.path') }}"
+                        format: "{{ item.value | jq('.path') }}"
                       - id: delete
                         type: io.kestra.plugin.fs.smb.Delete
                         host: localhost
                         port: "445"
                         username: foo
                         password: "{{ secret('SMB_PASSWORD') }}"
-                        uri: "/my_share/in/{{ taskrun.value | jq('.path') }}"
+                        uri: "/my_share/in/{{ item.value | jq('.path') }}"
 
                 triggers:
                   - id: watch
@@ -116,12 +116,12 @@ import io.kestra.core.models.annotations.PluginProperty;
 
                 tasks:
                   - id: each
-                    type: io.kestra.plugin.core.flow.ForEach
+                    type: io.kestra.plugin.core.flow.Loop
                     values: "{{ trigger.files }}"
                     tasks:
                       - id: return
                         type: io.kestra.plugin.core.debug.Return
-                        format: "{{ taskrun.value | jq('.path') }}"
+                        format: "{{ item.value | jq('.path') }}"
 
                 triggers:
                   - id: watch

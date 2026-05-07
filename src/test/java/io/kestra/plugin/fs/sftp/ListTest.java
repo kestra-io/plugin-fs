@@ -3,13 +3,11 @@ package io.kestra.plugin.fs.sftp;
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.executions.LogEntry;
 import io.kestra.core.models.property.Property;
-import io.kestra.core.queues.QueueFactoryInterface;
-import io.kestra.core.queues.QueueInterface;
+import io.kestra.core.queues.DispatchQueueInterface;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import jakarta.inject.Inject;
-import jakarta.inject.Named;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -30,13 +28,12 @@ class ListTest {
     private SftpUtils sftpUtils;
 
     @Inject
-    @Named(QueueFactoryInterface.WORKERTASKLOG_NAMED)
-    private QueueInterface<LogEntry> logQueue;
+    private DispatchQueueInterface<LogEntry> logQueue;
 
     @Test
     void all() throws Exception {
         java.util.List<LogEntry> logs = new CopyOnWriteArrayList<>();
-        var receive = TestsUtils.receive(logQueue, l -> logs.add(l.getLeft()));
+        logQueue.addListener(logs::add);
         String expectedEnabledRsaSha1Logs = "RSA/SHA1 is enabled, be advised that SHA1 is no longer considered secure by the general cryptographic community.";
 
         String dir = "/" + IdUtils.create();
@@ -75,7 +72,6 @@ class ListTest {
         assertThat(run.getFiles().size(), is(1));
 
         TestsUtils.awaitLog(logs, log -> log.getMessage() != null && log.getMessage().contains(expectedEnabledRsaSha1Logs));
-        receive.blockLast();
         assertThat(java.util.List.copyOf(logs).stream().anyMatch(log -> log.getMessage() != null && log.getMessage().contains(expectedEnabledRsaSha1Logs)), is(true));
     }
 }
