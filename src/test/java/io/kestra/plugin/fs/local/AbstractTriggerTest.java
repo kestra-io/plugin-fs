@@ -2,17 +2,19 @@ package io.kestra.plugin.fs.local;
 
 import com.devskiller.friendly_id.FriendlyId;
 import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.junit.annotations.LoadFlows;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.queues.DispatchQueueInterface;
-import io.kestra.core.repositories.LocalFlowRepositoryLoader;
 import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.runners.Scheduler;
 import io.kestra.plugin.fs.vfs.models.File;
 import jakarta.inject.Inject;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Objects;
+import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -20,13 +22,13 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
-@KestraTest(rebuildContext = true, startRunner = true, startScheduler = true)
+@KestraTest(startRunner = true, startScheduler = true)
 public abstract class AbstractTriggerTest {
     @Inject
     private DispatchQueueInterface<Execution> executionQueue;
 
     @Inject
-    protected LocalFlowRepositoryLoader repositoryLoader;
+    protected Scheduler scheduler;
 
     @Inject
     protected RunContextFactory runContextFactory;
@@ -36,7 +38,10 @@ public abstract class AbstractTriggerTest {
     abstract protected LocalUtils utils();
 
     @Test
+    @LoadFlows({"flows/local-listen.yaml"})
     void moveAction() throws Exception {
+        Awaitility.await().atMost(Duration.ofSeconds(20)).pollInterval(Duration.ofMillis(100)).until(() -> scheduler.isActive());
+
         String toUploadDir = "/tmp/local-listen";
         Files.createDirectories(Paths.get(toUploadDir));
 
@@ -56,9 +61,7 @@ public abstract class AbstractTriggerTest {
         String out2 = FriendlyId.createFriendlyId();
         utils().upload(toUploadDir + "/" + out2);
 
-        repositoryLoader.load(Objects.requireNonNull(io.kestra.plugin.fs.local.AbstractTriggerTest.class.getClassLoader().getResource("flows")));
-
-        boolean await = queueCount.await(20, TimeUnit.SECONDS);
+        boolean await = queueCount.await(1, TimeUnit.MINUTES);
         assertThat(await, is(true));
 
         @SuppressWarnings("unchecked")
@@ -72,7 +75,10 @@ public abstract class AbstractTriggerTest {
     }
 
     @Test
+    @LoadFlows({"flows/local-listen-none-action.yaml"})
     void noneAction() throws Exception {
+        Awaitility.await().atMost(Duration.ofSeconds(20)).pollInterval(Duration.ofMillis(100)).until(() -> scheduler.isActive());
+
         String toUploadDir = "/tmp/local-listen-none-action";
         Files.createDirectories(Paths.get(toUploadDir));
 
@@ -92,9 +98,7 @@ public abstract class AbstractTriggerTest {
         String out2 = FriendlyId.createFriendlyId();
         utils().upload(toUploadDir + "/" + out2);
 
-        repositoryLoader.load(Objects.requireNonNull(io.kestra.plugin.fs.local.AbstractTriggerTest.class.getClassLoader().getResource("flows")));
-
-        boolean await = queueCount.await(20, TimeUnit.SECONDS);
+        boolean await = queueCount.await(1, TimeUnit.MINUTES);
         assertThat(await, is(true));
 
         @SuppressWarnings("unchecked")
