@@ -54,6 +54,14 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
     @PluginProperty(group = "execution")
     private Property<Integer> maxFiles = Property.ofValue(25);
 
+    @Builder.Default
+    @Schema(
+        title = "Overwrite existing files",
+        description = "If true (default), existing destination files are overwritten."
+    )
+    @PluginProperty(group = "advanced")
+    private Property<Boolean> overwrite = Property.ofValue(true);
+
     public Output run(RunContext runContext) throws Exception {
         try (StandardFileSystemManager fsm = new KestraStandardFileSystemManager(runContext)) {
             fsm.setConfiguration(StandardFileSystemManager.class.getResource(KestraStandardFileSystemManager.CONFIG_RESOURCE));
@@ -67,6 +75,8 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
                 runContext.logger().warn("Too many files to process ({}), limiting to {}", fileMappings.size(), rMaxFiles);
                 fileMappings = fileMappings.subList(0, rMaxFiles);
             }
+
+            boolean rOverwrite = runContext.render(this.overwrite).as(Boolean.class).orElse(true);
 
             java.util.List<Upload.Output> outputs = fileMappings.stream().map(throwFunction(entry -> {
                 String destFileName = entry.getKey();
@@ -87,7 +97,8 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
                     fsm,
                     this.fsOptions(runContext),
                     URI.create(fromURI),
-                    this.uri(runContext, destPath)
+                    this.uri(runContext, destPath),
+                    rOverwrite
                 );
             })).toList();
 

@@ -104,6 +104,40 @@ class UploadsTest {
     }
 
     @Test
+    void run_withOverwriteFalseShouldSucceedWhenNoConflict() throws Exception {
+        URI uri1 = sftpUtils.uploadToStorage();
+        URI uri2 = sftpUtils.uploadToStorage();
+        String dir = "/upload/" + IdUtils.create();
+        Uploads uploads = Uploads.builder()
+            .id(UploadsTest.class.getSimpleName())
+            .type(UploadsTest.class.getName())
+            .from(List.of(uri1.toString(), uri2.toString()))
+            .to(Property.ofValue(dir))
+            .overwrite(Property.ofValue(false))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+        Output uploadsRun = uploads.run(TestsUtils.mockRunContext(runContextFactory, uploads, Map.of()));
+
+        assertThat(uploadsRun.getFiles().size(), is(2));
+
+        // Cleanup
+        Downloads cleanup = Downloads.builder()
+            .id(UploadsTest.class.getSimpleName())
+            .type(UploadsTest.class.getName())
+            .from(Property.ofValue(dir + "/"))
+            .action(Property.ofValue(Downloads.Action.DELETE))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+        cleanup.run(TestsUtils.mockRunContext(runContextFactory, cleanup, Map.of()));
+    }
+
+    @Test
     void run() throws Exception {
         URI uri1 = sftpUtils.uploadToStorage();
         URI uri2 = sftpUtils.uploadToStorage();
