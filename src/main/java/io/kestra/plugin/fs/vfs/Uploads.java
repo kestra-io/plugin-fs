@@ -57,7 +57,7 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
     @Builder.Default
     @Schema(
         title = "Overwrite existing files",
-        description = "If true (default), existing destination files are overwritten."
+        description = "If false, fails when the destination already exists."
     )
     @PluginProperty(group = "advanced")
     private Property<Boolean> overwrite = Property.ofValue(true);
