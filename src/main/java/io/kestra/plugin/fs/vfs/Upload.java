@@ -34,11 +34,11 @@ public abstract class Upload extends AbstractVfsTask implements RunnableTask<Upl
 
     @Schema(
         title = "Overwrite existing files",
-        description = "If false (default), fails when the destination already exists."
+        description = "If false, fails when the destination already exists."
     )
     @Builder.Default
     @PluginProperty(group = "advanced")
-    private Property<Boolean> overwrite = Property.ofValue(false);
+    private Property<Boolean> overwrite = Property.ofValue(true);
 
     public Upload.Output run(RunContext runContext) throws Exception {
         try (StandardFileSystemManager fsm = new KestraStandardFileSystemManager(runContext)) {

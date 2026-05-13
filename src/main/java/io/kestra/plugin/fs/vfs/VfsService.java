@@ -191,6 +191,13 @@ public abstract class VfsService {
                     remote.getName().getPath()
                 ));
             }
+            //Fail when the destination file already exists and overwrite is disabled
+            if (!overwrite && remote.exists() && !remote.isFolder()) {
+                throw new KestraRuntimeException(String.format(
+                    "File '%s' already exists in the remote server and cannot be overwritten. Set `overwrite: true` to replace it.",
+                    remote.getName().getPath()
+                ));
+            }
             remote.copyFrom(local, Selectors.SELECT_SELF);
         }
 

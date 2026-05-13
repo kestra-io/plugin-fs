@@ -15,11 +15,15 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
+import io.kestra.core.exceptions.KestraRuntimeException;
+
 import static io.kestra.plugin.fs.sftp.SftpUtils.PASSWORD;
 import static io.kestra.plugin.fs.sftp.SftpUtils.USERNAME;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.is;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @KestraTest
 class UploadsTest {
@@ -101,6 +105,58 @@ class UploadsTest {
             .password(PASSWORD)
             .build();
         task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+    }
+
+    @Test
+    void run_withOverwriteFalseShouldFailWhenFileExists() throws Exception {
+        URI uri1 = sftpUtils.uploadToStorage();
+        String dir = "/upload/" + IdUtils.create();
+
+        Uploads first = Uploads.builder()
+            .id(UploadsTest.class.getSimpleName())
+            .type(UploadsTest.class.getName())
+            .from(List.of(uri1.toString()))
+            .to(Property.ofValue(dir))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+        first.run(TestsUtils.mockRunContext(runContextFactory, first, Map.of()));
+
+        Uploads second = Uploads.builder()
+            .id(UploadsTest.class.getSimpleName())
+            .type(UploadsTest.class.getName())
+            .from(List.of(uri1.toString()))
+            .to(Property.ofValue(dir))
+            .overwrite(Property.ofValue(false))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+
+        KestraRuntimeException ex = assertThrows(
+            KestraRuntimeException.class,
+            () -> second.run(TestsUtils.mockRunContext(runContextFactory, second, Map.of()))
+        );
+        assertThat(ex.getMessage(), containsString("already exists"));
+
+        cleanupDir(dir);
+    }
+
+    private void cleanupDir(String dir) throws Exception {
+        Downloads cleanup = Downloads.builder()
+            .id(UploadsTest.class.getSimpleName())
+            .type(UploadsTest.class.getName())
+            .from(Property.ofValue(dir + "/"))
+            .action(Property.ofValue(Downloads.Action.DELETE))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+        cleanup.run(TestsUtils.mockRunContext(runContextFactory, cleanup, Map.of()));
     }
 
     @Test
