@@ -101,7 +101,7 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
             java.util.List<io.kestra.plugin.fs.vfs.models.File> list = files
                 .stream()
                 .map(throwFunction(file -> {
-                    Download.Output download = VfsService.download(
+                    Download.Output download = VfsService.download(VfsDownloadRequest.of(
                         runContext,
                         fsm,
                         fileSystemOptions,
@@ -114,7 +114,7 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
                             runContext.render(this.password).as(String.class).orElse(null),
                             file.getServerPath().getPath()
                         )
-                    );
+                    ));
 
                     logger.debug("File '{}' download to '{}'", from.getPath(), download.getTo());
 

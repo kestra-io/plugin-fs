@@ -5,6 +5,7 @@ import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
+import io.kestra.plugin.fs.vfs.ChecksumService;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -37,6 +38,25 @@ import io.kestra.core.models.annotations.PluginProperty;
                     password: "{{ secret('SMB_PASSWORD') }}"
                     from: "/my_share/file.txt"
                 """
+        ),
+        @Example(
+            title = "Download a file and fail if its SHA-256 checksum does not match",
+            full = true,
+            code = """
+                id: fs_smb_download_checksum
+                namespace: company.team
+
+                tasks:
+                  - id: download
+                    type: io.kestra.plugin.fs.smb.Download
+                    host: localhost
+                    port: "445"
+                    username: foo
+                    password: "{{ secret('SMB_PASSWORD') }}"
+                    from: "/my_share/file.txt"
+                    validateChecksum: true
+                    checksumExpected: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                """
         )
     }
 )
@@ -48,15 +68,45 @@ public class Download extends AbstractSmbTask implements RunnableTask<io.kestra.
     @PluginProperty(group = "main")
     protected Property<String> from;
 
+    @Schema(
+        title = "Validate the downloaded file against an expected checksum",
+        description = "When enabled, the task fails if the computed checksum does not match `checksumExpected`. The downloaded file is not stored in internal storage if validation fails."
+    )
+    @Builder.Default
+    @PluginProperty(group = "advanced")
+    protected Property<Boolean> validateChecksum = Property.ofValue(false);
+
+    @Schema(
+        title = "Expected checksum value to compare against the downloaded file",
+        description = "Required when `validateChecksum` is `true`. Comparison is case-insensitive."
+    )
+    @PluginProperty(group = "advanced")
+    protected Property<String> checksumExpected;
+
+    @Schema(
+        title = "Checksum algorithm to use",
+        description = "Defaults to `SHA_256`. The computed checksum is always exposed on the output as `checksum`."
+    )
+    @Builder.Default
+    @PluginProperty(group = "advanced")
+    protected Property<ChecksumService.Algorithm> checksumAlgorithm = Property.ofValue(ChecksumService.Algorithm.SHA_256);
+
     public io.kestra.plugin.fs.vfs.Download.Output run(RunContext runContext) throws Exception {
         var ctx = createContext(runContext);
         try {
-            return SmbService.download(
+            boolean rValidateChecksum = runContext.render(this.validateChecksum).as(Boolean.class).orElse(false);
+            String rChecksumExpected = runContext.render(this.checksumExpected).as(String.class).orElse(null);
+            ChecksumService.Algorithm rChecksumAlgorithm = runContext.render(this.checksumAlgorithm).as(ChecksumService.Algorithm.class).orElse(ChecksumService.Algorithm.SHA_256);
+
+            return SmbService.download(new SmbDownloadRequest(
                 runContext,
                 ctx,
                 this,
-                runContext.render(this.from).as(String.class).orElseThrow()
-            );
+                runContext.render(this.from).as(String.class).orElseThrow(),
+                rValidateChecksum,
+                rChecksumExpected,
+                rChecksumAlgorithm
+            ));
         } finally {
             ctx.close();
         }

@@ -126,20 +126,21 @@ public abstract class VfsService {
         }
     }
 
-    public static Download.Output download(
-        RunContext runContext,
-        StandardFileSystemManager fsm,
-        FileSystemOptions fileSystemOptions,
-        URI from
-    ) throws Exception {
+    public static Download.Output download(VfsDownloadRequest request) throws Exception {
+        RunContext runContext = request.runContext();
+        URI from = request.from();
         java.io.File tempFile = runContext.workingDir().createTempFile(FileUtils.getExtension(from)).toFile();
 
         try (
-            FileObject local = fsm.resolveFile(tempFile.toURI());
-            FileObject remote = fsm.resolveFile(from.toString(), fileSystemOptions)
+            FileObject local = request.fsm().resolveFile(tempFile.toURI());
+            FileObject remote = request.fsm().resolveFile(from.toString(), request.fileSystemOptions())
         ) {
             local.copyFrom(remote, Selectors.SELECT_SELF);
         }
+
+        String checksum = request.validateChecksum()
+            ? ChecksumService.verify(tempFile.toPath(), request.checksumAlgorithm(), request.checksumExpected())
+            : ChecksumService.compute(tempFile.toPath(), request.checksumAlgorithm());
 
         URI storageUri = runContext.storage().putFile(tempFile);
 
@@ -148,6 +149,7 @@ public abstract class VfsService {
         return Download.Output.builder()
             .from(VfsService.uriWithoutAuth(from))
             .to(storageUri)
+            .checksum(checksum)
             .build();
     }
 
