@@ -98,7 +98,7 @@ public class Download extends AbstractSmbTask implements RunnableTask<io.kestra.
             String rChecksumExpected = runContext.render(this.checksumExpected).as(String.class).orElse(null);
             ChecksumService.Algorithm rChecksumAlgorithm = runContext.render(this.checksumAlgorithm).as(ChecksumService.Algorithm.class).orElse(ChecksumService.Algorithm.SHA_256);
 
-            return SmbService.download(
+            return SmbService.download(new SmbDownloadRequest(
                 runContext,
                 ctx,
                 this,
@@ -106,7 +106,7 @@ public class Download extends AbstractSmbTask implements RunnableTask<io.kestra.
                 rValidateChecksum,
                 rChecksumExpected,
                 rChecksumAlgorithm
-            );
+            ));
         } finally {
             ctx.close();
         }

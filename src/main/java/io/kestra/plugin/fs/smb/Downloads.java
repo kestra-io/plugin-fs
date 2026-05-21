@@ -118,12 +118,12 @@ public class Downloads extends AbstractSmbTask implements RunnableTask<Downloads
 
             var list = files.stream()
                 .map(throwFunction(file -> {
-                    var download = SmbService.download(
+                    var download = SmbService.download(SmbDownloadRequest.of(
                         runContext,
                         ctx,
                         this,
                         file.getServerPath().getPath()
-                    );
+                    ));
 
                     logger.debug("File '{}' download to '{}'", fromPath, download.getTo());
 

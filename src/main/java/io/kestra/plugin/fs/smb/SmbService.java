@@ -149,38 +149,24 @@ public abstract class SmbService {
         }
     }
 
-    public static io.kestra.plugin.fs.vfs.Download.Output download(
-        RunContext runContext,
-        CIFSContext cifsContext,
-        SmbInterface smbInterface,
-        String filepath
-    ) throws Exception {
-        return download(runContext, cifsContext, smbInterface, filepath, false, null, io.kestra.plugin.fs.vfs.ChecksumService.Algorithm.SHA_256);
-    }
+    public static io.kestra.plugin.fs.vfs.Download.Output download(SmbDownloadRequest request) throws Exception {
+        RunContext runContext = request.runContext();
+        SmbInterface smbInterface = request.smbInterface();
+        String filepath = request.filepath();
 
-    public static io.kestra.plugin.fs.vfs.Download.Output download(
-        RunContext runContext,
-        CIFSContext cifsContext,
-        SmbInterface smbInterface,
-        String filepath,
-        boolean validateChecksum,
-        String checksumExpected,
-        io.kestra.plugin.fs.vfs.ChecksumService.Algorithm checksumAlgorithm
-    ) throws Exception {
         var url = smbUrl(runContext, smbInterface, filepath);
         var ext = FileUtils.getExtension(filepath);
         var tempFile = runContext.workingDir().createTempFile(ext).toFile();
 
-        try (var remote = new SmbFile(url, cifsContext);
+        try (var remote = new SmbFile(url, request.cifsContext());
              var in = remote.getInputStream();
              var out = new FileOutputStream(tempFile)) {
             IOUtils.copy(in, out);
         }
 
-        var algorithm = checksumAlgorithm != null ? checksumAlgorithm : io.kestra.plugin.fs.vfs.ChecksumService.Algorithm.SHA_256;
-        var checksum = validateChecksum
-            ? io.kestra.plugin.fs.vfs.ChecksumService.verify(tempFile.toPath(), algorithm, checksumExpected)
-            : io.kestra.plugin.fs.vfs.ChecksumService.compute(tempFile.toPath(), algorithm);
+        var checksum = request.validateChecksum()
+            ? io.kestra.plugin.fs.vfs.ChecksumService.verify(tempFile.toPath(), request.checksumAlgorithm(), request.checksumExpected())
+            : io.kestra.plugin.fs.vfs.ChecksumService.compute(tempFile.toPath(), request.checksumAlgorithm());
 
         var storageUri = runContext.storage().putFile(tempFile);
 

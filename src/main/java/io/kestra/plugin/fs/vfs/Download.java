@@ -57,7 +57,7 @@ public abstract class Download extends AbstractVfsTask implements RunnableTask<D
             String rChecksumExpected = runContext.render(this.checksumExpected).as(String.class).orElse(null);
             ChecksumService.Algorithm rChecksumAlgorithm = runContext.render(this.checksumAlgorithm).as(ChecksumService.Algorithm.class).orElse(ChecksumService.Algorithm.SHA_256);
 
-            return VfsService.download(
+            return VfsService.download(new VfsDownloadRequest(
                 runContext,
                 fsm,
                 this.fsOptions(runContext),
@@ -65,7 +65,7 @@ public abstract class Download extends AbstractVfsTask implements RunnableTask<D
                 rValidateChecksum,
                 rChecksumExpected,
                 rChecksumAlgorithm
-            );
+            ));
         }
     }
 

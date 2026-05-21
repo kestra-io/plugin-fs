@@ -207,7 +207,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
 
             // 1) Download first, do NOT update state yet.
             for (PendingFile pending : limitedPending) {
-                Download.Output download = VfsService.download(
+                Download.Output download = VfsService.download(VfsDownloadRequest.of(
                     runContext,
                     fsm,
                     fileSystemOptions,
@@ -220,7 +220,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                         runContext.render(this.password).as(String.class).orElse(null),
                         pending.file.getServerPath().getPath()
                     )
-                );
+                ));
 
                 logger.debug("File '{}' download to '{}'", from.getPath(), download.getTo());
 

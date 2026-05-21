@@ -288,12 +288,12 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
             // 1) Download first, do NOT update state yet.
             for (PendingFile pending : limitedPending) {
-                var download = SmbService.download(
+                var download = SmbService.download(SmbDownloadRequest.of(
                     runContext,
                     ctx,
                     this,
                     pending.file.getServerPath().getPath()
-                );
+                ));
 
                 logger.debug("File '{}' download to '{}'", fromPath, download.getTo());
 
