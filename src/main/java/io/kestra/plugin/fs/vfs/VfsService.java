@@ -132,6 +132,18 @@ public abstract class VfsService {
         FileSystemOptions fileSystemOptions,
         URI from
     ) throws Exception {
+        return download(runContext, fsm, fileSystemOptions, from, false, null, ChecksumService.Algorithm.SHA_256);
+    }
+
+    public static Download.Output download(
+        RunContext runContext,
+        StandardFileSystemManager fsm,
+        FileSystemOptions fileSystemOptions,
+        URI from,
+        boolean validateChecksum,
+        String checksumExpected,
+        ChecksumService.Algorithm checksumAlgorithm
+    ) throws Exception {
         java.io.File tempFile = runContext.workingDir().createTempFile(FileUtils.getExtension(from)).toFile();
 
         try (
@@ -141,6 +153,11 @@ public abstract class VfsService {
             local.copyFrom(remote, Selectors.SELECT_SELF);
         }
 
+        ChecksumService.Algorithm algorithm = checksumAlgorithm != null ? checksumAlgorithm : ChecksumService.Algorithm.SHA_256;
+        String checksum = validateChecksum
+            ? ChecksumService.verify(tempFile.toPath(), algorithm, checksumExpected)
+            : ChecksumService.compute(tempFile.toPath(), algorithm);
+
         URI storageUri = runContext.storage().putFile(tempFile);
 
         runContext.logger().debug("File '{}' download to '{}'", VfsService.uriWithoutAuth(from), storageUri);
@@ -148,6 +165,7 @@ public abstract class VfsService {
         return Download.Output.builder()
             .from(VfsService.uriWithoutAuth(from))
             .to(storageUri)
+            .checksum(checksum)
             .build();
     }
 
