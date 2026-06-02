@@ -149,21 +149,24 @@ public abstract class SmbService {
         }
     }
 
-    public static io.kestra.plugin.fs.vfs.Download.Output download(
-        RunContext runContext,
-        CIFSContext cifsContext,
-        SmbInterface smbInterface,
-        String filepath
-    ) throws Exception {
+    public static io.kestra.plugin.fs.vfs.Download.Output download(SmbDownloadRequest request) throws Exception {
+        RunContext runContext = request.runContext();
+        SmbInterface smbInterface = request.smbInterface();
+        String filepath = request.filepath();
+
         var url = smbUrl(runContext, smbInterface, filepath);
         var ext = FileUtils.getExtension(filepath);
         var tempFile = runContext.workingDir().createTempFile(ext).toFile();
 
-        try (var remote = new SmbFile(url, cifsContext);
+        try (var remote = new SmbFile(url, request.cifsContext());
              var in = remote.getInputStream();
              var out = new FileOutputStream(tempFile)) {
             IOUtils.copy(in, out);
         }
+
+        var checksum = request.validateChecksum()
+            ? io.kestra.plugin.fs.vfs.ChecksumService.verify(tempFile.toPath(), request.checksumAlgorithm(), request.checksumExpected())
+            : io.kestra.plugin.fs.vfs.ChecksumService.compute(tempFile.toPath(), request.checksumAlgorithm());
 
         var storageUri = runContext.storage().putFile(tempFile);
 
@@ -176,6 +179,7 @@ public abstract class SmbService {
         return io.kestra.plugin.fs.vfs.Download.Output.builder()
             .from(fromUri)
             .to(storageUri)
+            .checksum(checksum)
             .build();
     }
 

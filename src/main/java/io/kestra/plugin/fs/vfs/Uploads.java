@@ -18,6 +18,7 @@ import java.util.AbstractMap.SimpleEntry;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -47,12 +48,27 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
     @PluginProperty(group = "main")
     private Property<String> to;
 
+    @Schema(
+        title = "Regexp filter on full path",
+        description = "Only source URIs fully matching this regex are uploaded. Example: `.*\\.sql$`."
+    )
+    @PluginProperty(group = "processing")
+    private Property<String> regExp;
+
     @Builder.Default
     @Schema(
         title = "Maximum files to upload"
     )
     @PluginProperty(group = "execution")
     private Property<Integer> maxFiles = Property.ofValue(25);
+
+    @Builder.Default
+    @Schema(
+        title = "Overwrite existing files",
+        description = "If false, fails when the destination already exists."
+    )
+    @PluginProperty(group = "advanced")
+    private Property<Boolean> overwrite = Property.ofValue(true);
 
     public Output run(RunContext runContext) throws Exception {
         try (StandardFileSystemManager fsm = new KestraStandardFileSystemManager(runContext)) {
@@ -62,11 +78,23 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
             // Each entry maps a destination filename (or null) to a source URI
             java.util.List<Map.Entry<String, String>> fileMappings = parseFromProperty(runContext);
 
+            String rRegExp = runContext.render(this.regExp).as(String.class).orElse(null);
+            if (rRegExp != null) {
+                Pattern pattern = Pattern.compile(rRegExp);
+                int total = fileMappings.size();
+                fileMappings = fileMappings.stream()
+                    .filter(entry -> pattern.matcher(entry.getValue()).matches())
+                    .toList();
+                runContext.logger().debug("Matched {} of {} files", fileMappings.size(), total);
+            }
+
             int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
             if (fileMappings.size() > rMaxFiles) {
                 runContext.logger().warn("Too many files to process ({}), limiting to {}", fileMappings.size(), rMaxFiles);
                 fileMappings = fileMappings.subList(0, rMaxFiles);
             }
+
+            boolean rOverwrite = runContext.render(this.overwrite).as(Boolean.class).orElse(true);
 
             java.util.List<Upload.Output> outputs = fileMappings.stream().map(throwFunction(entry -> {
                 String destFileName = entry.getKey();
@@ -87,7 +115,8 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
                     fsm,
                     this.fsOptions(runContext),
                     URI.create(fromURI),
-                    this.uri(runContext, destPath)
+                    this.uri(runContext, destPath),
+                    rOverwrite
                 );
             })).toList();
 

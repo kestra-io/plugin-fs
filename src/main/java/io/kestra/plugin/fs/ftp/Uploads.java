@@ -49,6 +49,27 @@ import io.kestra.core.models.annotations.PluginProperty;
                                   - "{{ inputs.file2 }}"
                                 to: "/upload/dir2"
                             """
+                ),
+                @Example(
+                        title = "Upload only files matching a regex (e.g. .sql files)",
+                        full = true,
+                        code = """
+                            id: fs_ftp_uploads_regexp
+                            namespace: company.team
+
+                            tasks:
+                              - id: uploads
+                                type: io.kestra.plugin.fs.ftp.Uploads
+                                host: ftp.example.com
+                                port: 21
+                                username: foo
+                                password: "{{ secret('FTP_PASSWORD') }}"
+                                from:
+                                  - "{{ outputs.step1.uri }}"
+                                  - "{{ outputs.step2.uri }}"
+                                regExp: ".*\\\\.sql$"
+                                to: "/upload/dir2"
+                            """
                 )
         }
 )

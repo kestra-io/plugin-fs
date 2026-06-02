@@ -38,6 +38,10 @@ kestra:
         values:
           allowed-paths:
             - /
+      - type: io.kestra.plugin.fs.local.Uploads
+        values:
+          allowed-paths:
+            - /tmp
       - type: io.kestra.plugin.fs.local.Delete
         values:
           allowed-paths:

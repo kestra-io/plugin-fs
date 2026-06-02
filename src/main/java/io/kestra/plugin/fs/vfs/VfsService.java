@@ -126,20 +126,21 @@ public abstract class VfsService {
         }
     }
 
-    public static Download.Output download(
-        RunContext runContext,
-        StandardFileSystemManager fsm,
-        FileSystemOptions fileSystemOptions,
-        URI from
-    ) throws Exception {
+    public static Download.Output download(VfsDownloadRequest request) throws Exception {
+        RunContext runContext = request.runContext();
+        URI from = request.from();
         java.io.File tempFile = runContext.workingDir().createTempFile(FileUtils.getExtension(from)).toFile();
 
         try (
-            FileObject local = fsm.resolveFile(tempFile.toURI());
-            FileObject remote = fsm.resolveFile(from.toString(), fileSystemOptions)
+            FileObject local = request.fsm().resolveFile(tempFile.toURI());
+            FileObject remote = request.fsm().resolveFile(from.toString(), request.fileSystemOptions())
         ) {
             local.copyFrom(remote, Selectors.SELECT_SELF);
         }
+
+        String checksum = request.validateChecksum()
+            ? ChecksumService.verify(tempFile.toPath(), request.checksumAlgorithm(), request.checksumExpected())
+            : ChecksumService.compute(tempFile.toPath(), request.checksumAlgorithm());
 
         URI storageUri = runContext.storage().putFile(tempFile);
 
@@ -148,6 +149,7 @@ public abstract class VfsService {
         return Download.Output.builder()
             .from(VfsService.uriWithoutAuth(from))
             .to(storageUri)
+            .checksum(checksum)
             .build();
     }
 
@@ -188,6 +190,13 @@ public abstract class VfsService {
                     Overwrite field is set to `false`. Folder %s will be overwritten with current file.
                     If you want the folder to be overwritten with the file, set `overwrite: true`.
                     """,
+                    remote.getName().getPath()
+                ));
+            }
+            //Fail when the destination file already exists and overwrite is disabled
+            if (!overwrite && remote.exists() && !remote.isFolder()) {
+                throw new KestraRuntimeException(String.format(
+                    "File '%s' already exists in the remote server and cannot be overwritten. Set `overwrite: true` to replace it.",
                     remote.getName().getPath()
                 ));
             }

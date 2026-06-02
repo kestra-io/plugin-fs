@@ -51,6 +51,27 @@ import io.kestra.core.models.annotations.PluginProperty;
                 """
         ),
         @Example(
+            title = "Upload only files matching a regex (e.g. .sql files)",
+            full = true,
+            code = """
+                id: fs_sftp_uploads_regexp
+                namespace: company.team
+
+                tasks:
+                  - id: uploads
+                    type: io.kestra.plugin.fs.sftp.Uploads
+                    host: sftp.example.com
+                    port: "22"
+                    username: foo
+                    password: "{{ secret('SFTP_PASSWORD') }}"
+                    from:
+                      - "{{ outputs.step1.uri }}"
+                      - "{{ outputs.step2.uri }}"
+                    regExp: ".*\\\\.sql$"
+                    to: "/remote/path"
+                """
+        ),
+        @Example(
             title = "Upload files with custom destination filenames using a map",
             full = true,
             code = """
