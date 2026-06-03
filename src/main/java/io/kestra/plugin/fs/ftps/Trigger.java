@@ -36,12 +36,12 @@ import java.net.Proxy;
 
                 tasks:
                   - id: for_each_file
-                    type: io.kestra.plugin.core.flow.ForEach
+                    type: io.kestra.plugin.core.flow.Loop
                     values: "{{ trigger.files }}"
                     tasks:
                       - id: return
                         type: io.kestra.plugin.core.debug.Return
-                        format: "{{ taskrun.value | jq('.path') }}"
+                        format: "{{ item.value | jq('.path') }}"
 
                 triggers:
                   - id: watch
@@ -65,12 +65,12 @@ import java.net.Proxy;
 
                 tasks:
                   - id: each
-                    type: io.kestra.plugin.core.flow.ForEach
+                    type: io.kestra.plugin.core.flow.Loop
                     values: "{{ trigger.files }}"
                     tasks:
                       - id: return
                         type: io.kestra.plugin.core.debug.Return
-                        format: "{{ taskrun.value | jq('.path') }}"
+                        format: "{{ item.value | jq('.path') }}"
 
                 triggers:
                   - id: watch

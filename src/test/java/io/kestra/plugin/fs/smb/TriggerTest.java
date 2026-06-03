@@ -24,7 +24,6 @@ class TriggerTest extends AbstractFileTriggerTest {
         return smbUtils;
     }
 
-    @Override
     protected AbstractTrigger createTrigger(String from, Downloads.Action action, String moveDirectory) {
         return io.kestra.plugin.fs.smb.Trigger.builder()
             .id(TriggerTest.class.getSimpleName())

@@ -25,6 +25,7 @@ import static io.kestra.plugin.fs.sftp.SftpUtils.USERNAME;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import io.kestra.core.models.conditions.ConditionContext;
 
 public class TriggerTest extends AbstractFileTriggerTest {
     @Inject
@@ -40,7 +41,6 @@ public class TriggerTest extends AbstractFileTriggerTest {
         return sftpUtils;
     }
 
-    @Override
     protected AbstractTrigger createTrigger(String from, Downloads.Action action, String moveDirectory) {
         return Trigger.builder()
             .id(TriggerTest.class.getSimpleName())
@@ -72,8 +72,8 @@ public class TriggerTest extends AbstractFileTriggerTest {
         String out = FriendlyId.createFriendlyId();
         Upload.Output upload = utils().upload("/upload/trigger/" + out + ".yml");
 
-        var context = TestsUtils.mockTrigger(runContextFactory, trigger);
-        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
+        Map.Entry<ConditionContext, io.kestra.core.scheduler.model.TriggerState> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue().context());
 
         assertThat(execution.isPresent(), is(true));
 
@@ -127,8 +127,8 @@ public class TriggerTest extends AbstractFileTriggerTest {
         String file = FriendlyId.createFriendlyId();
         utils().upload("/upload/trigger/on-create/" + file + ".yml");
 
-        var context = TestsUtils.mockTrigger(runContextFactory, trigger);
-        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
+        Map.Entry<ConditionContext, io.kestra.core.scheduler.model.TriggerState> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue().context());
         assertThat(execution.isPresent(), is(true));
     }
 
@@ -150,12 +150,12 @@ public class TriggerTest extends AbstractFileTriggerTest {
             .interval(Duration.ofSeconds(5))
             .build();
 
-        var context = TestsUtils.mockTrigger(runContextFactory, trigger);
-        trigger.evaluate(context.getKey(), context.getValue());
+        Map.Entry<ConditionContext, io.kestra.core.scheduler.model.TriggerState> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+        trigger.evaluate(context.getKey(), context.getValue().context());
 
         utils().update("/upload/trigger/on-update/" + file + ".yml");
 
-        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
+        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue().context());
         assertThat(execution.isPresent(), is(true));
     }
 
@@ -178,13 +178,13 @@ public class TriggerTest extends AbstractFileTriggerTest {
 
         utils().upload("/upload/trigger/on-create-or-update/" + file + ".yml");
 
-        var context = TestsUtils.mockTrigger(runContextFactory, trigger);
-        Optional<Execution> first = trigger.evaluate(context.getKey(), context.getValue());
+        Map.Entry<ConditionContext, io.kestra.core.scheduler.model.TriggerState> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+        Optional<Execution> first = trigger.evaluate(context.getKey(), context.getValue().context());
         assertThat(first.isPresent(), is(true));
 
         utils().upload("/upload/trigger/on-create-or-update/" + file + ".txt");
 
-        Optional<Execution> second = trigger.evaluate(context.getKey(), context.getValue());
+        Optional<Execution> second = trigger.evaluate(context.getKey(), context.getValue().context());
         assertThat(second.isPresent(), is(true));
     }
 
@@ -208,8 +208,8 @@ public class TriggerTest extends AbstractFileTriggerTest {
             utils().upload("/upload/trigger/too-many-files/" + FriendlyId.createFriendlyId() + "-" + i + ".yml");
         }
 
-        var context = TestsUtils.mockTrigger(runContextFactory, trigger);
-        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
+        Map.Entry<ConditionContext, io.kestra.core.scheduler.model.TriggerState> context = TestsUtils.mockTrigger(runContextFactory, trigger);
+        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue().context());
 
         assertThat(execution.isPresent(), is(true));
         @SuppressWarnings("unchecked")
