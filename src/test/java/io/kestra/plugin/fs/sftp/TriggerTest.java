@@ -3,6 +3,7 @@ package io.kestra.plugin.fs.sftp;
 import com.devskiller.friendly_id.FriendlyId;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
+import io.kestra.core.models.triggers.AbstractTrigger;
 import io.kestra.core.models.triggers.StatefulTriggerInterface;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
@@ -36,6 +37,21 @@ public class TriggerTest extends AbstractFileTriggerTest {
     @Override
     protected AbstractUtils utils() {
         return sftpUtils;
+    }
+
+    @Override
+    protected AbstractTrigger createTrigger(String from, Downloads.Action action, String moveDirectory) {
+        return Trigger.builder()
+            .id(TriggerTest.class.getSimpleName())
+            .type(Trigger.class.getName())
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .from(Property.ofValue(from))
+            .action(Property.ofValue(action))
+            .moveDirectory(Property.ofValue(moveDirectory))
+            .build();
     }
 
     @Test

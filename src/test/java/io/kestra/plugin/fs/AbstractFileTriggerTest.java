@@ -11,6 +11,7 @@ import io.kestra.core.services.FlowListenersInterface;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.jdbc.runner.JdbcScheduler;
+import io.kestra.plugin.fs.vfs.Downloads;
 import io.kestra.plugin.fs.vfs.models.File;
 import io.kestra.scheduler.AbstractScheduler;
 import io.kestra.worker.DefaultWorker;
@@ -22,6 +23,7 @@ import reactor.core.publisher.Flux;
 
 import java.net.URI;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -52,6 +54,8 @@ public abstract class AbstractFileTriggerTest {
     abstract protected String triggeringFlowId();
 
     abstract protected AbstractUtils utils();
+
+    abstract protected io.kestra.core.models.triggers.AbstractTrigger createTrigger(String from, Downloads.Action action, String moveDirectory);
 
     @Test
     void moveAction() throws Exception {
