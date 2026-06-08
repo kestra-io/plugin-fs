@@ -25,6 +25,7 @@ import java.net.URISyntaxException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -53,7 +54,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
     @PluginProperty(group = "main")
     private Property<String> from;
 
-    @Schema(title = "Action to perform on retrieved files", description = "If NONE, handle files in the Flow to avoid reprocessing.")
+    @Schema(title = "Action to perform on retrieved files", description = "MOVE/DELETE remove the file from the watched directory, so the trigger fires on every listed file. NONE leaves the file in place and relies on stateful deduplication (path + size + last-modified) to avoid reprocessing — handle the file in the Flow accordingly.")
     @NotNull
     private Property<Downloads.Action> action;
 
@@ -122,11 +123,12 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
         );
 
         var rOn = runContext.render(on).as(On.class).orElse(On.CREATE_OR_UPDATE);
-        var renderedAction = runContext.render(this.action).as(Downloads.Action.class).orElse(Downloads.Action.NONE);
+        var rAction = runContext.render(this.action).as(Downloads.Action.class).orElse(Downloads.Action.NONE);
         // MOVE/DELETE remove the file from the watched location after processing, so the action itself
         // prevents reprocessing. Any file still present in the listing is therefore genuinely new and must
         // fire, regardless of persisted state. Stateful dedup only applies when the file stays (action NONE).
-        var removesFiles = renderedAction == Downloads.Action.MOVE || renderedAction == Downloads.Action.DELETE;
+        var eligibleStates = java.util.List.of(Downloads.Action.DELETE, Downloads.Action.MOVE);
+        var shouldRemoveFiles = eligibleStates.contains(rAction);
         var rStateKey = runContext.render(stateKey)
             .as(String.class)
             .orElse(StatefulTriggerService.defaultKey(context.getNamespace(), context.getFlowId(), id));
@@ -167,7 +169,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                 .filter(file -> file.getFileType() == FileType.FILE)
                 .toList();
 
-            Map<String, Entry> state = removesFiles ? new java.util.HashMap<>() : readState(runContext, rStateKey, rStateTtl);
+            Map<String, Entry> state = shouldRemoveFiles ? new HashMap<>() : readState(runContext, rStateKey, rStateTtl);
 
             java.util.List<PendingFile> pendingFiles = new ArrayList<>();
 
@@ -184,7 +186,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                 var candidate = Entry.candidate(remotePath, version, updatedDate);
 
                 // MOVE/DELETE: the file is removed after processing, so always fire; do not consult state.
-                if (removesFiles) {
+                if (shouldRemoveFiles) {
                     pendingFiles.add(new PendingFile(file, candidate, ChangeType.CREATE));
                     continue;
                 }
@@ -210,7 +212,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
 
             if (limitedPending.isEmpty()) {
                 // still persist state for files we skipped / updated above
-                if (!removesFiles) {
+                if (!shouldRemoveFiles) {
                     writeState(runContext, rStateKey, state, rStateTtl);
                 }
                 return Optional.empty();
@@ -249,20 +251,20 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
 
             if (toFire.isEmpty()) {
                 // nothing to fire; persist state updates made earlier
-                if (!removesFiles) {
+                if (!shouldRemoveFiles) {
                     writeState(runContext, rStateKey, state, rStateTtl);
                 }
                 return Optional.empty();
             }
 
             // 2) Perform remote action BEFORE committing state.
-            if (removesFiles) {
+            if (shouldRemoveFiles) {
                 VfsService.performAction(
                     runContext,
                     fsm,
                     fileSystemOptions,
                     actionFiles,
-                    renderedAction,
+                    rAction,
                     VfsService.uri(
                         runContext,
                         this.scheme(),
@@ -277,7 +279,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
 
             // 3) Only now that downloads + actions succeeded, commit state for fired files.
             //    MOVE/DELETE removed the files, so there is no state to track.
-            if (!removesFiles) {
+            if (!shouldRemoveFiles) {
                 for (PendingFile pending : limitedPending) {
                     computeAndUpdateState(state, pending.candidate, rOn);
                 }
