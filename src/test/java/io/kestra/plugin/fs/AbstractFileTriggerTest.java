@@ -56,6 +56,38 @@ public abstract class AbstractFileTriggerTest {
     }
 
     @Test
+    void deleteActionRefiresSamePath() throws Exception {
+        // Regression: with action DELETE the processed file is removed from the watched directory,
+        // so a file re-appearing at the SAME path is genuinely new and must fire on every poll.
+        // The stateful trigger previously remembered the path and silently suppressed re-uploads.
+        String toUploadDir = "/upload/trigger-delete-refire";
+        cleanupRemoteDir(toUploadDir);
+
+        // Fixed filename so the same remote path is reused across polls (the customer's case).
+        String fileName = "recurring-file";
+
+        var trigger = createTrigger(toUploadDir + "/", Downloads.Action.DELETE, null);
+        var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+        var polling = (io.kestra.core.models.triggers.PollingTriggerInterface) trigger;
+
+        // First arrival -> fires and deletes the file.
+        utils().upload(toUploadDir + "/" + fileName);
+        Optional<Execution> first = polling.evaluate(context.getKey(), context.getValue());
+        assertThat(first.isPresent(), is(true));
+        assertThat(utils().list(toUploadDir).getFiles().isEmpty(), is(true));
+
+        // Same file uploaded again at the same path -> must fire again (state must not suppress it).
+        utils().upload(toUploadDir + "/" + fileName);
+        Optional<Execution> second = polling.evaluate(context.getKey(), context.getValue());
+        assertThat(second.isPresent(), is(true));
+
+        @SuppressWarnings("unchecked")
+        java.util.List<File> files = (java.util.List<File>) second.get().getTrigger().getVariables().get("files");
+        assertThat(files.size(), is(1));
+        assertThat(utils().list(toUploadDir).getFiles().isEmpty(), is(true));
+    }
+
+    @Test
     void noneAction() throws Exception {
         String toUploadDir = "/upload/trigger-none";
         cleanupRemoteDir(toUploadDir);

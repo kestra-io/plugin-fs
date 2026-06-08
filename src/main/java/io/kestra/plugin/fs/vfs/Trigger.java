@@ -122,6 +122,11 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
         );
 
         var rOn = runContext.render(on).as(On.class).orElse(On.CREATE_OR_UPDATE);
+        var renderedAction = runContext.render(this.action).as(Downloads.Action.class).orElse(Downloads.Action.NONE);
+        // MOVE/DELETE remove the file from the watched location after processing, so the action itself
+        // prevents reprocessing. Any file still present in the listing is therefore genuinely new and must
+        // fire, regardless of persisted state. Stateful dedup only applies when the file stays (action NONE).
+        var removesFiles = renderedAction == Downloads.Action.MOVE || renderedAction == Downloads.Action.DELETE;
         var rStateKey = runContext.render(stateKey)
             .as(String.class)
             .orElse(StatefulTriggerService.defaultKey(context.getNamespace(), context.getFlowId(), id));
@@ -162,7 +167,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                 .filter(file -> file.getFileType() == FileType.FILE)
                 .toList();
 
-            Map<String, Entry> state = readState(runContext, rStateKey, rStateTtl);
+            Map<String, Entry> state = removesFiles ? new java.util.HashMap<>() : readState(runContext, rStateKey, rStateTtl);
 
             java.util.List<PendingFile> pendingFiles = new ArrayList<>();
 
@@ -177,6 +182,13 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                 var version = String.format("%d_%d_%s", updatedDate.toEpochMilli(), size, remotePath);
 
                 var candidate = Entry.candidate(remotePath, version, updatedDate);
+
+                // MOVE/DELETE: the file is removed after processing, so always fire; do not consult state.
+                if (removesFiles) {
+                    pendingFiles.add(new PendingFile(file, candidate, ChangeType.CREATE));
+                    continue;
+                }
+
                 var prev = state.get(remotePath);
 
                 // IMPORTANT: keep state up to date for non-fired files
@@ -198,7 +210,9 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
 
             if (limitedPending.isEmpty()) {
                 // still persist state for files we skipped / updated above
-                writeState(runContext, rStateKey, state, rStateTtl);
+                if (!removesFiles) {
+                    writeState(runContext, rStateKey, state, rStateTtl);
+                }
                 return Optional.empty();
             }
 
@@ -235,14 +249,14 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
 
             if (toFire.isEmpty()) {
                 // nothing to fire; persist state updates made earlier
-                writeState(runContext, rStateKey, state, rStateTtl);
+                if (!removesFiles) {
+                    writeState(runContext, rStateKey, state, rStateTtl);
+                }
                 return Optional.empty();
             }
 
             // 2) Perform remote action BEFORE committing state.
-            if (this.action != null) {
-                var renderedAction = runContext.render(this.action).as(Downloads.Action.class).orElse(null);
-
+            if (removesFiles) {
                 VfsService.performAction(
                     runContext,
                     fsm,
@@ -262,11 +276,14 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
             }
 
             // 3) Only now that downloads + actions succeeded, commit state for fired files.
-            for (PendingFile pending : limitedPending) {
-                computeAndUpdateState(state, pending.candidate, rOn);
-            }
+            //    MOVE/DELETE removed the files, so there is no state to track.
+            if (!removesFiles) {
+                for (PendingFile pending : limitedPending) {
+                    computeAndUpdateState(state, pending.candidate, rOn);
+                }
 
-            writeState(runContext, rStateKey, state, rStateTtl);
+                writeState(runContext, rStateKey, state, rStateTtl);
+            }
 
             Execution execution = TriggerService.generateExecution(
                 this,
