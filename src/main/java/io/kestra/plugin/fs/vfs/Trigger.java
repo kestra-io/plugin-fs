@@ -129,6 +129,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
         // fire, regardless of persisted state. Stateful dedup only applies when the file stays (action NONE).
         var eligibleStates = java.util.List.of(Downloads.Action.DELETE, Downloads.Action.MOVE);
         var shouldRemoveFiles = eligibleStates.contains(rAction);
+        var stateful = !shouldRemoveFiles;   // NONE keeps files in place, so dedup relies on persisted state
         var rStateKey = runContext.render(stateKey)
             .as(String.class)
             .orElse(StatefulTriggerService.defaultKey(context.getNamespace(), context.getFlowId(), id));
@@ -169,7 +170,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                 .filter(file -> file.getFileType() == FileType.FILE)
                 .toList();
 
-            Map<String, Entry> state = shouldRemoveFiles ? new HashMap<>() : readState(runContext, rStateKey, rStateTtl);
+            Map<String, Entry> state = stateful ? readState(runContext, rStateKey, rStateTtl) : new HashMap<>();
 
             java.util.List<PendingFile> pendingFiles = new ArrayList<>();
 
@@ -212,10 +213,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
 
             if (limitedPending.isEmpty()) {
                 // still persist state for files we skipped / updated above
-                if (!shouldRemoveFiles) {
-                    writeState(runContext, rStateKey, state, rStateTtl);
-                }
-                return Optional.empty();
+                return noFire(stateful, runContext, rStateKey, state, rStateTtl);
             }
 
             java.util.List<File> actionFiles = new ArrayList<>();
@@ -251,10 +249,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
 
             if (toFire.isEmpty()) {
                 // nothing to fire; persist state updates made earlier
-                if (!shouldRemoveFiles) {
-                    writeState(runContext, rStateKey, state, rStateTtl);
-                }
-                return Optional.empty();
+                return noFire(stateful, runContext, rStateKey, state, rStateTtl);
             }
 
             // 2) Perform remote action BEFORE committing state.
@@ -279,7 +274,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
 
             // 3) Only now that downloads + actions succeeded, commit state for fired files.
             //    MOVE/DELETE removed the files, so there is no state to track.
-            if (!shouldRemoveFiles) {
+            if (stateful) {
                 for (PendingFile pending : limitedPending) {
                     computeAndUpdateState(state, pending.candidate, rOn);
                 }
@@ -296,6 +291,14 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
 
             return Optional.of(execution);
         }
+    }
+
+    // Persists pending state updates (a no-op for MOVE/DELETE) and signals that nothing fired this poll.
+    private Optional<Execution> noFire(boolean stateful, RunContext runContext, String stateKey, Map<String, Entry> state, Optional<Duration> stateTtl) {
+        if (stateful) {
+            writeState(runContext, stateKey, state, stateTtl);
+        }
+        return Optional.empty();
     }
 
     private URI createUri(RunContext runContext) throws IllegalVariableEvaluationException, URISyntaxException {
