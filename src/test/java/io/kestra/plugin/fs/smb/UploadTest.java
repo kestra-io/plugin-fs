@@ -20,6 +20,7 @@ import static io.kestra.plugin.fs.smb.SmbUtils.USERNAME;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.hamcrest.Matchers.containsStringIgnoringCase;
 
 @KestraTest
 class UploadTest {
@@ -102,6 +103,27 @@ class UploadTest {
         File file = listResult.getFiles().getFirst();
         assertThat(file.getName(), is(destinationFolder.replace("/","")));
         assertThat(file.getPath().toString(), containsString(parentFolder));
+    }
+
+    @Test
+    void upload_invalidFileNameCharacter_throwsClearError() throws Exception {
+        var storageUri = smbUtils.uploadToStorage();
+        var invalidDestination = SmbUtils.SHARE_NAME + "/invalidname" + IdUtils.create() + "/CLIENTES_2026-06-09T07:00:00.xlsx";
+
+        var upload = Upload.builder()
+            .id(IdUtils.create())
+            .type(Upload.class.getName())
+            .from(Property.ofValue(storageUri.toString()))
+            .to(Property.ofValue(invalidDestination))
+            .host(Property.ofValue("localhost"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+
+        var runContext = TestsUtils.mockRunContext(runContextFactory, upload, Map.of());
+        var exception = assertThrows(KestraRuntimeException.class, () -> upload.run(runContext));
+        assertThat(exception.getMessage(), containsString("CLIENTES_2026-06-09T07:00:00.xlsx"));
+        assertThat(exception.getMessage(), containsStringIgnoringCase("invalid"));
     }
 
     private void uploadFilesToRemoteFolder(String destinationFolder) throws Exception {

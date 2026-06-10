@@ -8,7 +8,9 @@ import io.kestra.plugin.fs.vfs.models.File;
 import org.codelibs.jcifs.smb.CIFSContext;
 import org.codelibs.jcifs.smb.context.BaseContext;
 import org.codelibs.jcifs.smb.config.PropertyConfiguration;
+import org.codelibs.jcifs.smb.impl.NtStatus;
 import org.codelibs.jcifs.smb.impl.NtlmPasswordAuthenticator;
+import org.codelibs.jcifs.smb.impl.SmbException;
 import org.codelibs.jcifs.smb.impl.SmbFile;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.io.IOUtils;
@@ -235,6 +237,8 @@ public abstract class SmbService {
             try (var in = runContext.storage().getFile(from);
                  var out = remote.getOutputStream()) {
                 IOUtils.copy(in, out);
+            } catch (SmbException e) {
+                throw toActionableException(e, toPath);
             }
         }
 
@@ -398,12 +402,16 @@ public abstract class SmbService {
                 // Detect cross-share move: extract share names from URLs
                 var fromShare = extractShareName(fromUrl);
                 var toShare = extractShareName(toUrl);
-                if (fromShare != null && toShare != null && !fromShare.equals(toShare)) {
-                    // Cross-share move: renameTo won't work, use copy + delete
-                    copyRecursively(cifsContext, source, dest);
-                    deleteRecursively(source);
-                } else {
-                    source.renameTo(dest);
+                try {
+                    if (fromShare != null && toShare != null && !fromShare.equals(toShare)) {
+                        // Cross-share move: renameTo won't work, use copy + delete
+                        copyRecursively(cifsContext, source, dest);
+                        deleteRecursively(source);
+                    } else {
+                        source.renameTo(dest);
+                    }
+                } catch (SmbException e) {
+                    throw toActionableException(e, toPath);
                 }
             }
         }
@@ -534,6 +542,20 @@ public abstract class SmbService {
             }
         }
         return path;
+    }
+
+    private static Exception toActionableException(SmbException e, String targetPath) {
+        if (e.getNtStatus() == NtStatus.NT_STATUS_OBJECT_NAME_INVALID) {
+            return new KestraRuntimeException(String.format(
+                """
+                Path '%s' contains characters that are invalid in SMB/Windows file or directory names. \
+                Characters not allowed: \\ : * ? " < > |. \
+                If the path includes a timestamp, consider reformatting it to avoid colons (e.g. use 'T07-00-00' instead of 'T07:00:00').\
+                """,
+                targetPath
+            ), e);
+        }
+        return e;
     }
 
     static File smbFileToFile(SmbFile smbFile, String host, String port) throws Exception {
