@@ -192,7 +192,7 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
     private Property<String> strictHostKeyChecking = Property.ofValue("no");
 
     @Schema(
-        title = "Environment variables to pass to the SSH process."
+        title = "Environment variables to pass to the SSH process"
     )
     @PluginProperty(group = "execution")
     private Property<Map<String, String>> env;
@@ -510,13 +510,13 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
-            title = "The values extracted from executed `commands` using the [Kestra outputs](https://kestra.io/docs/scripts/outputs-metrics#outputs-and-metrics-in-script-and-commands-tasks) format."
+            title = "The values extracted from executed `commands` using the [Kestra outputs](https://kestra.io/docs/scripts/outputs-metrics#outputs-and-metrics-in-script-and-commands-tasks) format"
         )
         @JsonInclude(JsonInclude.Include.ALWAYS) // always include vars so it's easier to reason about in expressions
         private final Map<String, Object> vars;
 
         @Schema(
-            title = "The exit code of the entire flow execution."
+            title = "The exit code of the entire flow execution"
         )
         @NotNull
         private final int exitCode;

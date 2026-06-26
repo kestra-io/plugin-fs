@@ -45,6 +45,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
     examples = {
         @Example(
             title = "Copy a file within the local filesystem",
+            full = true,
             code = """
                 id: copy_file
                 namespace: company.team

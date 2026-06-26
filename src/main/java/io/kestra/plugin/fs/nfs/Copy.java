@@ -1,4 +1,5 @@
 package io.kestra.plugin.fs.nfs;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
@@ -52,6 +53,7 @@ public class Copy extends Task implements RunnableTask<Copy.Output> {
     @Inject
     @Builder.Default
     @PluginProperty(group = "advanced")
+    @JsonIgnore
     private NfsService nfsService = NfsService.getInstance();
 
     @Schema(title = "Source file path")
@@ -94,10 +96,10 @@ public class Copy extends Task implements RunnableTask<Copy.Output> {
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
-        @Schema(title = "The URI of the original file.")
+        @Schema(title = "The URI of the original file")
         private final URI from;
 
-        @Schema(title = "The URI of the new copied file.")
+        @Schema(title = "The URI of the new copied file")
         private final URI to;
     }
 }

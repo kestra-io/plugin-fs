@@ -1,4 +1,5 @@
 package io.kestra.plugin.fs.tcp;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.inject.Singleton;
 

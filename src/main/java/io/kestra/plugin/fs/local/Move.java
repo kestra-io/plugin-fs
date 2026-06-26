@@ -46,6 +46,7 @@ import io.kestra.core.models.annotations.PluginProperty;
     examples = {
         @Example(
             title = "Move a file within the local filesystem",
+            full = true,
             code = """
                 id: move_file
                 namespace: company.team

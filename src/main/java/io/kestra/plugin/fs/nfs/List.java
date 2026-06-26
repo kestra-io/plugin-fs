@@ -1,4 +1,5 @@
 package io.kestra.plugin.fs.nfs;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
@@ -48,7 +49,7 @@ import io.kestra.core.models.annotations.PluginProperty;
                   - id: list_files
                     type: io.kestra.plugin.fs.nfs.List
                     from: /mnt/nfs/shared/documents
-                    regExp: ".*\\.pdf$"
+                    regExp: '.*\\.pdf$'
                     recursive: true
             """
         )
@@ -60,6 +61,7 @@ public class List extends Task implements RunnableTask<List.Output> {
     @Inject
     @Builder.Default
     @PluginProperty(group = "advanced")
+    @JsonIgnore
     private NfsService nfsService = NfsService.getInstance();
 
     @Schema(title = "Directory path to list")
@@ -143,7 +145,7 @@ public class List extends Task implements RunnableTask<List.Output> {
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
-        @Schema(title = "The list of files found.")
+        @Schema(title = "The list of files found")
         private final java.util.List<File> files;
     }
 
@@ -153,35 +155,35 @@ public class List extends Task implements RunnableTask<List.Output> {
     @ToString
     @AllArgsConstructor
     public static class File {
-        @Schema(title = "The name of the file.")
+        @Schema(title = "The name of the file")
         private final String name;
 
-        @Schema(title = "The absolute URI of the file.")
+        @Schema(title = "The absolute URI of the file")
         private final URI uri;
 
-        @Schema(title = "The java.nio.file.Path of the file.")
+        @Schema(title = "The java.nio.file.Path of the file")
         @ToString.Exclude
         private final Path localPath;
 
-        @Schema(title = "Whether the file is a directory.")
+        @Schema(title = "Whether the file is a directory")
         private final boolean isDirectory;
 
-        @Schema(title = "Whether the file is a symbolic link.")
+        @Schema(title = "Whether the file is a symbolic link")
         private final boolean isSymbolicLink;
 
-        @Schema(title = "Whether the file is hidden.")
+        @Schema(title = "Whether the file is hidden")
         private final boolean isHidden;
 
-        @Schema(title = "The size of the file in bytes.")
+        @Schema(title = "The size of the file in bytes")
         private final long size;
 
-        @Schema(title = "The creation time of the file.")
+        @Schema(title = "The creation time of the file")
         private final Instant creationTime;
 
-        @Schema(title = "The last access time of the file.")
+        @Schema(title = "The last access time of the file")
         private final Instant lastAccessTime;
 
-        @Schema(title = "The last modified time of the file.")
+        @Schema(title = "The last modified time of the file")
         private final Instant lastModifiedTime;
     }
 }

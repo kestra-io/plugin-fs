@@ -44,9 +44,9 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
     private final Duration interval = Duration.ofSeconds(60);
 
     protected Property<String> host;
-    @PluginProperty(secret = true)
+    @PluginProperty(secret = true, group = "connection")
     protected Property<String> username;
-    @PluginProperty(secret = true)
+    @PluginProperty(secret = true, group = "connection")
     protected Property<String> password;
 
     @Schema(title = "Directory URI to watch")
@@ -330,7 +330,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
-        @Schema(title = "List of files that triggered the flow, each with its change type.")
+        @Schema(title = "List of files that triggered the flow, each with its change type")
         private final java.util.List<TriggeredFile> files;
     }
 }

@@ -165,16 +165,16 @@ public class RealtimeTrigger extends AbstractTrigger
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
-        @Schema(title = "The received UDP payload.")
+        @Schema(title = "The received UDP payload")
         private final String payload;
 
-        @Schema(title = "The timestamp when the message was received.")
+        @Schema(title = "The timestamp when the message was received")
         private final Instant timestamp;
 
-        @Schema(title = "The IP address of the sender.")
+        @Schema(title = "The IP address of the sender")
         private final String sourceIp;
 
-        @Schema(title = "The port of the sender.")
+        @Schema(title = "The port of the sender")
         private final Integer sourcePort;
     }
 }
