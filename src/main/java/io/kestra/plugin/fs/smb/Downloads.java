@@ -161,12 +161,12 @@ public class Downloads extends AbstractSmbTask implements RunnableTask<Downloads
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
-            title = "Metadata of downloaded files."
+            title = "Metadata of downloaded files"
         )
         private final java.util.List<File> files;
 
         @Schema(
-            title = "The downloaded files as a map of from/to URIs."
+            title = "The downloaded files as a map of from/to URIs"
         )
         private final Map<String, URI> outputFiles;
     }

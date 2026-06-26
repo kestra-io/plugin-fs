@@ -54,7 +54,7 @@ import io.kestra.core.models.annotations.PluginProperty;
                     username: foo
                     password: "{{ secret('SMB_PASSWORD') }}"
                     uri: "/my_share/dir1/"
-                    regExp: ".*\\.csv"
+                    regExp: '.*\\.csv'
                 """
         )
     }

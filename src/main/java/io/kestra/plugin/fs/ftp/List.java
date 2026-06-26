@@ -39,7 +39,7 @@ import io.kestra.core.models.annotations.PluginProperty;
                     username: foo
                     password: "{{ secret('FTP_PASSWORD') }}"
                     from: "/upload/dir1/"
-                    regExp: ".*\\/dir1\\/.*.(yaml|yml)"
+                    regExp: '.*/dir1/.*\\.(yaml|yml)'
                 """
         )
     }

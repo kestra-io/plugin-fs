@@ -1,4 +1,5 @@
 package io.kestra.plugin.fs.tcp;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
@@ -65,6 +66,7 @@ public class RealtimeTrigger extends AbstractTrigger
 
     @Inject
     @Builder.Default
+    @JsonIgnore
     private TcpService tcpService = TcpService.getInstance();
 
     @Schema(title = "Interface to bind", defaultValue = "0.0.0.0")
@@ -200,16 +202,16 @@ public class RealtimeTrigger extends AbstractTrigger
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
-        @Schema(title = "The received TCP payload.")
+        @Schema(title = "The received TCP payload")
         private final String payload;
 
-        @Schema(title = "The timestamp when the message was received.")
+        @Schema(title = "The timestamp when the message was received")
         private final Instant timestamp;
 
-        @Schema(title = "The IP address of the sender.")
+        @Schema(title = "The IP address of the sender")
         private final String sourceIp;
 
-        @Schema(title = "The port of the sender.")
+        @Schema(title = "The port of the sender")
         private final Integer sourcePort;
     }
 }

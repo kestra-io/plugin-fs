@@ -1,4 +1,5 @@
 package io.kestra.plugin.fs.nfs;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
@@ -66,7 +67,7 @@ import java.util.stream.Stream;
                   - id: delete_logs
                     type: io.kestra.plugin.fs.nfs.Delete
                     uri: /mnt/nfs/shared/logs
-                    regExp: ".*\\.log"
+                    regExp: '.*\\.log'
                     recursive: true
                     errorOnMissing: false
                 """
@@ -78,6 +79,7 @@ public class Delete extends Task implements RunnableTask<Delete.Output> {
     @Inject
     @Builder.Default
     @PluginProperty(group = "advanced")
+    @JsonIgnore
     private NfsService nfsService = NfsService.getInstance();
 
     @Schema(title = "Path of the file or directory to target")
@@ -206,13 +208,13 @@ public class Delete extends Task implements RunnableTask<Delete.Output> {
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
-        @Schema(title = "The URI of the deleted file, or the target directory when regExp is used.")
+        @Schema(title = "The URI of the deleted file, or the target directory when regExp is used")
         private final URI uri;
 
-        @Schema(title = "Whether at least one file was deleted.")
+        @Schema(title = "Whether at least one file was deleted")
         private final boolean deleted;
 
-        @Schema(title = "URIs of all deleted files when regExp is used. Empty for single-file deletions.")
+        @Schema(title = "URIs of all deleted files when regExp is used. Empty for single-file deletions")
         private final List<URI> uris;
     }
 }

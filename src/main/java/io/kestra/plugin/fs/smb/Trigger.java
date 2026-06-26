@@ -147,9 +147,9 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
     @NotNull
     protected Property<String> host;
-    @PluginProperty(secret = true)
+    @PluginProperty(secret = true, group = "connection")
     protected Property<String> username;
-    @PluginProperty(secret = true)
+    @PluginProperty(secret = true, group = "connection")
     protected Property<String> password;
 
     @Builder.Default
@@ -362,7 +362,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
-        @Schema(title = "List of files that triggered the flow, each with its change type.")
+        @Schema(title = "List of files that triggered the flow, each with its change type")
         private final java.util.List<TriggeredFile> files;
     }
 }

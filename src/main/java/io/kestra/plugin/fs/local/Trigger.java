@@ -244,7 +244,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
-        @Schema(title = "List of files that triggered the flow, each with its change type.")
+        @Schema(title = "List of files that triggered the flow, each with its change type")
         private final java.util.List<TriggeredFile> files;
     }
 

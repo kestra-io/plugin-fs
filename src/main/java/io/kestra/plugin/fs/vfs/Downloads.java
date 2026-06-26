@@ -157,12 +157,12 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
-            title = "Metadata of downloaded files."
+            title = "Metadata of downloaded files"
         )
         private final java.util.List<io.kestra.plugin.fs.vfs.models.File> files;
 
         @Schema(
-            title = "The downloaded files as a map of from/to URIs."
+            title = "The downloaded files as a map of from/to URIs"
         )
         private final Map<String, URI> outputFiles;
     }
