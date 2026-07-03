@@ -24,7 +24,7 @@ public interface FtpsInterface {
 
     @Schema(
         title = "Trust all certificates",
-        description = "Skip server certificate validation. Insecure; use only for testing."
+        description = "Skip server certificate validation. Insecure: this disables protection against man-in-the-middle attacks and must not be enabled in production. Use only for testing against self-signed or untrusted certificates."
     )
     @PluginProperty(group = "advanced")
     Property<Boolean> getInsecureTrustAllCertificates();

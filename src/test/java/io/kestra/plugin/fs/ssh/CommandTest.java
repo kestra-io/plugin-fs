@@ -18,7 +18,10 @@ import java.nio.file.Path;
 import java.util.Map;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 
 // WARNING, the 'setpasswd.sh' script must be runnable for the test to pass, if the test fail try launching:
 // chmod go+x src/test/resources/ssh/setpasswd.sh
@@ -90,6 +93,103 @@ class CommandTest {
         )));
 
         assertThat(String.valueOf(exception.getMessage()).contains("UnknownHostException"), is(false));
+    }
+
+    @Test
+    void toString_shouldNotLeakSecrets() {
+        String password = "O7m)&H/0Em4/T8RqCa!Al=M@N6^;@+";
+        String privateKey = "-----BEGIN OPENSSH PRIVATE KEY-----\nfakeKeyMaterialForTestingPurposesOnly\n-----END OPENSSH PRIVATE KEY-----";
+        String privateKeyPassphrase = "s3cr3t-passphrase";
+
+        Command command = Command.builder()
+            .id(IdUtils.create())
+            .type(Command.class.getName())
+            .host(Property.ofValue("localhost"))
+            .username(USERNAME)
+            .authMethod(Property.ofValue(AuthMethod.PUBLIC_KEY))
+            .password(Property.ofValue(password))
+            .privateKey(Property.ofValue(privateKey))
+            .privateKeyPassphrase(Property.ofValue(privateKeyPassphrase))
+            .port(Property.ofValue("2222"))
+            .commands(new String[] {"echo 0"})
+            .build();
+
+        String toString = command.toString();
+
+        assertThat(toString, not(containsString(password)));
+        assertThat(toString, not(containsString(privateKey)));
+        assertThat(toString, not(containsString(privateKeyPassphrase)));
+    }
+
+    @Test
+    void run_proxyCommand_rejectsShellMetacharactersInHost() {
+        for (String maliciousHost : new String[] {"127.0.0.1; touch /tmp/pwned", "127.0.0.1 | id", "$(id)"}) {
+            Command command = Command.builder()
+                .id(IdUtils.create())
+                .type(Command.class.getName())
+                .host(Property.ofValue(maliciousHost))
+                .username(USERNAME)
+                .authMethod(Property.ofValue(AuthMethod.PASSWORD))
+                .password(PASSWORD)
+                .port(Property.ofValue("2222"))
+                .proxyCommand(Property.ofValue("echo %h"))
+                .commands(new String[] {"echo 0"})
+                .build();
+
+            IllegalArgumentException exception = Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of())),
+                "Expected rejection for host: " + maliciousHost
+            );
+
+            assertThat(exception.getMessage(), containsString("host"));
+        }
+    }
+
+    @Test
+    void run_proxyCommand_rejectsShellMetacharactersInUsername() {
+        Command command = Command.builder()
+            .id(IdUtils.create())
+            .type(Command.class.getName())
+            .host(Property.ofValue("127.0.0.1"))
+            .username(Property.ofValue("root; touch /tmp/pwned"))
+            .authMethod(Property.ofValue(AuthMethod.PASSWORD))
+            .password(PASSWORD)
+            .port(Property.ofValue("2222"))
+            .proxyCommand(Property.ofValue("echo %r"))
+            .commands(new String[] {"echo 0"})
+            .build();
+
+        IllegalArgumentException exception = Assertions.assertThrows(
+            IllegalArgumentException.class,
+            () -> command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()))
+        );
+
+        assertThat(exception.getMessage(), containsString("username"));
+    }
+
+    @Test
+    void run_proxyCommand_allowsLegitimateHostAndUsername() {
+        Command command = Command.builder()
+            .id(IdUtils.create())
+            .type(Command.class.getName())
+            .host(Property.ofValue("my-host.example.com"))
+            .username(Property.ofValue("svc_user@example.com"))
+            .authMethod(Property.ofValue(AuthMethod.PASSWORD))
+            .password(PASSWORD)
+            .port(Property.ofValue("2222"))
+            .proxyCommand(Property.ofValue("echo %h %r"))
+            .commands(new String[] {"echo 0"})
+            .build();
+
+        // A legitimate host/username must pass sanitization and reach the (fake) proxy shell command;
+        // the subsequent SSH handshake still fails since `echo` doesn't speak SSH, but never with IllegalArgumentException.
+        Exception exception = Assertions.assertThrows(
+            Exception.class,
+            () -> command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()))
+        );
+
+        assertThat(exception, is(not(instanceOf(IllegalArgumentException.class))));
     }
 
     @Test

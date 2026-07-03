@@ -2,19 +2,25 @@ package io.kestra.plugin.fs.smb;
 
 import io.kestra.core.exceptions.KestraRuntimeException;
 import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.models.executions.LogEntry;
 import io.kestra.core.models.property.Property;
+import io.kestra.core.queues.QueueFactoryInterface;
+import io.kestra.core.queues.QueueInterface;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.vfs.ChecksumService;
 import io.kestra.plugin.fs.vfs.Download.Output;
 import jakarta.inject.Inject;
+import jakarta.inject.Named;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import static io.kestra.plugin.fs.smb.SmbUtils.PASSWORD;
 import static io.kestra.plugin.fs.smb.SmbUtils.USERNAME;
@@ -31,6 +37,10 @@ class DownloadChecksumTest {
 
     @Inject
     private SmbUtils smbUtils;
+
+    @Inject
+    @Named(QueueFactoryInterface.WORKERTASKLOG_NAMED)
+    private QueueInterface<LogEntry> logQueue;
 
     private static final String CONTENT = "deterministic content for checksum tests";
 
@@ -120,6 +130,9 @@ class DownloadChecksumTest {
 
     @Test
     void downloadWithMd5Algorithm() throws Exception {
+        List<LogEntry> logs = new CopyOnWriteArrayList<>();
+        var receive = TestsUtils.receive(logQueue, l -> logs.add(l.getLeft()));
+
         String remotePath = uploadFixture();
 
         Download task = downloadBuilder(remotePath)
@@ -131,5 +144,9 @@ class DownloadChecksumTest {
         Output output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(output.getChecksum(), is(md5(CONTENT)));
+
+        TestsUtils.awaitLog(logs, log -> log.getMessage() != null && log.getMessage().contains("deprecated"));
+        receive.blockLast();
+        assertThat(logs.stream().anyMatch(log -> log.getMessage() != null && log.getMessage().contains("MD5") && log.getMessage().contains("deprecated")), is(true));
     }
 }

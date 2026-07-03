@@ -1,6 +1,7 @@
 package io.kestra.plugin.fs.vfs;
 
 import io.kestra.core.exceptions.KestraRuntimeException;
+import org.slf4j.Logger;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
@@ -20,7 +21,15 @@ public final class ChecksumService {
     }
 
     public enum Algorithm {
+        /**
+         * @deprecated MD5 is cryptographically broken; prefer {@link #SHA_256} or {@link #SHA_512}.
+         */
+        @Deprecated
         MD5("MD5"),
+        /**
+         * @deprecated SHA-1 is no longer considered secure; prefer {@link #SHA_256} or {@link #SHA_512}.
+         */
+        @Deprecated
         SHA_1("SHA-1"),
         SHA_256("SHA-256"),
         SHA_512("SHA-512");
@@ -33,6 +42,15 @@ public final class ChecksumService {
 
         public String jcaName() {
             return jcaName;
+        }
+    }
+
+    public static void warnIfWeak(Logger logger, Algorithm algorithm) {
+        if (algorithm == Algorithm.MD5 || algorithm == Algorithm.SHA_1) {
+            logger.warn(
+                "Checksum algorithm '{}' is deprecated and considered weak; use SHA_256 or stronger for integrity verification.",
+                algorithm.jcaName()
+            );
         }
     }
 

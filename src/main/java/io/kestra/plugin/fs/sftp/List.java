@@ -44,8 +44,10 @@ import io.kestra.core.models.annotations.PluginProperty;
     }
 )
 public class List extends io.kestra.plugin.fs.vfs.List implements SftpInterface {
+    @ToString.Exclude
     @PluginProperty(secret = true, group = "connection")
     protected Property<String> keyfile;
+    @ToString.Exclude
     @PluginProperty(secret = true, group = "advanced")
     protected Property<String> passphrase;
     @Deprecated
@@ -58,8 +60,10 @@ public class List extends io.kestra.plugin.fs.vfs.List implements SftpInterface 
     @Deprecated
     @PluginProperty(group = "deprecated")
     protected Property<String> proxyUser;
+    @ToString.Exclude
     @PluginProperty(secret = true, group = "connection")
     protected Property<String> proxyUsername;
+    @ToString.Exclude
     @PluginProperty(secret = true, group = "connection")
     protected Property<String> proxyPassword;
     @PluginProperty(group = "advanced")

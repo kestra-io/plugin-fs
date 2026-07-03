@@ -30,6 +30,9 @@ public abstract class FtpsService {
         // instance.setKeyManager(options, null);
 
         if (runContext.render(ftpsInterface.getInsecureTrustAllCertificates()).as(Boolean.class).orElse(false)) {
+            runContext.logger().warn(
+                "`insecureTrustAllCertificates` is enabled: server certificate validation is disabled for this FTPS connection. This must not be used in production, only for testing against self-signed or untrusted certificates."
+            );
             instance.setTrustManager(options, new X509TrustManager() {
                 public X509Certificate[] getAcceptedIssuers() {
                     return null;

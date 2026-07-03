@@ -86,13 +86,13 @@ public class RealtimeTrigger extends AbstractTrigger
 
     private transient final AtomicBoolean active = new AtomicBoolean(false);
     private transient ServerSocket serverSocket;
+    private transient Logger logger;
 
     @Override
     public Publisher<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
         RunContext runContext = conditionContext.getRunContext();
-        Logger logger = runContext.logger();
+        this.logger = runContext.logger();
 
-        
         String rHost = runContext.render(this.host).as(String.class).orElse("0.0.0.0");
         Integer rPort = runContext.render(this.port).as(Integer.class)
             .orElseThrow(() -> new IllegalArgumentException("`port` is required"));
@@ -167,16 +167,22 @@ public class RealtimeTrigger extends AbstractTrigger
                 if (serverSocket != null && !serverSocket.isClosed()) {
                     serverSocket.close();
                 }
-                System.out.println("[TcpRealtimeTrigger] Socket closed via stop()");
+                if (logger != null) {
+                    logger.info("TCP RealtimeTrigger socket closed via stop()");
+                }
             } catch (Exception e) {
-                System.out.println("[TcpRealtimeTrigger] Error closing socket: " + e.getMessage());
+                if (logger != null) {
+                    logger.warn("Error closing socket: {}", e.getMessage());
+                }
             }
         }
     }
 
     @Override
     public void kill() {
-        System.out.println("[TcpRealtimeTrigger] Kill signal received");
+        if (logger != null) {
+            logger.debug("TCP RealtimeTrigger kill signal received");
+        }
         stop();
     }
 
@@ -186,15 +192,11 @@ public class RealtimeTrigger extends AbstractTrigger
                 serverSocket.close();
                 if (logger != null && port != null) {
                     logger.info("TCP RealtimeTrigger stopped listening on port {}", port);
-                } else {
-                    System.out.println("[TcpRealtimeTrigger] Stopped listening on port " + port);
                 }
             }
         } catch (Exception e) {
             if (logger != null) {
                 logger.warn("Error closing server socket: {}", e.getMessage());
-            } else {
-                System.out.println("[TcpRealtimeTrigger] Error closing socket: " + e.getMessage());
             }
         }
     }
