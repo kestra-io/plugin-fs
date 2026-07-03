@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Pattern;
 
 @SuperBuilder
 @ToString
@@ -121,14 +122,18 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
     private Property<String> host;
 
     // Password Auth method
+    @ToString.Exclude
     @PluginProperty(secret = true, group = "connection")
     private Property<String> username;
+    @ToString.Exclude
     @PluginProperty(secret = true, group = "connection")
     private Property<String> password;
 
     // PubKey Auth method
+    @ToString.Exclude
     @PluginProperty(secret = true, group = "connection")
     private Property<String> privateKey;
+    @ToString.Exclude
     @PluginProperty(secret = true, group = "connection")
     private Property<String> privateKeyPassphrase;
 
@@ -393,6 +398,9 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
     }
 
     private static final class ProcessProxyCommand implements Proxy {
+        // %h/%p/%r are substituted verbatim into a shell command; only allow characters that cannot break out of it
+        private static final Pattern SAFE_VALUE = Pattern.compile("[a-zA-Z0-9._@-]+");
+
         private final String command;
         @PluginProperty(secret = true, group = "connection")
         private final String username;
@@ -408,10 +416,13 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
 
         @Override
         public void connect(SocketFactory socketFactory, String host, int port, int timeout) throws Exception {
+            var sanitizedHost = sanitize(host, "host");
+            var sanitizedUsername = username == null ? "" : sanitize(username, "username");
+
             var resolvedCommand = command
-                .replace("%h", host)
+                .replace("%h", sanitizedHost)
                 .replace("%p", String.valueOf(port))
-                .replace("%r", username == null ? "" : username);
+                .replace("%r", sanitizedUsername);
 
             var processBuilder = new ProcessBuilder(shellCommand(resolvedCommand));
             processBuilder.redirectError(ProcessBuilder.Redirect.DISCARD);
@@ -422,6 +433,15 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
             if (!process.isAlive()) {
                 throw new JSchException("Proxy command exited immediately: " + resolvedCommand);
             }
+        }
+
+        private static String sanitize(String value, String fieldName) {
+            if (!SAFE_VALUE.matcher(value).matches()) {
+                throw new IllegalArgumentException(
+                    "Invalid SSH " + fieldName + " '" + value + "': only letters, digits, '.', '_', '@' and '-' are allowed when a `proxyCommand` is configured, to prevent shell injection."
+                );
+            }
+            return value;
         }
 
         private static String[] shellCommand(String command) {

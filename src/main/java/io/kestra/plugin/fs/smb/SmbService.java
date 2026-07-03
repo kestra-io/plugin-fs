@@ -166,6 +166,7 @@ public abstract class SmbService {
             IOUtils.copy(in, out);
         }
 
+        io.kestra.plugin.fs.vfs.ChecksumService.warnIfWeak(runContext.logger(), request.checksumAlgorithm());
         var checksum = request.validateChecksum()
             ? io.kestra.plugin.fs.vfs.ChecksumService.verify(tempFile.toPath(), request.checksumAlgorithm(), request.checksumExpected())
             : io.kestra.plugin.fs.vfs.ChecksumService.compute(tempFile.toPath(), request.checksumAlgorithm());

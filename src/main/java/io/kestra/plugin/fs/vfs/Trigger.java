@@ -44,8 +44,10 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
     private final Duration interval = Duration.ofSeconds(60);
 
     protected Property<String> host;
+    @ToString.Exclude
     @PluginProperty(secret = true, group = "connection")
     protected Property<String> username;
+    @ToString.Exclude
     @PluginProperty(secret = true, group = "connection")
     protected Property<String> password;
 

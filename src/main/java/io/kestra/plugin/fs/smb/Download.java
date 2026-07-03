@@ -85,7 +85,7 @@ public class Download extends AbstractSmbTask implements RunnableTask<io.kestra.
 
     @Schema(
         title = "Checksum algorithm to use",
-        description = "Defaults to `SHA_256`. The computed checksum is always exposed on the output as `checksum`."
+        description = "Defaults to `SHA_256`. The computed checksum is always exposed on the output as `checksum`. `MD5` and `SHA_1` are deprecated and considered weak; prefer `SHA_256` or `SHA_512`."
     )
     @Builder.Default
     @PluginProperty(group = "advanced")

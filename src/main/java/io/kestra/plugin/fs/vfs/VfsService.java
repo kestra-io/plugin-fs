@@ -138,6 +138,7 @@ public abstract class VfsService {
             local.copyFrom(remote, Selectors.SELECT_SELF);
         }
 
+        ChecksumService.warnIfWeak(runContext.logger(), request.checksumAlgorithm());
         String checksum = request.validateChecksum()
             ? ChecksumService.verify(tempFile.toPath(), request.checksumAlgorithm(), request.checksumExpected())
             : ChecksumService.compute(tempFile.toPath(), request.checksumAlgorithm());
