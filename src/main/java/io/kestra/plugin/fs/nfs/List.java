@@ -90,7 +90,8 @@ public class List extends Task implements RunnableTask<List.Output> {
     @Builder.Default
     @Schema(
         title = "Sort order applied to the list before `maxFiles` truncation",
-        description = "`NONE` (default) preserves the order returned by the filesystem walk. `LAST_MODIFIED_ASC`/`LAST_MODIFIED_DESC` sort by last modified time, oldest/newest first. `NAME_ASC`/`NAME_DESC` sort alphabetically by file name."
+        description = """
+            `NONE` (default) preserves the order returned by the filesystem walk. `LAST_MODIFIED_ASC`/`LAST_MODIFIED_DESC` sort by last modified time, oldest/newest first. `NAME_ASC`/`NAME_DESC` sort alphabetically by file name."""
     )
     @PluginProperty(group = "processing")
     private Property<Sort> sort = Property.ofValue(Sort.NONE);
@@ -142,7 +143,7 @@ public class List extends Task implements RunnableTask<List.Output> {
         return Output.builder().files(files).build();
     }
 
-    private static Comparator<File> comparator(Sort sort) {
+    static Comparator<File> comparator(Sort sort) {
         return switch (sort) {
             case NONE -> null;
             case LAST_MODIFIED_ASC -> Comparator.comparing(File::getLastModifiedTime, Comparator.nullsLast(Comparator.naturalOrder()));

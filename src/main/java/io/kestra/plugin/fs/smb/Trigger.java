@@ -203,17 +203,18 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @Builder.Default
     @Schema(
         title = "Sort order applied to pending files before `maxFiles` truncation",
-        description = "`NONE` (default) preserves the order returned by the share listing. `LAST_MODIFIED_ASC`/`LAST_MODIFIED_DESC` sort by last modified date, oldest/newest first. `NAME_ASC`/`NAME_DESC` sort alphabetically by file name."
+        description = """
+            `NONE` (default) preserves the order returned by the share listing. `LAST_MODIFIED_ASC`/`LAST_MODIFIED_DESC` sort by last modified date, oldest/newest first. `NAME_ASC`/`NAME_DESC` sort alphabetically by file name."""
     )
     @PluginProperty(group = "processing")
     private Property<io.kestra.plugin.fs.vfs.List.Sort> sort = Property.ofValue(io.kestra.plugin.fs.vfs.List.Sort.NONE);
 
-    private static class PendingFile {
-        private final File file;
-        private final Entry candidate;
-        private final ChangeType changeType;
+    static class PendingFile {
+        final File file;
+        final Entry candidate;
+        final ChangeType changeType;
 
-        private PendingFile(File file, Entry candidate, ChangeType changeType) {
+        PendingFile(File file, Entry candidate, ChangeType changeType) {
             this.file = file;
             this.candidate = candidate;
             this.changeType = changeType;
@@ -364,7 +365,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         }
     }
 
-    private static Comparator<PendingFile> pendingFileComparator(io.kestra.plugin.fs.vfs.List.Sort sort) {
+    static Comparator<PendingFile> pendingFileComparator(io.kestra.plugin.fs.vfs.List.Sort sort) {
         return switch (sort) {
             case NONE -> null;
             case LAST_MODIFIED_ASC -> Comparator.comparing((PendingFile p) -> p.file.getUpdatedDate(), Comparator.nullsLast(Comparator.naturalOrder()));

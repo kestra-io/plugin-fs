@@ -50,7 +50,8 @@ public abstract class List extends AbstractVfsTask implements RunnableTask<List.
     @Builder.Default
     @Schema(
         title = "Sort order applied to the list before `maxFiles` truncation",
-        description = "`NONE` (default) preserves the order in which the server returns files. `LAST_MODIFIED_ASC`/`LAST_MODIFIED_DESC` sort by last modified date, oldest/newest first. `NAME_ASC`/`NAME_DESC` sort alphabetically by file name."
+        description = """
+            `NONE` (default) preserves the order in which the server returns files. `LAST_MODIFIED_ASC`/`LAST_MODIFIED_DESC` sort by last modified date, oldest/newest first. `NAME_ASC`/`NAME_DESC` sort alphabetically by file name."""
     )
     @PluginProperty(group = "processing")
     private Property<Sort> sort = Property.ofValue(Sort.NONE);
@@ -89,7 +90,7 @@ public abstract class List extends AbstractVfsTask implements RunnableTask<List.
         }
     }
 
-    private static Comparator<File> comparator(Sort sort) {
+    static Comparator<File> comparator(Sort sort) {
         return switch (sort) {
             case NONE -> null;
             case LAST_MODIFIED_ASC -> Comparator.comparing(File::getUpdatedDate, Comparator.nullsLast(Comparator.naturalOrder()));

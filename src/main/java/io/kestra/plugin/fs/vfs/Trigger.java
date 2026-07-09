@@ -94,17 +94,18 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
     @Builder.Default
     @Schema(
         title = "Sort order applied to pending files before `maxFiles` truncation",
-        description = "`NONE` (default) preserves the order in which the server returns files. `LAST_MODIFIED_ASC`/`LAST_MODIFIED_DESC` sort by last modified date, oldest/newest first. `NAME_ASC`/`NAME_DESC` sort alphabetically by file name."
+        description = """
+            `NONE` (default) preserves the order in which the server returns files. `LAST_MODIFIED_ASC`/`LAST_MODIFIED_DESC` sort by last modified date, oldest/newest first. `NAME_ASC`/`NAME_DESC` sort alphabetically by file name."""
     )
     @PluginProperty(group = "processing")
     private Property<List.Sort> sort = Property.ofValue(List.Sort.NONE);
 
-    private static class PendingFile {
-        private final File file;
-        private final Entry candidate;
-        private final ChangeType changeType;
+    static class PendingFile {
+        final File file;
+        final Entry candidate;
+        final ChangeType changeType;
 
-        private PendingFile(File file, Entry candidate, ChangeType changeType) {
+        PendingFile(File file, Entry candidate, ChangeType changeType) {
             this.file = file;
             this.candidate = candidate;
             this.changeType = changeType;
@@ -310,7 +311,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
         }
     }
 
-    private static Comparator<PendingFile> pendingFileComparator(List.Sort sort) {
+    static Comparator<PendingFile> pendingFileComparator(List.Sort sort) {
         return switch (sort) {
             case NONE -> null;
             case LAST_MODIFIED_ASC -> Comparator.comparing((PendingFile p) -> p.file.getUpdatedDate(), Comparator.nullsLast(Comparator.naturalOrder()));
