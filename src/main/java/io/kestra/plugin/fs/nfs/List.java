@@ -20,6 +20,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -34,7 +35,7 @@ import io.kestra.core.models.annotations.PluginProperty;
 @NoArgsConstructor
 @Schema(
     title = "List files on an NFS mount",
-    description = "Lists files under an NFS path with optional regex filtering and recursion. Caps results at `maxFiles` (default 25)."
+    description = "Lists files under an NFS path with optional regex filtering and recursion. Sorted with `sort` (default `NONE`) before capping results at `maxFiles` (default 25)."
 )
 @Plugin(
     examples = {
@@ -51,6 +52,7 @@ import io.kestra.core.models.annotations.PluginProperty;
                     from: /mnt/nfs/shared/documents
                     regExp: '.*\\.pdf$'
                     recursive: true
+                    sort: NAME_ASC
             """
         )
     }
@@ -85,6 +87,14 @@ public class List extends Task implements RunnableTask<List.Output> {
     @PluginProperty(group = "processing")
     private Property<Integer> maxFiles = Property.ofValue(25);
 
+    @Builder.Default
+    @Schema(
+        title = "Sort order applied to the list before `maxFiles` truncation",
+        description = "`NONE` (default) preserves the order returned by the filesystem walk. `LAST_MODIFIED_ASC`/`LAST_MODIFIED_DESC` sort by last modified time, oldest/newest first. `NAME_ASC`/`NAME_DESC` sort alphabetically by file name."
+    )
+    @PluginProperty(group = "processing")
+    private Property<Sort> sort = Property.ofValue(Sort.NONE);
+
     @Override
     public Output run(RunContext runContext) throws Exception {
         Logger logger = runContext.logger();
@@ -117,6 +127,12 @@ public class List extends Task implements RunnableTask<List.Output> {
 
         logger.info("Found {} files matching the criteria.", files.size());
 
+        Sort rSort = runContext.render(this.sort).as(Sort.class).orElse(Sort.NONE);
+        Comparator<File> comparator = comparator(rSort);
+        if (comparator != null) {
+            files = files.stream().sorted(comparator).toList();
+        }
+
         int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
         if (files.size() > rMaxFiles) {
             logger.warn("Too many files to process ({}), limiting to {}", files.size(), rMaxFiles);
@@ -124,6 +140,24 @@ public class List extends Task implements RunnableTask<List.Output> {
         }
 
         return Output.builder().files(files).build();
+    }
+
+    private static Comparator<File> comparator(Sort sort) {
+        return switch (sort) {
+            case NONE -> null;
+            case LAST_MODIFIED_ASC -> Comparator.comparing(File::getLastModifiedTime, Comparator.nullsLast(Comparator.naturalOrder()));
+            case LAST_MODIFIED_DESC -> Comparator.comparing(File::getLastModifiedTime, Comparator.nullsLast(Comparator.<Instant>naturalOrder().reversed()));
+            case NAME_ASC -> Comparator.comparing(File::getName, Comparator.nullsLast(Comparator.naturalOrder()));
+            case NAME_DESC -> Comparator.comparing(File::getName, Comparator.nullsLast(Comparator.<String>naturalOrder().reversed()));
+        };
+    }
+
+    public enum Sort {
+        NONE,
+        LAST_MODIFIED_ASC,
+        LAST_MODIFIED_DESC,
+        NAME_ASC,
+        NAME_DESC
     }
 
     File mapToFile(Path path) throws IOException {

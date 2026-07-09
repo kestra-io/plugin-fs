@@ -25,6 +25,7 @@ import java.net.URISyntaxException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -89,6 +90,14 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
     @Schema(title = "Maximum files to process per poll")
     @PluginProperty(group = "execution")
     private Property<Integer> maxFiles = Property.ofValue(25);
+
+    @Builder.Default
+    @Schema(
+        title = "Sort order applied to pending files before `maxFiles` truncation",
+        description = "`NONE` (default) preserves the order in which the server returns files. `LAST_MODIFIED_ASC`/`LAST_MODIFIED_DESC` sort by last modified date, oldest/newest first. `NAME_ASC`/`NAME_DESC` sort alphabetically by file name."
+    )
+    @PluginProperty(group = "processing")
+    private Property<List.Sort> sort = Property.ofValue(List.Sort.NONE);
 
     private static class PendingFile {
         private final File file;
@@ -206,6 +215,12 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                 pendingFiles.add(new PendingFile(file, candidate, changeType));
             }
 
+            var rSort = runContext.render(this.sort).as(List.Sort.class).orElse(List.Sort.NONE);
+            var pendingComparator = pendingFileComparator(rSort);
+            if (pendingComparator != null) {
+                pendingFiles.sort(pendingComparator);
+            }
+
             int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
             java.util.List<PendingFile> limitedPending = pendingFiles;
             if (pendingFiles.size() > rMaxFiles) {
@@ -293,6 +308,16 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
 
             return Optional.of(execution);
         }
+    }
+
+    private static Comparator<PendingFile> pendingFileComparator(List.Sort sort) {
+        return switch (sort) {
+            case NONE -> null;
+            case LAST_MODIFIED_ASC -> Comparator.comparing((PendingFile p) -> p.file.getUpdatedDate(), Comparator.nullsLast(Comparator.naturalOrder()));
+            case LAST_MODIFIED_DESC -> Comparator.comparing((PendingFile p) -> p.file.getUpdatedDate(), Comparator.nullsLast(Comparator.<Instant>naturalOrder().reversed()));
+            case NAME_ASC -> Comparator.comparing((PendingFile p) -> p.file.getName(), Comparator.nullsLast(Comparator.naturalOrder()));
+            case NAME_DESC -> Comparator.comparing((PendingFile p) -> p.file.getName(), Comparator.nullsLast(Comparator.<String>naturalOrder().reversed()));
+        };
     }
 
     // Persists pending state updates (a no-op for MOVE/DELETE) and signals that nothing fired this poll.

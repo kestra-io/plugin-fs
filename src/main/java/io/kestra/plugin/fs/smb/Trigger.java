@@ -20,6 +20,7 @@ import io.kestra.core.models.annotations.Plugin;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Map;
 import java.util.Optional;
 
@@ -33,7 +34,7 @@ import io.kestra.core.models.annotations.PluginProperty;
 @NoArgsConstructor
 @Schema(
     title = "Trigger on new SMB files",
-    description = "Polls a share path on the interval and starts a Flow when new files appear. Default port 445. Use `action` MOVE/DELETE to avoid reprocessing."
+    description = "Polls a share path on the interval and starts a Flow when new files appear. Sorted with `sort` (default `NONE`) before `maxFiles` truncation. Default port 445. Use `action` MOVE/DELETE to avoid reprocessing."
 )
 @Plugin(
     examples = {
@@ -135,6 +136,7 @@ import io.kestra.core.models.annotations.PluginProperty;
                     action: MOVE
                     moveDirectory: "my_share/archivedir"
                     interval: PT10S
+                    sort: NAME_ASC
                 """
         )
     }
@@ -196,6 +198,15 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @Schema(title = "Maximum files to process per poll")
     @PluginProperty(group = "execution")
     private Property<Integer> maxFiles = Property.ofValue(25);
+
+    // FQCN needed: naming conflict with smb.List. Reuses vfs.List.Sort rather than duplicating the enum.
+    @Builder.Default
+    @Schema(
+        title = "Sort order applied to pending files before `maxFiles` truncation",
+        description = "`NONE` (default) preserves the order returned by the share listing. `LAST_MODIFIED_ASC`/`LAST_MODIFIED_DESC` sort by last modified date, oldest/newest first. `NAME_ASC`/`NAME_DESC` sort alphabetically by file name."
+    )
+    @PluginProperty(group = "processing")
+    private Property<io.kestra.plugin.fs.vfs.List.Sort> sort = Property.ofValue(io.kestra.plugin.fs.vfs.List.Sort.NONE);
 
     private static class PendingFile {
         private final File file;
@@ -273,6 +284,12 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
                 pendingFiles.add(new PendingFile(file, candidate, changeType));
             }
 
+            var rSort = runContext.render(this.sort).as(io.kestra.plugin.fs.vfs.List.Sort.class).orElse(io.kestra.plugin.fs.vfs.List.Sort.NONE);
+            var pendingComparator = pendingFileComparator(rSort);
+            if (pendingComparator != null) {
+                pendingFiles.sort(pendingComparator);
+            }
+
             var rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
             java.util.List<PendingFile> limitedPending = pendingFiles; // reassigned below
             if (pendingFiles.size() > rMaxFiles) {
@@ -345,6 +362,16 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         } finally {
             ctx.close();
         }
+    }
+
+    private static Comparator<PendingFile> pendingFileComparator(io.kestra.plugin.fs.vfs.List.Sort sort) {
+        return switch (sort) {
+            case NONE -> null;
+            case LAST_MODIFIED_ASC -> Comparator.comparing((PendingFile p) -> p.file.getUpdatedDate(), Comparator.nullsLast(Comparator.naturalOrder()));
+            case LAST_MODIFIED_DESC -> Comparator.comparing((PendingFile p) -> p.file.getUpdatedDate(), Comparator.nullsLast(Comparator.<Instant>naturalOrder().reversed()));
+            case NAME_ASC -> Comparator.comparing((PendingFile p) -> p.file.getName(), Comparator.nullsLast(Comparator.naturalOrder()));
+            case NAME_DESC -> Comparator.comparing((PendingFile p) -> p.file.getName(), Comparator.nullsLast(Comparator.<String>naturalOrder().reversed()));
+        };
     }
 
     public enum ChangeType {

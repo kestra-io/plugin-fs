@@ -1,7 +1,6 @@
 package io.kestra.plugin.fs.vfs.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.jcraft.jsch.SftpATTRS;
 import io.kestra.plugin.fs.vfs.VfsService;
 import lombok.Builder;
 import lombok.Getter;
@@ -12,7 +11,6 @@ import org.apache.commons.vfs2.FileType;
 import org.apache.commons.vfs2.provider.AbstractFileObject;
 import org.apache.commons.vfs2.provider.GenericFileName;
 import org.apache.commons.vfs2.provider.URLFileName;
-import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Instant;
@@ -28,14 +26,13 @@ public class File {
     private final FileType fileType;
     private final boolean symbolicLink;
     private final Long size;
-    private final Integer userId;
-    private final Integer groupId;
-    private final Integer permissions;
-    private final Integer flags;
-    private final Instant accessDate;
     private final Instant updatedDate;
 
-    public static File of(AbstractFileObject<?> fileObject) throws FileSystemException, NoSuchFieldException, IllegalAccessException, URISyntaxException {
+    // userId/groupId/permissions/flags/accessDate used to be populated via reflection into a
+    // jsch-specific SftpATTRS field, which only existed for the SFTP provider and was always null
+    // for FTP/FTPS/SMB. Replaced with the provider-agnostic VFS2 FileContent API below, which has
+    // no equivalent for those four fields, so they were dropped rather than kept permanently null.
+    public static File of(AbstractFileObject<?> fileObject) throws FileSystemException, URISyntaxException {
         FileBuilder builder = File.builder()
             .path(new URI(null, fileObject.getName().getPath(), null))
             .serverPath(serverPath(fileObject))
@@ -43,20 +40,11 @@ public class File {
             .fileType(fileObject.getType())
             .symbolicLink(fileObject.isSymbolicLink());
 
-        try {
-            Field field = fileObject.getClass().getDeclaredField("attrs");
-            field.setAccessible(true);
-            SftpATTRS attrs = (SftpATTRS) field.get(fileObject);
-
+        if (fileObject.getType() == FileType.FILE) {
+            var content = fileObject.getContent();
             builder
-                .size(attrs.getSize())
-                .userId(attrs.getUId())
-                .groupId(attrs.getGId())
-                .permissions(attrs.getPermissions())
-                .flags(attrs.getFlags())
-                .accessDate(Instant.ofEpochSecond(attrs.getATime()))
-                .updatedDate(Instant.ofEpochSecond(attrs.getMTime()));
-        } catch (NoSuchFieldException ignored) {
+                .size(content.getSize())
+                .updatedDate(Instant.ofEpochMilli(content.getLastModifiedTime()));
         }
 
         return builder.build();

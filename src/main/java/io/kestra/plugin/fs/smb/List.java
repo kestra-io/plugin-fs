@@ -12,6 +12,9 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 import io.kestra.core.models.annotations.PluginProperty;
 
+import java.time.Instant;
+import java.util.Comparator;
+
 @SuperBuilder
 @ToString
 @EqualsAndHashCode
@@ -19,7 +22,7 @@ import io.kestra.core.models.annotations.PluginProperty;
 @NoArgsConstructor
 @Schema(
     title = "List files on an SMB share",
-    description = "Lists entries under the given share path with optional regexp filter. Default port 445."
+    description = "Lists entries under the given share path with optional regexp filter. Sorted with `sort` (default `NONE`) before `maxFiles` truncation. Default port 445."
 )
 @Plugin(
     examples = {
@@ -38,6 +41,7 @@ import io.kestra.core.models.annotations.PluginProperty;
                     password: "{{ secret('SMB_PASSWORD') }}"
                     from: "/my_share/dir1/"
                     regExp: '.*/dir1/.*\\.(yaml|yml)'
+                    sort: NAME_ASC
                 """
         )
     }
@@ -70,6 +74,16 @@ public class List extends AbstractSmbTask implements RunnableTask<io.kestra.plug
     @PluginProperty(group = "processing")
     private Property<Integer> maxFiles = Property.ofValue(25);
 
+    // FQCN needed: naming conflict with smb.List. Reuses vfs.List.Sort rather than duplicating the enum,
+    // since this class already depends on vfs.List.Output/vfs.models.File.
+    @Builder.Default
+    @Schema(
+        title = "Sort order applied to the list before `maxFiles` truncation",
+        description = "`NONE` (default) preserves the order returned by the share listing. `LAST_MODIFIED_ASC`/`LAST_MODIFIED_DESC` sort by last modified date, oldest/newest first. `NAME_ASC`/`NAME_DESC` sort alphabetically by file name."
+    )
+    @PluginProperty(group = "processing")
+    private Property<io.kestra.plugin.fs.vfs.List.Sort> sort = Property.ofValue(io.kestra.plugin.fs.vfs.List.Sort.NONE);
+
     public io.kestra.plugin.fs.vfs.List.Output run(RunContext runContext) throws Exception {
         var ctx = createContext(runContext);
         try {
@@ -84,6 +98,12 @@ public class List extends AbstractSmbTask implements RunnableTask<io.kestra.plug
 
             var files = output.getFiles();
 
+            var rSort = runContext.render(this.sort).as(io.kestra.plugin.fs.vfs.List.Sort.class).orElse(io.kestra.plugin.fs.vfs.List.Sort.NONE);
+            var comparator = comparator(rSort);
+            if (comparator != null) {
+                files = files.stream().sorted(comparator).toList();
+            }
+
             int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
             if (files.size() > rMaxFiles) {
                 runContext.logger().warn("Too many files to process ({}), limiting to {}", files.size(), rMaxFiles);
@@ -96,5 +116,15 @@ public class List extends AbstractSmbTask implements RunnableTask<io.kestra.plug
         } finally {
             ctx.close();
         }
+    }
+
+    private static Comparator<File> comparator(io.kestra.plugin.fs.vfs.List.Sort sort) {
+        return switch (sort) {
+            case NONE -> null;
+            case LAST_MODIFIED_ASC -> Comparator.comparing(File::getUpdatedDate, Comparator.nullsLast(Comparator.naturalOrder()));
+            case LAST_MODIFIED_DESC -> Comparator.comparing(File::getUpdatedDate, Comparator.nullsLast(Comparator.<Instant>naturalOrder().reversed()));
+            case NAME_ASC -> Comparator.comparing(File::getName, Comparator.nullsLast(Comparator.naturalOrder()));
+            case NAME_DESC -> Comparator.comparing(File::getName, Comparator.nullsLast(Comparator.<String>naturalOrder().reversed()));
+        };
     }
 }

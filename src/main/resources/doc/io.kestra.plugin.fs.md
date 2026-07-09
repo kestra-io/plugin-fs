@@ -26,13 +26,13 @@ Store secrets in [secrets](https://kestra.io/docs/concepts/secret) and apply con
 
 `<protocol>.Uploads` uploads multiple files — set `from` as a list or map of URIs and `to` as the destination directory. Cap with `maxFiles` (default 25).
 
-`<protocol>.List` lists a remote directory — set `from`. Filter with `regExp` and set `recursive: true` to traverse subdirectories.
+`<protocol>.List` lists a remote directory — set `from`. Filter with `regExp` and set `recursive: true` to traverse subdirectories. Order results with `sort` (`NONE` default, `LAST_MODIFIED_ASC`/`LAST_MODIFIED_DESC`, `NAME_ASC`/`NAME_DESC`) before `maxFiles` truncation is applied.
 
 `<protocol>.Move` renames or moves a remote file — set `from` and `to`.
 
 `<protocol>.Delete` removes a remote file — set `uri`.
 
-`<protocol>.Trigger` polls a remote directory on a schedule and starts one execution per batch of matching files. Set `from`, optionally `regExp`, and `action` to manage files after triggering.
+`<protocol>.Trigger` polls a remote directory on a schedule and starts one execution per batch of matching files. Set `from`, optionally `regExp`, and `action` to manage files after triggering. Set `sort` to order pending files before `maxFiles` truncation, applied after stateful deduplication.
 
 **SSH** — `ssh.Command` executes one or more shell `commands` (array, required) on a remote host.
 
@@ -40,6 +40,6 @@ Store secrets in [secrets](https://kestra.io/docs/concepts/secret) and apply con
 
 **UDP** — `udp.Send` sends a `payload` to a `host` and `port`.
 
-**Local** — `local.Download`, `local.Upload`, `local.Copy`, `local.Move`, `local.Delete`, `local.List`, and `local.Trigger` mirror the remote operations but operate on the local filesystem. Access is restricted to paths configured in `allowed-paths`.
+**Local** — `local.Download`, `local.Upload`, `local.Copy`, `local.Move`, `local.Delete`, `local.List`, and `local.Trigger` mirror the remote operations but operate on the local filesystem. Access is restricted to paths configured in `allowed-paths`. `local.List` supports `sort` like the remote `List` tasks.
 
-**NFS** — `nfs.List`, `nfs.Copy`, `nfs.Move`, `nfs.Delete`, `nfs.Trigger`, and `nfs.CheckMount` operate on NFS-mounted paths. Use `nfs.CheckMount` to validate the mount before running file operations.
+**NFS** — `nfs.List`, `nfs.Copy`, `nfs.Move`, `nfs.Delete`, `nfs.Trigger`, and `nfs.CheckMount` operate on NFS-mounted paths. Use `nfs.CheckMount` to validate the mount before running file operations. `nfs.List` supports `sort` like the remote `List` tasks.

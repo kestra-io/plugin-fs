@@ -14,6 +14,8 @@ import lombok.experimental.SuperBuilder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.time.Instant;
+import java.util.Comparator;
 import java.util.Objects;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
@@ -27,7 +29,7 @@ import io.kestra.core.models.annotations.PluginProperty;
 @Schema(
     title = "List local files",
     description = """
-        Lists files under a directory allowed by `allowed-paths`; optional regexp filter and recursion. Limits results to `maxFiles` (default 25).
+        Lists files under a directory allowed by `allowed-paths`; optional regexp filter and recursion. Sorted with `sort` (default `NONE`) before limiting results to `maxFiles` (default 25).
         Local access requires `allowed-paths` in plugin defaults.
 
         Example (Kestra config):
@@ -55,6 +57,7 @@ import io.kestra.core.models.annotations.PluginProperty;
                     from: "/data/input"
                     regExp: ".*.csv"
                     recursive: true
+                    sort: LAST_MODIFIED_DESC
                 """
         )
     }
@@ -90,6 +93,14 @@ public class List extends AbstractLocalTask implements RunnableTask<List.Output>
     @PluginProperty(group = "processing")
     private Property<Integer> maxFiles = Property.ofValue(25);
 
+    @Builder.Default
+    @Schema(
+        title = "Sort order applied to the list before `maxFiles` truncation",
+        description = "`NONE` (default) preserves the order returned by the filesystem walk. `LAST_MODIFIED_ASC`/`LAST_MODIFIED_DESC` sort by last modified date, oldest/newest first. `NAME_ASC`/`NAME_DESC` sort alphabetically by file name."
+    )
+    @PluginProperty(group = "processing")
+    private Property<Sort> sort = Property.ofValue(Sort.NONE);
+
     @Override
     public Output run(RunContext runContext) throws Exception {
         String resolvedDirectory = runContext.render(this.from).as(String.class).orElseThrow();
@@ -111,6 +122,12 @@ public class List extends AbstractLocalTask implements RunnableTask<List.Output>
             .filter(Objects::nonNull)
             .toList();
 
+        Sort rSort = runContext.render(this.sort).as(Sort.class).orElse(Sort.NONE);
+        Comparator<File> comparator = comparator(rSort);
+        if (comparator != null) {
+            files = files.stream().sorted(comparator).toList();
+        }
+
         int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
         if (files.size() > rMaxFiles) {
             runContext.logger().warn("Too many files to process ({}), limiting to {}", files.size(), rMaxFiles);
@@ -121,6 +138,24 @@ public class List extends AbstractLocalTask implements RunnableTask<List.Output>
             .files(files)
             .count(files.size())
             .build();
+    }
+
+    private static Comparator<File> comparator(Sort sort) {
+        return switch (sort) {
+            case NONE -> null;
+            case LAST_MODIFIED_ASC -> Comparator.comparing(File::getModifiedDate, Comparator.nullsLast(Comparator.naturalOrder()));
+            case LAST_MODIFIED_DESC -> Comparator.comparing(File::getModifiedDate, Comparator.nullsLast(Comparator.<Instant>naturalOrder().reversed()));
+            case NAME_ASC -> Comparator.comparing(File::getName, Comparator.nullsLast(Comparator.naturalOrder()));
+            case NAME_DESC -> Comparator.comparing(File::getName, Comparator.nullsLast(Comparator.<String>naturalOrder().reversed()));
+        };
+    }
+
+    public enum Sort {
+        NONE,
+        LAST_MODIFIED_ASC,
+        LAST_MODIFIED_DESC,
+        NAME_ASC,
+        NAME_DESC
     }
 
     @Builder
