@@ -14,7 +14,7 @@ class ListComparatorTest {
         List.File dated = List.File.builder().name("a.txt").lastModifiedTime(Instant.now()).build();
         List.File undated = List.File.builder().name("b.txt").lastModifiedTime(null).build();
 
-        Comparator<List.File> comparator = List.comparator(List.Sort.LAST_MODIFIED_ASC);
+        Comparator<List.File> comparator = io.kestra.plugin.fs.vfs.List.comparator(io.kestra.plugin.fs.vfs.List.Sort.LAST_MODIFIED_ASC, List.File::getLastModifiedTime, List.File::getName);
 
         assertThat(
             java.util.List.of(undated, dated).stream().sorted(comparator).map(List.File::getName).toList(),
@@ -27,7 +27,7 @@ class ListComparatorTest {
         List.File dated = List.File.builder().name("a.txt").lastModifiedTime(Instant.now()).build();
         List.File undated = List.File.builder().name("b.txt").lastModifiedTime(null).build();
 
-        Comparator<List.File> comparator = List.comparator(List.Sort.LAST_MODIFIED_DESC);
+        Comparator<List.File> comparator = io.kestra.plugin.fs.vfs.List.comparator(io.kestra.plugin.fs.vfs.List.Sort.LAST_MODIFIED_DESC, List.File::getLastModifiedTime, List.File::getName);
 
         assertThat(
             java.util.List.of(undated, dated).stream().sorted(comparator).map(List.File::getName).toList(),

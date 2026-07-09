@@ -15,7 +15,7 @@ class ListComparatorTest {
         File dated = File.builder().name("a.txt").updatedDate(Instant.now()).build();
         File undated = File.builder().name("b.txt").updatedDate(null).build();
 
-        Comparator<File> comparator = List.comparator(List.Sort.LAST_MODIFIED_ASC);
+        Comparator<File> comparator = List.comparator(List.Sort.LAST_MODIFIED_ASC, File::getUpdatedDate, File::getName);
 
         assertThat(
             java.util.List.of(undated, dated).stream().sorted(comparator).map(File::getName).toList(),
@@ -28,7 +28,7 @@ class ListComparatorTest {
         File dated = File.builder().name("a.txt").updatedDate(Instant.now()).build();
         File undated = File.builder().name("b.txt").updatedDate(null).build();
 
-        Comparator<File> comparator = List.comparator(List.Sort.LAST_MODIFIED_DESC);
+        Comparator<File> comparator = List.comparator(List.Sort.LAST_MODIFIED_DESC, File::getUpdatedDate, File::getName);
 
         assertThat(
             java.util.List.of(undated, dated).stream().sorted(comparator).map(File::getName).toList(),

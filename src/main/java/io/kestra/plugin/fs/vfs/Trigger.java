@@ -25,7 +25,6 @@ import java.net.URISyntaxException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -217,7 +216,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
             }
 
             var rSort = runContext.render(this.sort).as(List.Sort.class).orElse(List.Sort.NONE);
-            var pendingComparator = pendingFileComparator(rSort);
+            var pendingComparator = List.comparator(rSort, (PendingFile p) -> p.file.getUpdatedDate(), (PendingFile p) -> p.file.getName());
             if (pendingComparator != null) {
                 pendingFiles.sort(pendingComparator);
             }
@@ -309,16 +308,6 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
 
             return Optional.of(execution);
         }
-    }
-
-    static Comparator<PendingFile> pendingFileComparator(List.Sort sort) {
-        return switch (sort) {
-            case NONE -> null;
-            case LAST_MODIFIED_ASC -> Comparator.comparing((PendingFile p) -> p.file.getUpdatedDate(), Comparator.nullsLast(Comparator.naturalOrder()));
-            case LAST_MODIFIED_DESC -> Comparator.comparing((PendingFile p) -> p.file.getUpdatedDate(), Comparator.nullsLast(Comparator.<Instant>naturalOrder().reversed()));
-            case NAME_ASC -> Comparator.comparing((PendingFile p) -> p.file.getName(), Comparator.nullsLast(Comparator.naturalOrder()));
-            case NAME_DESC -> Comparator.comparing((PendingFile p) -> p.file.getName(), Comparator.nullsLast(Comparator.<String>naturalOrder().reversed()));
-        };
     }
 
     // Persists pending state updates (a no-op for MOVE/DELETE) and signals that nothing fired this poll.

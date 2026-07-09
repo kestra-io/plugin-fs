@@ -12,9 +12,6 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 import io.kestra.core.models.annotations.PluginProperty;
 
-import java.time.Instant;
-import java.util.Comparator;
-
 @SuperBuilder
 @ToString
 @EqualsAndHashCode
@@ -100,7 +97,7 @@ public class List extends AbstractSmbTask implements RunnableTask<io.kestra.plug
             var files = output.getFiles();
 
             var rSort = runContext.render(this.sort).as(io.kestra.plugin.fs.vfs.List.Sort.class).orElse(io.kestra.plugin.fs.vfs.List.Sort.NONE);
-            var comparator = comparator(rSort);
+            var comparator = io.kestra.plugin.fs.vfs.List.comparator(rSort, File::getUpdatedDate, File::getName);
             if (comparator != null) {
                 files = files.stream().sorted(comparator).toList();
             }
@@ -117,15 +114,5 @@ public class List extends AbstractSmbTask implements RunnableTask<io.kestra.plug
         } finally {
             ctx.close();
         }
-    }
-
-    static Comparator<File> comparator(io.kestra.plugin.fs.vfs.List.Sort sort) {
-        return switch (sort) {
-            case NONE -> null;
-            case LAST_MODIFIED_ASC -> Comparator.comparing(File::getUpdatedDate, Comparator.nullsLast(Comparator.naturalOrder()));
-            case LAST_MODIFIED_DESC -> Comparator.comparing(File::getUpdatedDate, Comparator.nullsLast(Comparator.<Instant>naturalOrder().reversed()));
-            case NAME_ASC -> Comparator.comparing(File::getName, Comparator.nullsLast(Comparator.naturalOrder()));
-            case NAME_DESC -> Comparator.comparing(File::getName, Comparator.nullsLast(Comparator.<String>naturalOrder().reversed()));
-        };
     }
 }

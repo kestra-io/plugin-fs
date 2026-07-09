@@ -88,7 +88,7 @@ class ListTest {
             .type(List.class.getName())
             .from(Property.ofValue(tempDir.toString()))
             .regExp(Property.ofValue(".*\\.csv"))
-            .sort(Property.ofValue(List.Sort.NAME_ASC))
+            .sort(Property.ofValue(io.kestra.plugin.fs.vfs.List.Sort.NAME_ASC))
             .build();
 
         List.Output output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
@@ -99,7 +99,7 @@ class ListTest {
             .type(List.class.getName())
             .from(Property.ofValue(tempDir.toString()))
             .regExp(Property.ofValue(".*\\.csv"))
-            .sort(Property.ofValue(List.Sort.NAME_DESC))
+            .sort(Property.ofValue(io.kestra.plugin.fs.vfs.List.Sort.NAME_DESC))
             .build();
         output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
         assertThat(output.getFiles().stream().map(File::getName).toList(), contains("file2.csv", "file1.csv"));
@@ -117,7 +117,7 @@ class ListTest {
             .from(Property.ofValue(tempDir.toString()))
             .regExp(Property.ofValue(".*\\.csv"))
             .recursive(Property.ofValue(true))
-            .sort(Property.ofValue(List.Sort.LAST_MODIFIED_DESC))
+            .sort(Property.ofValue(io.kestra.plugin.fs.vfs.List.Sort.LAST_MODIFIED_DESC))
             .maxFiles(Property.ofValue(2))
             .build();
 
@@ -137,7 +137,7 @@ class ListTest {
             .type(List.class.getName())
             .from(Property.ofValue(tempDir.toString()))
             .regExp(Property.ofValue(".*\\.doesnotexist"))
-            .sort(Property.ofValue(List.Sort.NAME_ASC))
+            .sort(Property.ofValue(io.kestra.plugin.fs.vfs.List.Sort.NAME_ASC))
             .build();
 
         List.Output output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));

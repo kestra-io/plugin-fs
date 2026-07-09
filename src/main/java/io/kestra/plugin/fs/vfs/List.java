@@ -13,6 +13,7 @@ import io.kestra.core.models.annotations.PluginProperty;
 
 import java.time.Instant;
 import java.util.Comparator;
+import java.util.function.Function;
 
 @SuperBuilder
 @ToString
@@ -73,7 +74,7 @@ public abstract class List extends AbstractVfsTask implements RunnableTask<List.
             java.util.List<File> files = output.getFiles();
 
             Sort rSort = runContext.render(this.sort).as(Sort.class).orElse(Sort.NONE);
-            Comparator<File> comparator = comparator(rSort);
+            Comparator<File> comparator = comparator(rSort, File::getUpdatedDate, File::getName);
             if (comparator != null) {
                 files = files.stream().sorted(comparator).toList();
             }
@@ -90,13 +91,14 @@ public abstract class List extends AbstractVfsTask implements RunnableTask<List.
         }
     }
 
-    static Comparator<File> comparator(Sort sort) {
+    // Shared by every provider's List task/Trigger (local, nfs, smb, vfs) so the sort logic is defined once.
+    public static <T> Comparator<T> comparator(Sort sort, Function<T, Instant> dateAccessor, Function<T, String> nameAccessor) {
         return switch (sort) {
             case NONE -> null;
-            case LAST_MODIFIED_ASC -> Comparator.comparing(File::getUpdatedDate, Comparator.nullsLast(Comparator.naturalOrder()));
-            case LAST_MODIFIED_DESC -> Comparator.comparing(File::getUpdatedDate, Comparator.nullsLast(Comparator.<Instant>naturalOrder().reversed()));
-            case NAME_ASC -> Comparator.comparing(File::getName, Comparator.nullsLast(Comparator.naturalOrder()));
-            case NAME_DESC -> Comparator.comparing(File::getName, Comparator.nullsLast(Comparator.<String>naturalOrder().reversed()));
+            case LAST_MODIFIED_ASC -> Comparator.comparing(dateAccessor, Comparator.nullsLast(Comparator.naturalOrder()));
+            case LAST_MODIFIED_DESC -> Comparator.comparing(dateAccessor, Comparator.nullsLast(Comparator.<Instant>naturalOrder().reversed()));
+            case NAME_ASC -> Comparator.comparing(nameAccessor, Comparator.nullsLast(Comparator.naturalOrder()));
+            case NAME_DESC -> Comparator.comparing(nameAccessor, Comparator.nullsLast(Comparator.<String>naturalOrder().reversed()));
         };
     }
 

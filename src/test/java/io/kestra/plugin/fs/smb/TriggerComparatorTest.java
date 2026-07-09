@@ -18,7 +18,7 @@ class TriggerComparatorTest {
         Trigger.PendingFile dated = pendingFile("a.txt", Instant.now());
         Trigger.PendingFile undated = pendingFile("b.txt", null);
 
-        Comparator<Trigger.PendingFile> comparator = Trigger.pendingFileComparator(io.kestra.plugin.fs.vfs.List.Sort.LAST_MODIFIED_ASC);
+        Comparator<Trigger.PendingFile> comparator = io.kestra.plugin.fs.vfs.List.comparator(io.kestra.plugin.fs.vfs.List.Sort.LAST_MODIFIED_ASC, (Trigger.PendingFile p) -> p.file.getUpdatedDate(), (Trigger.PendingFile p) -> p.file.getName());
 
         assertThat(
             java.util.List.of(undated, dated).stream().sorted(comparator).map(p -> p.file.getName()).toList(),
@@ -31,7 +31,7 @@ class TriggerComparatorTest {
         Trigger.PendingFile dated = pendingFile("a.txt", Instant.now());
         Trigger.PendingFile undated = pendingFile("b.txt", null);
 
-        Comparator<Trigger.PendingFile> comparator = Trigger.pendingFileComparator(io.kestra.plugin.fs.vfs.List.Sort.LAST_MODIFIED_DESC);
+        Comparator<Trigger.PendingFile> comparator = io.kestra.plugin.fs.vfs.List.comparator(io.kestra.plugin.fs.vfs.List.Sort.LAST_MODIFIED_DESC, (Trigger.PendingFile p) -> p.file.getUpdatedDate(), (Trigger.PendingFile p) -> p.file.getName());
 
         assertThat(
             java.util.List.of(undated, dated).stream().sorted(comparator).map(p -> p.file.getName()).toList(),

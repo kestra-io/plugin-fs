@@ -6,6 +6,7 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.fs.local.models.File;
+import io.kestra.plugin.fs.vfs.List.Sort;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -14,7 +15,6 @@ import lombok.experimental.SuperBuilder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.time.Instant;
 import java.util.Comparator;
 import java.util.Objects;
 
@@ -93,6 +93,8 @@ public class List extends AbstractLocalTask implements RunnableTask<List.Output>
     @PluginProperty(group = "processing")
     private Property<Integer> maxFiles = Property.ofValue(25);
 
+    // Reuses vfs.List.Sort (imported as a nested type, not the enclosing List class, which would conflict
+    // with this file's own List type) rather than duplicating the enum.
     @Builder.Default
     @Schema(
         title = "Sort order applied to the list before `maxFiles` truncation",
@@ -124,7 +126,7 @@ public class List extends AbstractLocalTask implements RunnableTask<List.Output>
             .toList();
 
         Sort rSort = runContext.render(this.sort).as(Sort.class).orElse(Sort.NONE);
-        Comparator<File> comparator = comparator(rSort);
+        Comparator<File> comparator = io.kestra.plugin.fs.vfs.List.comparator(rSort, File::getModifiedDate, File::getName);
         if (comparator != null) {
             files = files.stream().sorted(comparator).toList();
         }
@@ -139,24 +141,6 @@ public class List extends AbstractLocalTask implements RunnableTask<List.Output>
             .files(files)
             .count(files.size())
             .build();
-    }
-
-    static Comparator<File> comparator(Sort sort) {
-        return switch (sort) {
-            case NONE -> null;
-            case LAST_MODIFIED_ASC -> Comparator.comparing(File::getModifiedDate, Comparator.nullsLast(Comparator.naturalOrder()));
-            case LAST_MODIFIED_DESC -> Comparator.comparing(File::getModifiedDate, Comparator.nullsLast(Comparator.<Instant>naturalOrder().reversed()));
-            case NAME_ASC -> Comparator.comparing(File::getName, Comparator.nullsLast(Comparator.naturalOrder()));
-            case NAME_DESC -> Comparator.comparing(File::getName, Comparator.nullsLast(Comparator.<String>naturalOrder().reversed()));
-        };
-    }
-
-    public enum Sort {
-        NONE,
-        LAST_MODIFIED_ASC,
-        LAST_MODIFIED_DESC,
-        NAME_ASC,
-        NAME_DESC
     }
 
     @Builder
