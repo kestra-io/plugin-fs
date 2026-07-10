@@ -67,7 +67,14 @@ class ListTest {
         List.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(run.getFiles().size(), is(7));
-        run.getFiles().forEach(file -> assertThat(file.getSize(), is(greaterThan(0L))));
+        run.getFiles().forEach(file -> {
+            assertThat(file.getSize(), is(greaterThan(0L)));
+            assertThat(file.getUpdatedDate(), is(notNullValue()));
+            // SFTP-only fields kept for backward compatibility (populated via SftpATTRS reflection)
+            assertThat(file.getUserId(), is(notNullValue()));
+            assertThat(file.getGroupId(), is(notNullValue()));
+            assertThat(file.getPermissions(), is(notNullValue()));
+        });
 
         task = builder
             .regExp(Property.ofValue(".*\\" + dir + "\\/" + lastFile + "\\.(yml|yaml)"))
