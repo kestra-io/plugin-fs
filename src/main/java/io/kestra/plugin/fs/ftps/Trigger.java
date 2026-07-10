@@ -23,7 +23,7 @@ import java.net.Proxy;
 @NoArgsConstructor
 @Schema(
     title = "Trigger on new FTPS files",
-    description = "Polls a remote directory on the interval and starts a Flow when new files appear. Defaults: port 990, EXPLICIT mode, PROT P data channel, passive mode on, remote IP verification on, paths relative to user home. Use `action` MOVE/DELETE to prevent repeated triggering; `insecureTrustAllCertificates` is for testing only."
+    description = "Polls a remote directory on the interval and starts a Flow when new files appear. Sorted with `sort` (default `NONE`) before `maxFiles` truncation. Defaults: port 990, EXPLICIT mode, PROT P data channel, passive mode on, remote IP verification on, paths relative to user home. Use `action` MOVE/DELETE to prevent repeated triggering; `insecureTrustAllCertificates` is for testing only."
 )
 @Plugin(
     examples = {
@@ -84,6 +84,7 @@ import java.net.Proxy;
                     action: MOVE
                     moveDirectory: "archive/"
                     interval: PT10S
+                    sort: NAME_ASC
                 """
         )
     }

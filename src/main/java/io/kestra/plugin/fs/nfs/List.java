@@ -7,6 +7,7 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
+import io.kestra.plugin.fs.vfs.List.Sort;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.inject.Inject;
 import jakarta.validation.constraints.NotNull;
@@ -20,6 +21,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -34,7 +36,7 @@ import io.kestra.core.models.annotations.PluginProperty;
 @NoArgsConstructor
 @Schema(
     title = "List files on an NFS mount",
-    description = "Lists files under an NFS path with optional regex filtering and recursion. Caps results at `maxFiles` (default 25)."
+    description = "Lists files under an NFS path with optional regex filtering and recursion. Sorted with `sort` (default `NONE`) before capping results at `maxFiles` (default 25)."
 )
 @Plugin(
     examples = {
@@ -51,6 +53,7 @@ import io.kestra.core.models.annotations.PluginProperty;
                     from: /mnt/nfs/shared/documents
                     regExp: '.*\\.pdf$'
                     recursive: true
+                    sort: NAME_ASC
             """
         )
     }
@@ -85,6 +88,17 @@ public class List extends Task implements RunnableTask<List.Output> {
     @PluginProperty(group = "processing")
     private Property<Integer> maxFiles = Property.ofValue(25);
 
+    // Reuses vfs.List.Sort (imported as a nested type, not the enclosing List class, which would conflict
+    // with this file's own List type) rather than duplicating the enum.
+    @Builder.Default
+    @Schema(
+        title = "Sort order applied to the list before `maxFiles` truncation",
+        description = """
+            `NONE` (default) preserves the order returned by the filesystem walk. `LAST_MODIFIED_ASC`/`LAST_MODIFIED_DESC` sort by last modified time, oldest/newest first. `NAME_ASC`/`NAME_DESC` sort alphabetically by file name."""
+    )
+    @PluginProperty(group = "processing")
+    private Property<Sort> sort = Property.ofValue(Sort.NONE);
+
     @Override
     public Output run(RunContext runContext) throws Exception {
         Logger logger = runContext.logger();
@@ -116,6 +130,12 @@ public class List extends Task implements RunnableTask<List.Output> {
         }
 
         logger.info("Found {} files matching the criteria.", files.size());
+
+        Sort rSort = runContext.render(this.sort).as(Sort.class).orElse(Sort.NONE);
+        Comparator<File> comparator = io.kestra.plugin.fs.vfs.List.comparator(rSort, File::getLastModifiedTime, File::getName);
+        if (comparator != null) {
+            files = files.stream().sorted(comparator).toList();
+        }
 
         int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
         if (files.size() > rMaxFiles) {

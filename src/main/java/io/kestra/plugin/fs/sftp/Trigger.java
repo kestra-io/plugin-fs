@@ -20,7 +20,7 @@ import java.io.IOException;
 @NoArgsConstructor
 @Schema(
     title = "Trigger on new SFTP files",
-    description = "Polls a remote directory on the interval and starts a Flow when new files appear. Defaults: port 22, user home as root, password auth unless a PEM key is provided, host key checking disabled by default. Use `action` MOVE/DELETE to prevent repeated triggering."
+    description = "Polls a remote directory on the interval and starts a Flow when new files appear. Sorted with `sort` (default `NONE`) before `maxFiles` truncation. Defaults: port 22, user home as root, password auth unless a PEM key is provided, host key checking disabled by default. Use `action` MOVE/DELETE to prevent repeated triggering."
 )
 @Plugin(
     examples = {
@@ -116,6 +116,7 @@ import java.io.IOException;
                     action: MOVE
                     moveDirectory: "archive/"
                     interval: PT10S
+                    sort: NAME_ASC
                 """
         )
     }

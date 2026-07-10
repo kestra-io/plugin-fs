@@ -90,12 +90,21 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
     @PluginProperty(group = "execution")
     private Property<Integer> maxFiles = Property.ofValue(25);
 
-    private static class PendingFile {
-        private final File file;
-        private final Entry candidate;
-        private final ChangeType changeType;
+    @Builder.Default
+    @Schema(
+        title = "Sort order applied to pending files before `maxFiles` truncation",
+        description = """
+            `NONE` (default) preserves the order in which the server returns files. `LAST_MODIFIED_ASC`/`LAST_MODIFIED_DESC` sort by last modified date, oldest/newest first. `NAME_ASC`/`NAME_DESC` sort alphabetically by file name."""
+    )
+    @PluginProperty(group = "processing")
+    private Property<List.Sort> sort = Property.ofValue(List.Sort.NONE);
 
-        private PendingFile(File file, Entry candidate, ChangeType changeType) {
+    static class PendingFile {
+        final File file;
+        final Entry candidate;
+        final ChangeType changeType;
+
+        PendingFile(File file, Entry candidate, ChangeType changeType) {
             this.file = file;
             this.candidate = candidate;
             this.changeType = changeType;
@@ -204,6 +213,12 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
 
                 var changeType = prev == null ? ChangeType.CREATE : ChangeType.UPDATE;
                 pendingFiles.add(new PendingFile(file, candidate, changeType));
+            }
+
+            var rSort = runContext.render(this.sort).as(List.Sort.class).orElse(List.Sort.NONE);
+            var pendingComparator = List.comparator(rSort, (PendingFile p) -> p.file.getUpdatedDate(), (PendingFile p) -> p.file.getName());
+            if (pendingComparator != null) {
+                pendingFiles.sort(pendingComparator);
             }
 
             int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
