@@ -20,7 +20,7 @@ import io.kestra.core.models.annotations.PluginProperty;
 @NoArgsConstructor
 @Schema(
     title = "List files in an SFTP directory",
-    description = "Lists entries under the given path with optional regexp filter. Defaults: port 22, user home as root, password auth unless a PEM key is provided, host key checking disabled by default."
+    description = "Lists entries under the given path with optional regexp filter. Sorted with `sort` (default `NONE`) before `maxFiles` truncation. Defaults: port 22, user home as root, password auth unless a PEM key is provided, host key checking disabled by default."
 )
 @Plugin(
     examples = {
@@ -38,14 +38,17 @@ import io.kestra.core.models.annotations.PluginProperty;
                     username: foo
                     password: "{{ secret('SFTP_PASSWORD') }}"
                     from: "/upload/dir1/"
-                    regExp: ".*\\/dir1\\/.*.(yaml|yml)"
+                    regExp: '.*/dir1/.*\\.(yaml|yml)'
+                    sort: NAME_ASC
                 """
         )
     }
 )
 public class List extends io.kestra.plugin.fs.vfs.List implements SftpInterface {
+    @ToString.Exclude
     @PluginProperty(secret = true, group = "connection")
     protected Property<String> keyfile;
+    @ToString.Exclude
     @PluginProperty(secret = true, group = "advanced")
     protected Property<String> passphrase;
     @Deprecated
@@ -58,8 +61,10 @@ public class List extends io.kestra.plugin.fs.vfs.List implements SftpInterface 
     @Deprecated
     @PluginProperty(group = "deprecated")
     protected Property<String> proxyUser;
+    @ToString.Exclude
     @PluginProperty(secret = true, group = "connection")
     protected Property<String> proxyUsername;
+    @ToString.Exclude
     @PluginProperty(secret = true, group = "connection")
     protected Property<String> proxyPassword;
     @PluginProperty(group = "advanced")

@@ -4,9 +4,13 @@ import com.devskiller.friendly_id.FriendlyId;
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.junit.annotations.LoadFlows;
 import io.kestra.core.models.executions.Execution;
+import io.kestra.core.models.triggers.AbstractTrigger;
+import io.kestra.core.models.triggers.PollingTriggerInterface;
 import io.kestra.core.queues.DispatchQueueInterface;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.runners.Scheduler;
+import io.kestra.core.utils.TestsUtils;
+import io.kestra.plugin.fs.vfs.Downloads;
 import io.kestra.plugin.fs.vfs.models.File;
 import jakarta.inject.Inject;
 import org.awaitility.Awaitility;
@@ -14,6 +18,7 @@ import org.junit.jupiter.api.Test;
 
 import java.net.URI;
 import java.time.Duration;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -35,6 +40,8 @@ public abstract class AbstractFileTriggerTest {
     abstract protected String triggeringFlowId();
 
     abstract protected AbstractUtils utils();
+
+    abstract protected AbstractTrigger createTrigger(String from, Downloads.Action action, String moveDirectory);
 
     @Test
     @LoadFlows({
@@ -75,6 +82,38 @@ public abstract class AbstractFileTriggerTest {
 
         utils().delete(toUploadDir + "/" + out1);
         utils().delete(toUploadDir + "/" + out2);
+    }
+
+    @Test
+    void deleteActionRefiresSamePath() throws Exception {
+        // Regression: with action DELETE the processed file is removed from the watched directory,
+        // so a file re-appearing at the SAME path is genuinely new and must fire on every poll.
+        // The stateful trigger previously remembered the path and silently suppressed re-uploads.
+        String toUploadDir = "/upload/trigger-delete-refire";
+        cleanupRemoteDir(toUploadDir);
+
+        // Fixed filename so the same remote path is reused across polls (the customer's case).
+        String fileName = "recurring-file";
+
+        var trigger = createTrigger(toUploadDir + "/", Downloads.Action.DELETE, null);
+        var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+        var polling = (PollingTriggerInterface) trigger;
+
+        // First arrival -> fires and deletes the file.
+        utils().upload(toUploadDir + "/" + fileName);
+        Optional<Execution> first = polling.evaluate(context.getKey(), context.getValue().context());
+        assertThat(first.isPresent(), is(true));
+        assertThat(utils().list(toUploadDir).getFiles().isEmpty(), is(true));
+
+        // Same file uploaded again at the same path -> must fire again (state must not suppress it).
+        utils().upload(toUploadDir + "/" + fileName);
+        Optional<Execution> second = polling.evaluate(context.getKey(), context.getValue().context());
+        assertThat(second.isPresent(), is(true));
+
+        @SuppressWarnings("unchecked")
+        java.util.List<File> files = (java.util.List<File>) second.get().getTrigger().getVariables().get("files");
+        assertThat(files.size(), is(1));
+        assertThat(utils().list(toUploadDir).getFiles().isEmpty(), is(true));
     }
 
     @Test

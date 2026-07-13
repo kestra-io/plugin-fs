@@ -1,4 +1,5 @@
 package io.kestra.plugin.fs.nfs;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
@@ -47,6 +48,7 @@ public class CheckMount extends Task implements RunnableTask<CheckMount.Output> 
     @Inject
     @Builder.Default
     @PluginProperty(group = "advanced")
+    @JsonIgnore
     private NfsService nfsService = NfsService.getInstance();
 
     @Schema(
@@ -84,13 +86,13 @@ public class CheckMount extends Task implements RunnableTask<CheckMount.Output> 
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
-        @Schema(title = "The path that was checked.")
+        @Schema(title = "The path that was checked")
         private final String path;
 
-        @Schema(title = "Whether the path is identified as an NFS mount.")
+        @Schema(title = "Whether the path is identified as an NFS mount")
         private final boolean isNfsMount;
 
-        @Schema(title = "The type of the file store (e.g., 'nfs', 'nfs4', 'ext4').")
+        @Schema(title = "The type of the file store (e.g., 'nfs', 'nfs4', 'ext4')")
         private final String fileStoreType;
     }
 }

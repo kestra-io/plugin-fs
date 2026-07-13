@@ -25,6 +25,7 @@ import java.net.URISyntaxException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -43,9 +44,11 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
     private final Duration interval = Duration.ofSeconds(60);
 
     protected Property<String> host;
-    @PluginProperty(secret = true)
+    @ToString.Exclude
+    @PluginProperty(secret = true, group = "connection")
     protected Property<String> username;
-    @PluginProperty(secret = true)
+    @ToString.Exclude
+    @PluginProperty(secret = true, group = "connection")
     protected Property<String> password;
 
     @Schema(title = "Directory URI to watch")
@@ -53,7 +56,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
     @PluginProperty(group = "main")
     private Property<String> from;
 
-    @Schema(title = "Action to perform on retrieved files", description = "If NONE, handle files in the Flow to avoid reprocessing.")
+    @Schema(title = "Action to perform on retrieved files", description = "MOVE/DELETE remove the file from the watched directory, so the trigger fires on every listed file. NONE leaves the file in place and relies on stateful deduplication (path + size + last-modified) to avoid reprocessing — handle the file in the Flow accordingly.")
     @NotNull
     private Property<Downloads.Action> action;
 
@@ -87,12 +90,21 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
     @PluginProperty(group = "execution")
     private Property<Integer> maxFiles = Property.ofValue(25);
 
-    private static class PendingFile {
-        private final File file;
-        private final Entry candidate;
-        private final ChangeType changeType;
+    @Builder.Default
+    @Schema(
+        title = "Sort order applied to pending files before `maxFiles` truncation",
+        description = """
+            `NONE` (default) preserves the order in which the server returns files. `LAST_MODIFIED_ASC`/`LAST_MODIFIED_DESC` sort by last modified date, oldest/newest first. `NAME_ASC`/`NAME_DESC` sort alphabetically by file name."""
+    )
+    @PluginProperty(group = "processing")
+    private Property<List.Sort> sort = Property.ofValue(List.Sort.NONE);
 
-        private PendingFile(File file, Entry candidate, ChangeType changeType) {
+    static class PendingFile {
+        final File file;
+        final Entry candidate;
+        final ChangeType changeType;
+
+        PendingFile(File file, Entry candidate, ChangeType changeType) {
             this.file = file;
             this.candidate = candidate;
             this.changeType = changeType;
@@ -122,6 +134,13 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
         );
 
         var rOn = runContext.render(on).as(On.class).orElse(On.CREATE_OR_UPDATE);
+        var rAction = runContext.render(this.action).as(Downloads.Action.class).orElse(Downloads.Action.NONE);
+        // MOVE/DELETE remove the file from the watched location after processing, so the action itself
+        // prevents reprocessing. Any file still present in the listing is therefore genuinely new and must
+        // fire, regardless of persisted state. Stateful dedup only applies when the file stays (action NONE).
+        var eligibleStates = java.util.List.of(Downloads.Action.DELETE, Downloads.Action.MOVE);
+        var shouldRemoveFiles = eligibleStates.contains(rAction);
+        var stateful = !shouldRemoveFiles;   // NONE keeps files in place, so dedup relies on persisted state
         var rStateKey = runContext.render(stateKey)
             .as(String.class)
             .orElse(StatefulTriggerService.defaultKey(context.getNamespace(), context.getFlowId(), id));
@@ -162,7 +181,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                 .filter(file -> file.getFileType() == FileType.FILE)
                 .toList();
 
-            Map<String, Entry> state = readState(runContext, rStateKey, rStateTtl);
+            Map<String, Entry> state = stateful ? readState(runContext, rStateKey, rStateTtl) : new HashMap<>();
 
             java.util.List<PendingFile> pendingFiles = new ArrayList<>();
 
@@ -177,6 +196,13 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                 var version = String.format("%d_%d_%s", updatedDate.toEpochMilli(), size, remotePath);
 
                 var candidate = Entry.candidate(remotePath, version, updatedDate);
+
+                // MOVE/DELETE: the file is removed after processing, so always fire; do not consult state.
+                if (shouldRemoveFiles) {
+                    pendingFiles.add(new PendingFile(file, candidate, ChangeType.CREATE));
+                    continue;
+                }
+
                 var prev = state.get(remotePath);
 
                 // IMPORTANT: keep state up to date for non-fired files
@@ -189,6 +215,12 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                 pendingFiles.add(new PendingFile(file, candidate, changeType));
             }
 
+            var rSort = runContext.render(this.sort).as(List.Sort.class).orElse(List.Sort.NONE);
+            var pendingComparator = List.comparator(rSort, (PendingFile p) -> p.file.getUpdatedDate(), (PendingFile p) -> p.file.getName());
+            if (pendingComparator != null) {
+                pendingFiles.sort(pendingComparator);
+            }
+
             int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
             java.util.List<PendingFile> limitedPending = pendingFiles;
             if (pendingFiles.size() > rMaxFiles) {
@@ -198,8 +230,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
 
             if (limitedPending.isEmpty()) {
                 // still persist state for files we skipped / updated above
-                writeState(runContext, rStateKey, state, rStateTtl);
-                return Optional.empty();
+                return noFire(stateful, runContext, rStateKey, state, rStateTtl);
             }
 
             java.util.List<File> actionFiles = new ArrayList<>();
@@ -235,20 +266,17 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
 
             if (toFire.isEmpty()) {
                 // nothing to fire; persist state updates made earlier
-                writeState(runContext, rStateKey, state, rStateTtl);
-                return Optional.empty();
+                return noFire(stateful, runContext, rStateKey, state, rStateTtl);
             }
 
             // 2) Perform remote action BEFORE committing state.
-            if (this.action != null) {
-                var renderedAction = runContext.render(this.action).as(Downloads.Action.class).orElse(null);
-
+            if (shouldRemoveFiles) {
                 VfsService.performAction(
                     runContext,
                     fsm,
                     fileSystemOptions,
                     actionFiles,
-                    renderedAction,
+                    rAction,
                     VfsService.uri(
                         runContext,
                         this.scheme(),
@@ -262,11 +290,14 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
             }
 
             // 3) Only now that downloads + actions succeeded, commit state for fired files.
-            for (PendingFile pending : limitedPending) {
-                computeAndUpdateState(state, pending.candidate, rOn);
-            }
+            //    MOVE/DELETE removed the files, so there is no state to track.
+            if (stateful) {
+                for (PendingFile pending : limitedPending) {
+                    computeAndUpdateState(state, pending.candidate, rOn);
+                }
 
-            writeState(runContext, rStateKey, state, rStateTtl);
+                writeState(runContext, rStateKey, state, rStateTtl);
+            }
 
             Execution execution = TriggerService.generateExecution(
                 this,
@@ -277,6 +308,14 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
 
             return Optional.of(execution);
         }
+    }
+
+    // Persists pending state updates (a no-op for MOVE/DELETE) and signals that nothing fired this poll.
+    private Optional<Execution> noFire(boolean stateful, RunContext runContext, String stateKey, Map<String, Entry> state, Optional<Duration> stateTtl) {
+        if (stateful) {
+            writeState(runContext, stateKey, state, stateTtl);
+        }
+        return Optional.empty();
     }
 
     private URI createUri(RunContext runContext) throws IllegalVariableEvaluationException, URISyntaxException {
@@ -308,7 +347,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
-        @Schema(title = "List of files that triggered the flow, each with its change type.")
+        @Schema(title = "List of files that triggered the flow, each with its change type")
         private final java.util.List<TriggeredFile> files;
     }
 }

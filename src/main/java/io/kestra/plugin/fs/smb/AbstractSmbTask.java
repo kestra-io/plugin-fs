@@ -18,10 +18,12 @@ public abstract class AbstractSmbTask extends Task implements SmbInterface {
     @NotNull
     protected Property<String> host;
 
-    @PluginProperty(secret = true)
+    @ToString.Exclude
+    @PluginProperty(secret = true, group = "connection")
     protected Property<String> username;
 
-    @PluginProperty(secret = true)
+    @ToString.Exclude
+    @PluginProperty(secret = true, group = "connection")
     protected Property<String> password;
 
     @Builder.Default

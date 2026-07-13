@@ -57,7 +57,7 @@ public interface SshInterface {
     Property<String> getPrivateKeyPassphrase();
 
     @Schema(
-        title = "OpenSSH configuration directory in case the authentication method is `OPEN_SSH`.",
+        title = "OpenSSH configuration directory in case the authentication method is `OPEN_SSH`",
         description = "Deprecated. Use openSSHConfigPath instead."
     )
     @Deprecated
@@ -65,7 +65,7 @@ public interface SshInterface {
     Property<String> getOpenSSHConfigDir();
 
     @Schema(
-        title = "OpenSSH configuration file path in case the authentication method is `OPEN_SSH`."
+        title = "OpenSSH configuration file path in case the authentication method is `OPEN_SSH`"
     )
     @PluginProperty(group = "advanced")
     Property<String> getOpenSSHConfigPath();

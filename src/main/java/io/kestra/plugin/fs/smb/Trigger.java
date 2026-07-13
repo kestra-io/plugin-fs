@@ -33,7 +33,7 @@ import io.kestra.core.models.annotations.PluginProperty;
 @NoArgsConstructor
 @Schema(
     title = "Trigger on new SMB files",
-    description = "Polls a share path on the interval and starts a Flow when new files appear. Default port 445. Use `action` MOVE/DELETE to avoid reprocessing."
+    description = "Polls a share path on the interval and starts a Flow when new files appear. Sorted with `sort` (default `NONE`) before `maxFiles` truncation. Default port 445. Use `action` MOVE/DELETE to avoid reprocessing."
 )
 @Plugin(
     examples = {
@@ -135,6 +135,7 @@ import io.kestra.core.models.annotations.PluginProperty;
                     action: MOVE
                     moveDirectory: "my_share/archivedir"
                     interval: PT10S
+                    sort: NAME_ASC
                 """
         )
     }
@@ -147,9 +148,11 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
     @NotNull
     protected Property<String> host;
-    @PluginProperty(secret = true)
+    @ToString.Exclude
+    @PluginProperty(secret = true, group = "connection")
     protected Property<String> username;
-    @PluginProperty(secret = true)
+    @ToString.Exclude
+    @PluginProperty(secret = true, group = "connection")
     protected Property<String> password;
 
     @Builder.Default
@@ -195,12 +198,22 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @PluginProperty(group = "execution")
     private Property<Integer> maxFiles = Property.ofValue(25);
 
-    private static class PendingFile {
-        private final File file;
-        private final Entry candidate;
-        private final ChangeType changeType;
+    // FQCN needed: naming conflict with smb.List. Reuses vfs.List.Sort rather than duplicating the enum.
+    @Builder.Default
+    @Schema(
+        title = "Sort order applied to pending files before `maxFiles` truncation",
+        description = """
+            `NONE` (default) preserves the order returned by the share listing. `LAST_MODIFIED_ASC`/`LAST_MODIFIED_DESC` sort by last modified date, oldest/newest first. `NAME_ASC`/`NAME_DESC` sort alphabetically by file name."""
+    )
+    @PluginProperty(group = "processing")
+    private Property<io.kestra.plugin.fs.vfs.List.Sort> sort = Property.ofValue(io.kestra.plugin.fs.vfs.List.Sort.NONE);
 
-        private PendingFile(File file, Entry candidate, ChangeType changeType) {
+    static class PendingFile {
+        final File file;
+        final Entry candidate;
+        final ChangeType changeType;
+
+        PendingFile(File file, Entry candidate, ChangeType changeType) {
             this.file = file;
             this.candidate = candidate;
             this.changeType = changeType;
@@ -269,6 +282,12 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
                 var changeType = prev == null ? ChangeType.CREATE : ChangeType.UPDATE;
                 pendingFiles.add(new PendingFile(file, candidate, changeType));
+            }
+
+            var rSort = runContext.render(this.sort).as(io.kestra.plugin.fs.vfs.List.Sort.class).orElse(io.kestra.plugin.fs.vfs.List.Sort.NONE);
+            var pendingComparator = io.kestra.plugin.fs.vfs.List.comparator(rSort, (PendingFile p) -> p.file.getUpdatedDate(), (PendingFile p) -> p.file.getName());
+            if (pendingComparator != null) {
+                pendingFiles.sort(pendingComparator);
             }
 
             var rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
@@ -362,7 +381,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
-        @Schema(title = "List of files that triggered the flow, each with its change type.")
+        @Schema(title = "List of files that triggered the flow, each with its change type")
         private final java.util.List<TriggeredFile> files;
     }
 }

@@ -99,7 +99,7 @@ public class Download extends AbstractLocalTask implements RunnableTask<Download
 
     @Schema(
         title = "Checksum algorithm to use",
-        description = "Defaults to `SHA_256`. The computed checksum is always exposed on the output as `checksum`."
+        description = "Defaults to `SHA_256`. The computed checksum is always exposed on the output as `checksum`. `MD5` and `SHA_1` are deprecated and considered weak; prefer `SHA_256` or `SHA_512`."
     )
     @Builder.Default
     @PluginProperty(group = "advanced")
@@ -127,6 +127,7 @@ public class Download extends AbstractLocalTask implements RunnableTask<Download
         boolean rValidateChecksum = runContext.render(this.validateChecksum).as(Boolean.class).orElse(false);
         String rChecksumExpected = runContext.render(this.checksumExpected).as(String.class).orElse(null);
         ChecksumService.Algorithm rChecksumAlgorithm = runContext.render(this.checksumAlgorithm).as(ChecksumService.Algorithm.class).orElse(ChecksumService.Algorithm.SHA_256);
+        ChecksumService.warnIfWeak(runContext.logger(), rChecksumAlgorithm);
 
         String checksum = rValidateChecksum
             ? ChecksumService.verify(tempFile.toPath(), rChecksumAlgorithm, rChecksumExpected)

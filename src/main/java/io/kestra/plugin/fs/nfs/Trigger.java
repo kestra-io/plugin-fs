@@ -1,4 +1,5 @@
 package io.kestra.plugin.fs.nfs;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import io.kestra.core.models.annotations.Example;
@@ -57,7 +58,7 @@ import io.kestra.core.models.annotations.PluginProperty;
                     type: io.kestra.plugin.fs.nfs.Trigger
                     from: /mnt/nfs_input/data
                     interval: PT10S
-                    regExp: ".*\\.csv$"
+                    regExp: '.*\\.csv$'
                     on: CREATE
                 """
         )
@@ -67,6 +68,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
     @Inject
     @Builder.Default
+    @JsonIgnore
     private NfsService nfsService = NfsService.getInstance();
     
     @Schema(title = "Directory path to watch")
@@ -241,7 +243,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
-        @Schema(title = "List of files that triggered the flow, each with its change type.")
+        @Schema(title = "List of files that triggered the flow, each with its change type")
         private final List<TriggeredFile> files;
     }
 }

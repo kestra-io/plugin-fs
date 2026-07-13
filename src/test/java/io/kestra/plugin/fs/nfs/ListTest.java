@@ -14,6 +14,8 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -116,5 +118,74 @@ class ListTest {
         io.kestra.plugin.fs.nfs.List.Output run = task.run(runContext);
 
         assertThat(run.getFiles(), hasSize(1));
+    }
+
+    @Test
+    void sortByNameAscAndDesc() throws Exception {
+        Files.createFile(nfsMountPoint.resolve("b.txt"));
+        Files.createFile(nfsMountPoint.resolve("a.txt"));
+        Files.createFile(nfsMountPoint.resolve("c.txt"));
+
+        io.kestra.plugin.fs.nfs.List task = io.kestra.plugin.fs.nfs.List.builder()
+            .id("sort-name-asc")
+            .type(io.kestra.plugin.fs.nfs.List.class.getName())
+            .from(Property.ofValue(nfsMountPoint.toString()))
+            .sort(Property.ofValue(io.kestra.plugin.fs.vfs.List.Sort.NAME_ASC))
+            .build();
+
+        io.kestra.plugin.fs.nfs.List.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+        assertThat(run.getFiles().stream().map(io.kestra.plugin.fs.nfs.List.File::getName).toList(), contains("a.txt", "b.txt", "c.txt"));
+
+        task = io.kestra.plugin.fs.nfs.List.builder()
+            .id("sort-name-desc")
+            .type(io.kestra.plugin.fs.nfs.List.class.getName())
+            .from(Property.ofValue(nfsMountPoint.toString()))
+            .sort(Property.ofValue(io.kestra.plugin.fs.vfs.List.Sort.NAME_DESC))
+            .build();
+
+        run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+        assertThat(run.getFiles().stream().map(io.kestra.plugin.fs.nfs.List.File::getName).toList(), contains("c.txt", "b.txt", "a.txt"));
+    }
+
+    @Test
+    void sortByLastModifiedAppliesBeforeMaxFilesTruncation() throws Exception {
+        Path older = nfsMountPoint.resolve("older.txt");
+        Path middle = nfsMountPoint.resolve("middle.txt");
+        Path newer = nfsMountPoint.resolve("newer.txt");
+        Files.createFile(older);
+        Files.createFile(middle);
+        Files.createFile(newer);
+
+        Files.setLastModifiedTime(older, FileTime.from(Instant.now().minusSeconds(60)));
+        Files.setLastModifiedTime(middle, FileTime.from(Instant.now().minusSeconds(30)));
+        Files.setLastModifiedTime(newer, FileTime.from(Instant.now()));
+
+        io.kestra.plugin.fs.nfs.List task = io.kestra.plugin.fs.nfs.List.builder()
+            .id("sort-last-modified")
+            .type(io.kestra.plugin.fs.nfs.List.class.getName())
+            .from(Property.ofValue(nfsMountPoint.toString()))
+            .sort(Property.ofValue(io.kestra.plugin.fs.vfs.List.Sort.LAST_MODIFIED_DESC))
+            .maxFiles(Property.ofValue(2))
+            .build();
+
+        io.kestra.plugin.fs.nfs.List.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(run.getFiles(), hasSize(2));
+        assertThat(run.getFiles().stream().map(io.kestra.plugin.fs.nfs.List.File::getName).toList(), contains("newer.txt", "middle.txt"));
+    }
+
+    @Test
+    void sortShouldNotThrowOnEmptyList() throws Exception {
+        io.kestra.plugin.fs.nfs.List task = io.kestra.plugin.fs.nfs.List.builder()
+            .id("sort-empty")
+            .type(io.kestra.plugin.fs.nfs.List.class.getName())
+            .from(Property.ofValue(nfsMountPoint.toString()))
+            .regExp(Property.ofValue(".*\\.doesnotexist"))
+            .sort(Property.ofValue(io.kestra.plugin.fs.vfs.List.Sort.NAME_ASC))
+            .build();
+
+        io.kestra.plugin.fs.nfs.List.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(run.getFiles(), hasSize(0));
     }
 }

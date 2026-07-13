@@ -20,7 +20,7 @@ import java.net.Proxy;
 @NoArgsConstructor
 @Schema(
     title = "Trigger on new FTP files",
-    description = "Polls a remote directory on the interval and starts a Flow when new files appear. Defaults: port 21, passive mode on, remote IP verification on, paths relative to user home. Use `action` MOVE/DELETE to avoid reprocessing."
+    description = "Polls a remote directory on the interval and starts a Flow when new files appear. Sorted with `sort` (default `NONE`) before `maxFiles` truncation. Defaults: port 21, passive mode on, remote IP verification on, paths relative to user home. Use `action` MOVE/DELETE to avoid reprocessing."
 )
 @Plugin(
     examples = {
@@ -116,6 +116,7 @@ import java.net.Proxy;
                     action: MOVE
                     moveDirectory: "archive/"
                     interval: PT10S
+                    sort: NAME_ASC
                 """
         )
     }

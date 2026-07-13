@@ -24,7 +24,7 @@ import io.kestra.core.models.annotations.PluginProperty;
 @NoArgsConstructor
 @Schema(
     title = "List files in an FTPS directory",
-    description = "Lists entries under the given path with optional regexp filter. Defaults: port 990, EXPLICIT mode, PROT P data channel, passive mode on, remote IP verification on, paths relative to user home. Use `insecureTrustAllCertificates` only for testing."
+    description = "Lists entries under the given path with optional regexp filter. Sorted with `sort` (default `NONE`) before `maxFiles` truncation. Defaults: port 990, EXPLICIT mode, PROT P data channel, passive mode on, remote IP verification on, paths relative to user home. Use `insecureTrustAllCertificates` only for testing."
 )
 @Plugin(
     examples = {
@@ -42,7 +42,8 @@ import io.kestra.core.models.annotations.PluginProperty;
                     username: foo
                     password: "{{ secret('FTPS_PASSWORD') }}"
                     from: "/upload/dir1/"
-                    regExp: ".*\\/dir1\\/.*.(yaml|yml)"
+                    regExp: '.*/dir1/.*\\.(yaml|yml)'
+                    sort: NAME_ASC
                 """
         )
     }

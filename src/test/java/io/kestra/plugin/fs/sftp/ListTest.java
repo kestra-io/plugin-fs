@@ -7,6 +7,7 @@ import io.kestra.core.queues.DispatchQueueInterface;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
+import io.kestra.plugin.fs.vfs.models.File;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
@@ -16,8 +17,10 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import static io.kestra.plugin.fs.sftp.SftpUtils.PASSWORD;
 import static io.kestra.plugin.fs.sftp.SftpUtils.USERNAME;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
 
 @KestraTest
 class ListTest {
@@ -61,7 +64,14 @@ class ListTest {
         List.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(run.getFiles().size(), is(7));
-        run.getFiles().forEach(file -> assertThat(file.getSize(), is(greaterThan(0L))));
+        run.getFiles().forEach(file -> {
+            assertThat(file.getSize(), is(greaterThan(0L)));
+            assertThat(file.getUpdatedDate(), is(notNullValue()));
+            // SFTP-only fields kept for backward compatibility (populated via SftpATTRS reflection)
+            assertThat(file.getUserId(), is(notNullValue()));
+            assertThat(file.getGroupId(), is(notNullValue()));
+            assertThat(file.getPermissions(), is(notNullValue()));
+        });
 
         task = builder
             .regExp(Property.ofValue(".*\\" + dir + "\\/" + lastFile + "\\.(yml|yaml)"))
@@ -73,5 +83,58 @@ class ListTest {
 
         TestsUtils.awaitLog(logs, log -> log.getMessage() != null && log.getMessage().contains(expectedEnabledRsaSha1Logs));
         assertThat(java.util.List.copyOf(logs).stream().anyMatch(log -> log.getMessage() != null && log.getMessage().contains(expectedEnabledRsaSha1Logs)), is(true));
+    }
+
+    @Test
+    void sortAppliesBeforeMaxFilesTruncation() throws Exception {
+        String dir = "/" + IdUtils.create();
+        sftpUtils.upload("upload" + dir + "/b.txt");
+        sftpUtils.upload("upload" + dir + "/a.txt");
+        sftpUtils.upload("upload" + dir + "/c.txt");
+
+        List.ListBuilder<?, ?> builder = List.builder()
+            .id(ListTest.class.getSimpleName())
+            .type(ListTest.class.getName())
+            .from(Property.ofValue("/upload/" + dir))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .rootDir(Property.ofValue(false));
+
+        List task = builder.sort(Property.ofValue(List.Sort.NAME_ASC)).build();
+        List.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+        assertThat(run.getFiles().stream().map(File::getName).toList(), contains("a.txt", "b.txt", "c.txt"));
+
+        task = builder.sort(Property.ofValue(List.Sort.NAME_DESC)).maxFiles(Property.ofValue(2)).build();
+        run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+        assertThat(run.getFiles().stream().map(File::getName).toList(), contains("c.txt", "b.txt"));
+    }
+
+    @Test
+    void sortByLastModified() throws Exception {
+        String dir = "/" + IdUtils.create();
+        sftpUtils.upload("upload" + dir + "/older.txt");
+        Thread.sleep(1200);
+        sftpUtils.upload("upload" + dir + "/newer.txt");
+
+        List.ListBuilder<?, ?> builder = List.builder()
+            .id(ListTest.class.getSimpleName())
+            .type(ListTest.class.getName())
+            .from(Property.ofValue("/upload/" + dir))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .rootDir(Property.ofValue(false));
+
+        List task = builder.sort(Property.ofValue(List.Sort.LAST_MODIFIED_ASC)).build();
+        List.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+        run.getFiles().forEach(file -> assertThat(file.getUpdatedDate(), is(notNullValue())));
+        assertThat(run.getFiles().stream().map(File::getName).toList(), contains("older.txt", "newer.txt"));
+
+        task = builder.sort(Property.ofValue(List.Sort.LAST_MODIFIED_DESC)).build();
+        run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+        assertThat(run.getFiles().stream().map(File::getName).toList(), contains("newer.txt", "older.txt"));
     }
 }

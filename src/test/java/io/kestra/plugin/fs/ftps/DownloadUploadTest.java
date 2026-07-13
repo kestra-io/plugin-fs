@@ -2,7 +2,9 @@ package io.kestra.plugin.fs.ftps;
 
 import com.google.common.base.Charsets;
 import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.models.executions.LogEntry;
 import io.kestra.core.models.property.Property;
+import io.kestra.core.queues.DispatchQueueInterface;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.tenant.TenantService;
@@ -23,6 +25,7 @@ import java.net.Socket;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import static io.kestra.plugin.fs.ftp.FtpUtils.PASSWORD;
 import static io.kestra.plugin.fs.ftp.FtpUtils.USERNAME;
@@ -40,6 +43,9 @@ class DownloadUploadTest {
 
     @Inject
     private StorageInterface storageInterface;
+
+    @Inject
+    private DispatchQueueInterface<LogEntry> logQueue;
 
     @BeforeAll
     static void waitForFtps() throws Exception {
@@ -120,6 +126,32 @@ class DownloadUploadTest {
         assertThat(uploadsRun.getFiles().stream().map(URI::getPath).toList(), Matchers.everyItem(
                 Matchers.is(Matchers.in(remoteFileUris))
         ));
+    }
+
+    @Test
+    void insecureTrustAllCertificates_logsWarning() throws Exception {
+        List<LogEntry> logs = new CopyOnWriteArrayList<>();
+        logQueue.addListener(logs::add);
+
+        URI uri = ftpUtils.uploadToStorage();
+
+        var upload = Upload.builder()
+            .id(DownloadUploadTest.class.getSimpleName())
+            .type(DownloadUploadTest.class.getName())
+            .from(Property.ofValue(uri.toString()))
+            .to(Property.ofValue(IdUtils.create() + "/" + IdUtils.create() + ".yaml"))
+            .host(Property.ofValue("127.0.0.1"))
+            .port(Property.ofValue("6990"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .insecureTrustAllCertificates(Property.ofValue(true))
+            .build();
+
+        upload.run(TestsUtils.mockRunContext(runContextFactory, upload, Map.of()));
+
+        String expectedLog = "insecureTrustAllCertificates";
+        TestsUtils.awaitLog(logs, log -> log.getMessage() != null && log.getMessage().contains(expectedLog));
+        assertThat(logs.stream().anyMatch(log -> log.getMessage() != null && log.getMessage().contains(expectedLog)), is(true));
     }
 
     private static void waitForPort(String host, int port, Duration timeout) throws Exception {

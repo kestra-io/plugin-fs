@@ -1,4 +1,5 @@
 package io.kestra.plugin.fs.nfs;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
@@ -6,6 +7,7 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
+import io.kestra.plugin.fs.vfs.List.Sort;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.inject.Inject;
 import jakarta.validation.constraints.NotNull;
@@ -19,6 +21,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -33,7 +36,7 @@ import io.kestra.core.models.annotations.PluginProperty;
 @NoArgsConstructor
 @Schema(
     title = "List files on an NFS mount",
-    description = "Lists files under an NFS path with optional regex filtering and recursion. Caps results at `maxFiles` (default 25)."
+    description = "Lists files under an NFS path with optional regex filtering and recursion. Sorted with `sort` (default `NONE`) before capping results at `maxFiles` (default 25)."
 )
 @Plugin(
     examples = {
@@ -48,8 +51,9 @@ import io.kestra.core.models.annotations.PluginProperty;
                   - id: list_files
                     type: io.kestra.plugin.fs.nfs.List
                     from: /mnt/nfs/shared/documents
-                    regExp: ".*\\.pdf$"
+                    regExp: '.*\\.pdf$'
                     recursive: true
+                    sort: NAME_ASC
             """
         )
     }
@@ -60,6 +64,7 @@ public class List extends Task implements RunnableTask<List.Output> {
     @Inject
     @Builder.Default
     @PluginProperty(group = "advanced")
+    @JsonIgnore
     private NfsService nfsService = NfsService.getInstance();
 
     @Schema(title = "Directory path to list")
@@ -82,6 +87,17 @@ public class List extends Task implements RunnableTask<List.Output> {
     )
     @PluginProperty(group = "processing")
     private Property<Integer> maxFiles = Property.ofValue(25);
+
+    // Reuses vfs.List.Sort (imported as a nested type, not the enclosing List class, which would conflict
+    // with this file's own List type) rather than duplicating the enum.
+    @Builder.Default
+    @Schema(
+        title = "Sort order applied to the list before `maxFiles` truncation",
+        description = """
+            `NONE` (default) preserves the order returned by the filesystem walk. `LAST_MODIFIED_ASC`/`LAST_MODIFIED_DESC` sort by last modified time, oldest/newest first. `NAME_ASC`/`NAME_DESC` sort alphabetically by file name."""
+    )
+    @PluginProperty(group = "processing")
+    private Property<Sort> sort = Property.ofValue(Sort.NONE);
 
     @Override
     public Output run(RunContext runContext) throws Exception {
@@ -115,6 +131,12 @@ public class List extends Task implements RunnableTask<List.Output> {
 
         logger.info("Found {} files matching the criteria.", files.size());
 
+        Sort rSort = runContext.render(this.sort).as(Sort.class).orElse(Sort.NONE);
+        Comparator<File> comparator = io.kestra.plugin.fs.vfs.List.comparator(rSort, File::getLastModifiedTime, File::getName);
+        if (comparator != null) {
+            files = files.stream().sorted(comparator).toList();
+        }
+
         int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
         if (files.size() > rMaxFiles) {
             logger.warn("Too many files to process ({}), limiting to {}", files.size(), rMaxFiles);
@@ -143,7 +165,7 @@ public class List extends Task implements RunnableTask<List.Output> {
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
-        @Schema(title = "The list of files found.")
+        @Schema(title = "The list of files found")
         private final java.util.List<File> files;
     }
 
@@ -153,35 +175,35 @@ public class List extends Task implements RunnableTask<List.Output> {
     @ToString
     @AllArgsConstructor
     public static class File {
-        @Schema(title = "The name of the file.")
+        @Schema(title = "The name of the file")
         private final String name;
 
-        @Schema(title = "The absolute URI of the file.")
+        @Schema(title = "The absolute URI of the file")
         private final URI uri;
 
-        @Schema(title = "The java.nio.file.Path of the file.")
+        @Schema(title = "The java.nio.file.Path of the file")
         @ToString.Exclude
         private final Path localPath;
 
-        @Schema(title = "Whether the file is a directory.")
+        @Schema(title = "Whether the file is a directory")
         private final boolean isDirectory;
 
-        @Schema(title = "Whether the file is a symbolic link.")
+        @Schema(title = "Whether the file is a symbolic link")
         private final boolean isSymbolicLink;
 
-        @Schema(title = "Whether the file is hidden.")
+        @Schema(title = "Whether the file is hidden")
         private final boolean isHidden;
 
-        @Schema(title = "The size of the file in bytes.")
+        @Schema(title = "The size of the file in bytes")
         private final long size;
 
-        @Schema(title = "The creation time of the file.")
+        @Schema(title = "The creation time of the file")
         private final Instant creationTime;
 
-        @Schema(title = "The last access time of the file.")
+        @Schema(title = "The last access time of the file")
         private final Instant lastAccessTime;
 
-        @Schema(title = "The last modified time of the file.")
+        @Schema(title = "The last modified time of the file")
         private final Instant lastModifiedTime;
     }
 }

@@ -49,6 +49,7 @@ public interface FtpInterface {
     @PluginProperty(group = "advanced")
     Property<Boolean> getRemoteIpVerification();
 
+    @Schema(title = "FTP client options")
     Options getOptions();
 
     @Getter

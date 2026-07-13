@@ -80,11 +80,12 @@ public class RealtimeTrigger extends AbstractTrigger
 
     private transient final AtomicBoolean active = new AtomicBoolean(false);
     private transient DatagramSocket socket;
+    private transient Logger logger;
 
     @Override
     public Publisher<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
         RunContext runContext = conditionContext.getRunContext();
-        Logger logger = runContext.logger();
+        this.logger = runContext.logger();
 
         String rHost = runContext.render(this.host).as(String.class).orElse("0.0.0.0");
         Integer rPort = runContext.render(this.port).as(Integer.class)
@@ -151,7 +152,9 @@ public class RealtimeTrigger extends AbstractTrigger
                 try {
                     socket.close();
                 } catch (Exception e) {
-                    System.out.println("[UdpRealtimeTrigger] Error closing socket: " + e.getMessage());
+                    if (logger != null) {
+                        logger.warn("Error closing socket: {}", e.getMessage());
+                    }
                 }
             }
         }
@@ -165,16 +168,16 @@ public class RealtimeTrigger extends AbstractTrigger
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
-        @Schema(title = "The received UDP payload.")
+        @Schema(title = "The received UDP payload")
         private final String payload;
 
-        @Schema(title = "The timestamp when the message was received.")
+        @Schema(title = "The timestamp when the message was received")
         private final Instant timestamp;
 
-        @Schema(title = "The IP address of the sender.")
+        @Schema(title = "The IP address of the sender")
         private final String sourceIp;
 
-        @Schema(title = "The port of the sender.")
+        @Schema(title = "The port of the sender")
         private final Integer sourcePort;
     }
 }

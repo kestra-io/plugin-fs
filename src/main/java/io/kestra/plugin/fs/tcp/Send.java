@@ -1,4 +1,5 @@
 package io.kestra.plugin.fs.tcp;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
@@ -53,6 +54,7 @@ public class Send extends Task implements RunnableTask<Send.Output> {
     @Inject
     @Builder.Default
     @PluginProperty(group = "advanced")
+    @JsonIgnore
     private TcpService tcpService = TcpService.getInstance();
 
     @Schema(title = "Target host or IP")
@@ -115,13 +117,13 @@ public class Send extends Task implements RunnableTask<Send.Output> {
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
-        @Schema(title = "The target host.")
+        @Schema(title = "The target host")
         private final String host;
 
-        @Schema(title = "The target port.")
+        @Schema(title = "The target port")
         private final Integer port;
 
-        @Schema(title = "Number of bytes sent.")
+        @Schema(title = "Number of bytes sent")
         private final Integer sentBytes;
     }
 }

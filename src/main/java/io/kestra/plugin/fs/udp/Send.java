@@ -95,13 +95,13 @@ public class Send extends Task implements RunnableTask<Send.Output> {
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
-        @Schema(title = "The target host.")
+        @Schema(title = "The target host")
         private final String host;
 
-        @Schema(title = "The target port.")
+        @Schema(title = "The target port")
         private final Integer port;
 
-        @Schema(title = "The number of bytes sent.")
+        @Schema(title = "The number of bytes sent")
         private final Integer sentBytes;
     }
 }
