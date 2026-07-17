@@ -4,6 +4,7 @@ import com.devskiller.friendly_id.FriendlyId;
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.junit.annotations.LoadFlows;
 import io.kestra.core.models.executions.Execution;
+import io.kestra.core.runners.TestRunnerUtils;
 import io.kestra.core.models.triggers.AbstractTrigger;
 import io.kestra.core.models.triggers.PollingTriggerInterface;
 import io.kestra.core.queues.DispatchQueueInterface;
@@ -24,12 +25,17 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.is;
+import static io.kestra.core.tenant.TenantService.MAIN_TENANT;
 
 @KestraTest(startRunner = true, startScheduler = true)
 public abstract class AbstractFileTriggerTest {
     @Inject
     private DispatchQueueInterface<Execution> executionQueue;
+
+    @Inject
+    protected TestRunnerUtils runnerUtils;
 
     @Inject
     protected Scheduler scheduler;
@@ -52,15 +58,8 @@ public abstract class AbstractFileTriggerTest {
     void moveAction() throws Exception {
         Awaitility.await().atMost(Duration.ofSeconds(20)).pollInterval(Duration.ofMillis(100)).until(() -> scheduler.isActive());
 
-        CountDownLatch queueCount = new CountDownLatch(1);
         AtomicReference<Execution> last = new AtomicReference<>();
-
-        executionQueue.addListener(execution -> {
-            if (execution.getFlowId().equals(triggeringFlowId())) {
-                last.set(execution);
-                queueCount.countDown();
-            }
-        });
+        String awaitFlowId = triggeringFlowId();
 
         String out1 = FriendlyId.createFriendlyId();
         String toUploadDir = "/upload/trigger";
@@ -70,8 +69,8 @@ public abstract class AbstractFileTriggerTest {
         String out2 = FriendlyId.createFriendlyId();
         utils().upload(toUploadDir + "/" + out2);
 
-        boolean await = queueCount.await(1, TimeUnit.MINUTES);
-        assertThat(await, is(true));
+        last.set(runnerUtils.awaitFlowExecution(e -> true, MAIN_TENANT, "io.kestra.tests", awaitFlowId, Duration.ofMinutes(1)));
+        assertThat(last.get(), notNullValue());
 
         @SuppressWarnings("unchecked")
         java.util.List<File> trigger = (java.util.List<File>) last.get().getTrigger().getVariables().get("files");
@@ -125,15 +124,8 @@ public abstract class AbstractFileTriggerTest {
     void noneAction() throws Exception {
         Awaitility.await().atMost(Duration.ofSeconds(20)).pollInterval(Duration.ofMillis(100)).until(() -> scheduler.isActive());
 
-        CountDownLatch queueCount = new CountDownLatch(1);
         AtomicReference<Execution> last = new AtomicReference<>();
-
-        executionQueue.addListener(execution -> {
-            if (execution.getFlowId().equals(triggeringFlowId() + "-none-action")) {
-                last.set(execution);
-                queueCount.countDown();
-            }
-        });
+        String awaitFlowId = triggeringFlowId() + "-none-action";
 
         String out1 = FriendlyId.createFriendlyId();
         String toUploadDir = "/upload/trigger-none";
@@ -142,8 +134,8 @@ public abstract class AbstractFileTriggerTest {
         String out2 = FriendlyId.createFriendlyId();
         utils().upload(toUploadDir + "/" + out2);
 
-        boolean await = queueCount.await(1, TimeUnit.MINUTES);
-        assertThat(await, is(true));
+        last.set(runnerUtils.awaitFlowExecution(e -> true, MAIN_TENANT, "io.kestra.tests", awaitFlowId, Duration.ofMinutes(1)));
+        assertThat(last.get(), notNullValue());
 
         @SuppressWarnings("unchecked")
         java.util.List<File> trigger = (java.util.List<File>) last.get().getTrigger().getVariables().get("files");
@@ -164,22 +156,15 @@ public abstract class AbstractFileTriggerTest {
     void missing() throws Exception {
         Awaitility.await().atMost(Duration.ofSeconds(20)).pollInterval(Duration.ofMillis(100)).until(() -> scheduler.isActive());
 
-        CountDownLatch queueCount = new CountDownLatch(1);
         AtomicReference<Execution> last = new AtomicReference<>();
-
-        executionQueue.addListener(execution -> {
-            if (execution.getFlowId().equals(triggeringFlowId() + "-missing")) {
-                last.set(execution);
-                queueCount.countDown();
-            }
-        });
+        String awaitFlowId = triggeringFlowId() + "-missing";
 
         String file = FriendlyId.createFriendlyId();
         cleanupRemoteDir("/upload/trigger-missing");
         utils().upload("/upload/trigger-missing/" + file);
 
-        boolean await = queueCount.await(1, TimeUnit.MINUTES);
-        assertThat(await, is(true));
+        last.set(runnerUtils.awaitFlowExecution(e -> true, MAIN_TENANT, "io.kestra.tests", awaitFlowId, Duration.ofMinutes(1)));
+        assertThat(last.get(), notNullValue());
 
         @SuppressWarnings("unchecked")
         java.util.List<URI> trigger = (java.util.List<URI>) last.get().getTrigger().getVariables().get("files");
