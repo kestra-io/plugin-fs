@@ -36,7 +36,6 @@ class TriggerTest extends AbstractFileTriggerTest {
         return smbUtils;
     }
 
-    @Override
     protected AbstractTrigger createTrigger(String from, Downloads.Action action, String moveDirectory) {
         return io.kestra.plugin.fs.smb.Trigger.builder()
             .id(TriggerTest.class.getSimpleName())
@@ -74,7 +73,7 @@ class TriggerTest extends AbstractFileTriggerTest {
             .build();
 
         var context = TestsUtils.mockTrigger(runContextFactory, trigger);
-        Optional<Execution> execution = ((PollingTriggerInterface) trigger).evaluate(context.getKey(), context.getValue());
+        Optional<Execution> execution = ((PollingTriggerInterface) trigger).evaluate(context.getKey(), context.getValue().context());
 
         assertThat(execution.isPresent(), is(true));
 

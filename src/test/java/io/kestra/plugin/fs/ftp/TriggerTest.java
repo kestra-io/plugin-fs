@@ -36,7 +36,6 @@ class TriggerTest extends AbstractFileTriggerTest {
         return ftpUtils;
     }
 
-    @Override
     protected AbstractTrigger createTrigger(String from, Downloads.Action action, String moveDirectory) {
         return Trigger.builder()
             .id(TriggerTest.class.getSimpleName())
@@ -73,7 +72,7 @@ class TriggerTest extends AbstractFileTriggerTest {
             .build();
 
         var context = TestsUtils.mockTrigger(runContextFactory, trigger);
-        Optional<Execution> execution = ((PollingTriggerInterface) trigger).evaluate(context.getKey(), context.getValue());
+        Optional<Execution> execution = ((PollingTriggerInterface) trigger).evaluate(context.getKey(), context.getValue().context());
 
         assertThat(execution.isPresent(), is(true));
 

@@ -34,7 +34,7 @@ public class RealtimeTriggerTest {
             .port(Property.ofValue(testPort))
             .build();
 
-        ConditionContext conditionContext = new ConditionContext(null, null, runContext, Map.of(), null);
+        ConditionContext conditionContext = new ConditionContext(null, null, runContext, Map.<String, Object>of());
         TriggerContext triggerContext = TriggerContext.builder().build();
 
         Thread triggerThread = new Thread(() -> {

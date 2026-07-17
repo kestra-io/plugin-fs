@@ -4,8 +4,7 @@ import com.google.common.base.Charsets;
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.executions.LogEntry;
 import io.kestra.core.models.property.Property;
-import io.kestra.core.queues.QueueFactoryInterface;
-import io.kestra.core.queues.QueueInterface;
+import io.kestra.core.queues.DispatchQueueInterface;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.tenant.TenantService;
@@ -14,7 +13,6 @@ import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.ftp.FtpUtils;
 import io.kestra.plugin.fs.vfs.models.File;
 import jakarta.inject.Inject;
-import jakarta.inject.Named;
 import org.apache.commons.io.IOUtils;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeAll;
@@ -47,8 +45,7 @@ class DownloadUploadTest {
     private StorageInterface storageInterface;
 
     @Inject
-    @Named(QueueFactoryInterface.WORKERTASKLOG_NAMED)
-    private QueueInterface<LogEntry> logQueue;
+    private DispatchQueueInterface<LogEntry> logQueue;
 
     @BeforeAll
     static void waitForFtps() throws Exception {
@@ -134,7 +131,7 @@ class DownloadUploadTest {
     @Test
     void insecureTrustAllCertificates_logsWarning() throws Exception {
         List<LogEntry> logs = new CopyOnWriteArrayList<>();
-        var receive = TestsUtils.receive(logQueue, l -> logs.add(l.getLeft()));
+        logQueue.addListener(logs::add);
 
         URI uri = ftpUtils.uploadToStorage();
 
@@ -154,7 +151,6 @@ class DownloadUploadTest {
 
         String expectedLog = "insecureTrustAllCertificates";
         TestsUtils.awaitLog(logs, log -> log.getMessage() != null && log.getMessage().contains(expectedLog));
-        receive.blockLast();
         assertThat(logs.stream().anyMatch(log -> log.getMessage() != null && log.getMessage().contains(expectedLog)), is(true));
     }
 
