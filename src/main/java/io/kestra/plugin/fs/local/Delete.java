@@ -29,7 +29,7 @@ import io.kestra.core.models.annotations.PluginProperty;
 @Schema(
     title = "Delete local file or directory",
     description = """
-        Removes a file or directory under the configured `allowed-paths`; access outside is denied. Recursive deletion defaults to true for directories.
+        Removes a file or directory under the configured `allowed-paths`; access outside is denied. Recursive deletion is disabled by default. To delete a non-empty directory and its contents, set `recursive: true`.
         Set `errorOnMissing: true` to fail when the target is absent.
 
         Example (Kestra config):
@@ -73,7 +73,7 @@ public class Delete extends AbstractLocalTask implements RunnableTask<Delete.Out
 
     @Schema(
         title = "Include subdirectories",
-        description = "If true, deletes directory contents recursively."
+        description = "If true, deletes directory contents recursively. Defaults to false."
     )
     @Builder.Default
     @PluginProperty(group = "advanced")
