@@ -27,7 +27,7 @@ import java.nio.file.*;
     title = "Upload file to the local filesystem",
     description = """
         Writes a file from Kestra internal storage to a local path under configured `allowed-paths`; access outside is denied.
-        Source must be a `kestra://` URI. Overwrite defaults to true; destination path defaults to the source filename.
+        Source must be a `kestra://` URI. Overwrite defaults to true; the destination path defaults to the source filename inside the first configured `allowed-paths` entry.
 
         Example (Kestra config):
         ```yaml
@@ -75,7 +75,7 @@ public class Upload extends AbstractLocalTask implements RunnableTask<Upload.Out
 
     @Schema(
         title = "Destination path",
-        description = "Optional local path; defaults to the source filename when omitted"
+        description = "Optional local path; when omitted, defaults to the source filename inside the first configured `allowed-paths` entry"
     )
     @PluginProperty(group = "destination")
     private Property<String> to;
@@ -96,14 +96,15 @@ public class Upload extends AbstractLocalTask implements RunnableTask<Upload.Out
             throw new IllegalArgumentException("'from' must be a Kestra's internal storage URI");
         }
 
+        var sourceFileName = FileUtils.getFileName(URI.create(renderedFrom));
+
         var renderedTo = runContext.render(this.to).as(String.class)
-            .orElse(runContext.workingDir().path().resolve(renderedFrom.substring(renderedFrom.lastIndexOf('/') + 1)).toString());
+            .orElseGet(() -> Paths.get(allowedPaths(runContext).getFirst()).resolve(sourceFileName).toString());
 
         Path destinationPath = resolveLocalPath(renderedTo, runContext);
 
         if (Files.exists(destinationPath) && Files.isDirectory(destinationPath)) {
-            String filename = renderedFrom.substring(renderedFrom.lastIndexOf('/') + 1);
-            destinationPath = destinationPath.resolve(filename);
+            destinationPath = destinationPath.resolve(sourceFileName);
         }
 
         if (Files.exists(destinationPath) && !runContext.render(overwrite).as(Boolean.class).orElse(false)) {

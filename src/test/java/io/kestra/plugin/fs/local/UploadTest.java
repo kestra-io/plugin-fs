@@ -26,6 +26,7 @@ class UploadTest {
     private Path tempDir;
     private Path destinationFile;
     private URI sourceUri;
+    private Path defaultUpload;
     private final String fileContent = "test content for upload";
 
     @Inject
@@ -49,6 +50,10 @@ class UploadTest {
     void tearDown() throws IOException {
         Files.deleteIfExists(destinationFile);
         Files.deleteIfExists(tempDir);
+        if (defaultUpload != null) {
+            Files.deleteIfExists(defaultUpload);
+            defaultUpload = null;
+        }
     }
 
     @Test
@@ -95,10 +100,25 @@ class UploadTest {
             .from(Property.ofValue(sourceUri.toString()))
             .build();
 
-        Upload.Output output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+        RunContext runContext = TestsUtils.mockRunContext(runContextFactory, task, Map.of());
+        Upload.Output output = task.run(runContext);
 
-        Path expectedPath = runContextFactory.of().workingDir().path();
-        assertThat(output.getSize(), greaterThan(0L));
-        assertThat(Files.exists(expectedPath), is(true));
+        Path uploaded = Path.of(output.getUri());
+        defaultUpload = uploaded;
+
+        // the destination must be the source filename inside the first configured allowed path,
+        // not the run's internal working directory
+        assertThat(uploaded.getParent(), is(Path.of("/tmp")));
+        assertThat(uploaded.getFileName().toString(), is(sourceFileName()));
+        assertThat(uploaded.startsWith(runContext.workingDir().path()), is(false));
+
+        assertThat(Files.exists(uploaded), is(true));
+        assertThat(Files.readString(uploaded), is(fileContent));
+        assertThat(output.getSize(), is((long) fileContent.length()));
+    }
+
+    private String sourceFileName() {
+        String uri = sourceUri.toString();
+        return uri.substring(uri.lastIndexOf('/') + 1);
     }
 }
