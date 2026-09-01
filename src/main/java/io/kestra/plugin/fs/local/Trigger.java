@@ -19,6 +19,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static io.kestra.core.models.triggers.StatefulTriggerService.*;
@@ -151,8 +152,6 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
         Map<String, StatefulTriggerService.Entry> state = readState(runContext, rStateKey, rStateTtl);
 
-        java.util.List<File> actionFiles = new ArrayList<>();
-
         java.util.List<TriggeredFile> toFire = listOutput.getFiles().stream()
             .flatMap(throwFunction(fileItem -> {
                 if (fileItem.isDirectory()) {
@@ -181,8 +180,6 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
                     var downloadOutput = downloadTask.run(runContext);
                     var downloaded = fileItem.withUri(downloadOutput.getUri());
 
-                    actionFiles.add(fileItem);
-
                     return Stream.of(TriggeredFile.builder()
                         .file(downloaded)
                         .changeType(changeType)
@@ -200,12 +197,9 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
         int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
         java.util.List<TriggeredFile> limitedToFire = toFire;
-        java.util.List<File> limitedActionFiles = actionFiles;
         if (toFire.size() > rMaxFiles) {
             logger.warn("Too many files to process ({}), limiting to {}", toFire.size(), rMaxFiles);
-            int limit = Math.min(rMaxFiles, toFire.size());
-            limitedToFire = toFire.subList(0, limit);
-            limitedActionFiles = actionFiles.subList(0, Math.min(limit, actionFiles.size()));
+            limitedToFire = toFire.subList(0, rMaxFiles);
         }
 
         if (limitedToFire.isEmpty()) {
@@ -216,12 +210,24 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             runContext.render(this.action).as(Downloads.Action.class).orElse(Downloads.Action.NONE) :
             Downloads.Action.NONE;
 
-        java.util.List<File> filesToProcess = limitedActionFiles.stream()
-            .filter(file -> !file.isDirectory())
-            .toList();
-
         if (selectedAction != Downloads.Action.NONE) {
-            Downloads.performAction(filesToProcess, selectedAction, this.moveDirectory, runContext);
+            java.util.List<TriggeredFile> triggeredFiles = limitedToFire;
+
+            // performAction returns the files relocated to their new location, so the output does not report
+            // a `localPath` that the action just made obsolete
+            java.util.List<File> processed = Downloads.performAction(
+                triggeredFiles.stream().map(TriggeredFile::getFile).toList(),
+                selectedAction,
+                this.moveDirectory,
+                runContext
+            );
+
+            limitedToFire = IntStream.range(0, triggeredFiles.size())
+                .mapToObj(i -> TriggeredFile.builder()
+                    .file(processed.get(i))
+                    .changeType(triggeredFiles.get(i).getChangeType())
+                    .build())
+                .toList();
         }
 
         return Optional.of(TriggerService.generateExecution(this, conditionContext, triggerContext, Output.builder().files(limitedToFire).count(limitedToFire.size()).build()));

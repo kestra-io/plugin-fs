@@ -9,6 +9,7 @@ import io.kestra.plugin.fs.vfs.models.File;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -458,6 +459,87 @@ class TriggerTest extends AbstractTriggerTest {
         } finally {
             cleanup(sourceDir);
         }
+    }
+
+    @Test
+    void moveShouldReportPostMoveLocalPath() throws Exception {
+        Path sourceDir = Paths.get("/tmp/trigger-move-localpath-" + FriendlyId.createFriendlyId());
+        Path targetDir = Paths.get("/tmp/trigger-move-localpath-done-" + FriendlyId.createFriendlyId());
+
+        Files.createDirectories(sourceDir);
+        Files.createDirectories(targetDir);
+
+        try {
+            Files.writeString(sourceDir.resolve("f2.txt"), "content");
+
+            io.kestra.plugin.fs.local.Trigger trigger = io.kestra.plugin.fs.local.Trigger.builder()
+                .id(TriggerTest.class.getSimpleName())
+                .type(io.kestra.plugin.fs.local.Trigger.class.getName())
+                .from(Property.ofValue(sourceDir.toString()))
+                .action(Property.ofValue(Downloads.Action.MOVE))
+                .moveDirectory(Property.ofValue(targetDir.toString()))
+                .recursive(Property.ofValue(true))
+                .build();
+
+            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
+
+            assertThat(execution.isPresent(), is(true));
+
+            @SuppressWarnings("unchecked")
+            java.util.List<Map<String, Object>> files =
+                (java.util.List<Map<String, Object>>) execution.get().getTrigger().getVariables().get("files");
+
+            assertThat(files, hasSize(1));
+
+            Path reportedPath = pathOf(files.getFirst().get("localPath"));
+
+            assertThat("localPath must point to the move destination", reportedPath, is(targetDir.resolve("f2.txt")));
+            assertThat("the file reported in localPath must exist", Files.exists(reportedPath), is(true));
+            assertThat("parent must point to the move destination", files.getFirst().get("parent"), is(targetDir.toString()));
+        } finally {
+            cleanup(sourceDir);
+            cleanup(targetDir);
+        }
+    }
+
+    @Test
+    void downloadsMoveShouldReportPostMoveLocalPath() throws Exception {
+        Path sourceDir = Paths.get("/tmp/downloads-move-localpath-" + FriendlyId.createFriendlyId());
+        Path targetDir = Paths.get("/tmp/downloads-move-localpath-done-" + FriendlyId.createFriendlyId());
+
+        Files.createDirectories(sourceDir);
+        Files.createDirectories(targetDir);
+
+        try {
+            Files.writeString(sourceDir.resolve("f2.txt"), "content");
+
+            Downloads downloads = Downloads.builder()
+                .id(TriggerTest.class.getSimpleName())
+                .type(Downloads.class.getName())
+                .from(Property.ofValue(sourceDir.toString()))
+                .action(Property.ofValue(Downloads.Action.MOVE))
+                .moveDirectory(Property.ofValue(targetDir.toString()))
+                .build();
+
+            Downloads.Output output = downloads.run(TestsUtils.mockRunContext(runContextFactory, downloads, Map.of()));
+
+            assertThat(output.getFiles(), hasSize(1));
+
+            Path reportedPath = output.getFiles().getFirst().getLocalPath();
+            assertThat("localPath must point to the move destination", reportedPath, is(targetDir.resolve("f2.txt")));
+            assertThat("the file reported in localPath must exist", Files.exists(reportedPath), is(true));
+            assertThat(output.getOutputFiles().keySet(), contains(targetDir.resolve("f2.txt").toString()));
+        } finally {
+            cleanup(sourceDir);
+            cleanup(targetDir);
+        }
+    }
+
+    private static Path pathOf(Object serializedPath) {
+        String value = Objects.requireNonNull(serializedPath).toString();
+
+        return value.startsWith("file:") ? Paths.get(URI.create(value)) : Paths.get(value);
     }
 
     private void cleanup(Path directory) {
