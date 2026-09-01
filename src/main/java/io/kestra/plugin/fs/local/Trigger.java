@@ -77,7 +77,7 @@ import io.kestra.core.models.annotations.PluginProperty;
         )
     }
 )
-public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<List.Output>, StatefulTriggerInterface {
+public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<Trigger.Output>, StatefulTriggerInterface {
 
     @Schema(title = "Interval between checks")
     @Builder.Default
@@ -224,7 +224,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             Downloads.performAction(filesToProcess, selectedAction, this.moveDirectory, runContext);
         }
 
-        return Optional.of(TriggerService.generateExecution(this, conditionContext, triggerContext, Output.builder().files(limitedToFire).build()));
+        return Optional.of(TriggerService.generateExecution(this, conditionContext, triggerContext, Output.builder().files(limitedToFire).count(limitedToFire.size()).build()));
     }
 
     public enum ChangeType {
@@ -246,6 +246,9 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(title = "List of files that triggered the flow, each with its change type")
         private final java.util.List<TriggeredFile> files;
+
+        @Schema(title = "Number of files that triggered the flow")
+        private final Integer count;
     }
 
 }
