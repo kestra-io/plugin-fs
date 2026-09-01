@@ -24,6 +24,26 @@ public class File {
     private final Instant accessedDate;
     private final boolean isDirectory;
 
+    /**
+     * Returns a copy of this file relocated to {@code newLocalPath}, keeping the Kestra storage URI untouched.
+     * Used after a MOVE action so that reported paths point to where the file actually is.
+     */
+    public File withLocalPath(Path newLocalPath) {
+        Path absolute = newLocalPath.toAbsolutePath().normalize();
+
+        return File.builder()
+            .uri(this.uri)
+            .localPath(absolute)
+            .name(absolute.getFileName().toString())
+            .parent(absolute.getParent().toString())
+            .size(this.size)
+            .createdDate(this.createdDate)
+            .modifiedDate(this.modifiedDate)
+            .accessedDate(this.accessedDate)
+            .isDirectory(this.isDirectory)
+            .build();
+    }
+
     public static File from(Path path, BasicFileAttributes attrs) {
         return File.builder()
             .uri(path.toUri())

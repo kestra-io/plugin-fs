@@ -18,6 +18,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.AbstractMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -123,7 +124,12 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
     @PluginProperty(group = "processing")
     private Property<Integer> maxFiles = Property.ofValue(25);
 
-    static void performAction(
+    /**
+     * Applies the action on the given files and returns them, in the same order, updated to reflect their new
+     * location: on MOVE, {@code localPath}, {@code name} and {@code parent} point to the destination so that
+     * downstream tasks are not handed a path that no longer exists.
+     */
+    static java.util.List<File> performAction(
         java.util.List<File> files,
         Action action,
         Property<String> moveDirectory,
@@ -150,22 +156,33 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
                 rMoveDirectory = rMoveDirectory + "/";
             }
 
-            for (File file : files) {
-                if (!file.isDirectory()) {
-                    String fileName = file.getLocalPath().getFileName().toString();
-                    String destinationPath = rMoveDirectory + fileName;
+            List<File> movedFiles = new ArrayList<>(files.size());
 
-                    Move move = Move.builder()
-                        .id(Move.class.getSimpleName())
-                        .type(Move.class.getName())
-                        .from(Property.ofValue(file.getLocalPath().toString()))
-                        .to(Property.ofValue(destinationPath))
-                        .overwrite(Property.ofValue(true))
-                        .build();
-                    move.run(runContext);
+            for (File file : files) {
+                if (file.isDirectory()) {
+                    movedFiles.add(file);
+                    continue;
                 }
+
+                String fileName = file.getLocalPath().getFileName().toString();
+                String destinationPath = rMoveDirectory + fileName;
+
+                Move move = Move.builder()
+                    .id(Move.class.getSimpleName())
+                    .type(Move.class.getName())
+                    .from(Property.ofValue(file.getLocalPath().toString()))
+                    .to(Property.ofValue(destinationPath))
+                    .overwrite(Property.ofValue(true))
+                    .build();
+                move.run(runContext);
+
+                movedFiles.add(file.withLocalPath(Path.of(destinationPath)));
             }
+
+            return movedFiles;
         }
+
+        return files;
     }
 
     @Override
@@ -209,25 +226,21 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
             }))
             .toList();
 
-        java.util.List<File> filesToProcess = downloadedFiles.stream()
-            .filter(file -> !file.isDirectory())
-            .toList();
-
         Action selectedAction = this.action != null ?
             runContext.render(this.action).as(Action.class).orElse(Action.NONE) :
             Action.NONE;
 
-        if (selectedAction != Action.NONE) {
-            performAction(filesToProcess, selectedAction, this.moveDirectory, runContext);
-        }
+        List<File> resultFiles = selectedAction != Action.NONE ?
+            performAction(downloadedFiles, selectedAction, this.moveDirectory, runContext) :
+            downloadedFiles;
 
-        Map<String, URI> outputFiles = downloadedFiles.stream()
+        Map<String, URI> outputFiles = resultFiles.stream()
             .filter(file -> !file.isDirectory() && file.getUri() != null)
             .map(file -> new AbstractMap.SimpleEntry<>(file.getLocalPath().toString(), file.getUri()))
             .collect(Collectors.toMap(AbstractMap.SimpleEntry::getKey, AbstractMap.SimpleEntry::getValue));
 
         return Output.builder()
-            .files(downloadedFiles)
+            .files(resultFiles)
             .outputFiles(outputFiles)
             .build();
     }
