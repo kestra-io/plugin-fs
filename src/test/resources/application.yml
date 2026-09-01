@@ -31,7 +31,7 @@ kestra:
       - type: io.kestra.plugin.fs.local.Upload
         values:
           allowed-paths:
-            - /
+            - /tmp
       - type: io.kestra.plugin.fs.local.Uploads
         values:
           allowed-paths:
