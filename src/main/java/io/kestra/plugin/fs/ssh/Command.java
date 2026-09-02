@@ -166,7 +166,7 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
     @Schema(
         title = "SSH authentication configuration",
         description = """
-            When `authMethod` is OPEN_SSH, access to local SSH config must be allowed with `allow-open-ssh-config: true` in plugin defaults:
+            When `authMethod` is OPEN_SSH, access to local SSH config must be allowed with `allow-open-ssh-config: true` in the plugin configuration:
             ```yaml
             kestra:
               plugins:
