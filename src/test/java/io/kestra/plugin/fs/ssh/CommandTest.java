@@ -16,12 +16,14 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.nullValue;
 
 // WARNING, the 'setpasswd.sh' script must be runnable for the test to pass, if the test fail try launching:
 // chmod go+x src/test/resources/ssh/setpasswd.sh
@@ -261,6 +263,61 @@ class CommandTest {
         assertThat(run.getStdErrLineCount(), is(2));
         assertThat(run.getVars().get("out"), is("1"));
         assertThat(run.getVars().get("err"), is("2"));
+    }
+
+    @Test
+    void openSSHConfigDir_shouldBeNullWhenNotSet() {
+        Command passwordCommand = Command.builder()
+            .id(IdUtils.create())
+            .type(Command.class.getName())
+            .host(Property.ofValue("localhost"))
+            .username(USERNAME)
+            .authMethod(Property.ofValue(AuthMethod.PASSWORD))
+            .password(PASSWORD)
+            .port(Property.ofValue("2222"))
+            .commands(new String[] {"echo 0"})
+            .build();
+
+        assertThat(passwordCommand.getOpenSSHConfigDir(), is(nullValue()));
+
+        Command publicKeyCommand = Command.builder()
+            .id(IdUtils.create())
+            .type(Command.class.getName())
+            .host(Property.ofValue("localhost"))
+            .username(USERNAME)
+            .authMethod(Property.ofValue(AuthMethod.PUBLIC_KEY))
+            .privateKey(Property.ofValue("fake-key"))
+            .port(Property.ofValue("2222"))
+            .commands(new String[] {"echo 0"})
+            .build();
+
+        assertThat(publicKeyCommand.getOpenSSHConfigDir(), is(nullValue()));
+    }
+
+    @Test
+    void run_openSSHMethod_withoutConfigPropertiesFallsBackToDefaultPath() {
+        Command command = Command.builder()
+            .id(IdUtils.create())
+            .type(Command.class.getName())
+            .host(Property.ofValue("localhost"))
+            .password(PASSWORD)
+            .authMethod(Property.ofValue(AuthMethod.OPEN_SSH))
+            .port(Property.ofValue("2222"))
+            .commands(new String[] {"echo 0"})
+            .build();
+
+        // Neither `openSSHConfigPath` nor `openSSHConfigDir` is set. Before the fix, rendering the
+        // (now nullable) `openSSHConfigDir` with `.orElseThrow()` would fail immediately with a
+        // `NoSuchElementException`, before ever attempting to resolve or parse an OpenSSH config.
+        // The task must instead fall back to the historical `~/.ssh/config` default and proceed to
+        // an actual connection attempt (whose outcome depends on the host's OpenSSH config, if any).
+        Exception exception = Assertions.assertThrows(
+            Exception.class,
+            () -> command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()))
+        );
+
+        assertThat(exception, is(not(instanceOf(NoSuchElementException.class))));
+        assertThat(exception.getMessage(), not(containsString("No value present")));
     }
 
     @Test

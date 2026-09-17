@@ -138,14 +138,13 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
     private Property<String> privateKeyPassphrase;
 
     // OpenSSH config
-    @Builder.Default
     @Schema(
         title = "OpenSSH config directory (deprecated)",
         description = "Deprecated; use `openSSHConfigPath` instead."
     )
     @Deprecated
     @PluginProperty(group = "deprecated")
-    private Property<String> openSSHConfigDir = Property.ofValue("~/.ssh/config");
+    private Property<String> openSSHConfigDir;
 
     @Schema(
         title = "OpenSSH config file path",
@@ -257,12 +256,13 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
 
             if (AuthMethod.OPEN_SSH.equals(renderedAuthMethod)) {
                 var rOpenSSHConfigPath = runContext.render(openSSHConfigPath).as(String.class);
-                String configPath;
-                if (rOpenSSHConfigPath.isPresent()) {
-                    configPath = rOpenSSHConfigPath.orElseThrow();
-                } else {
-                    configPath = runContext.render(openSSHConfigDir).as(String.class).orElseThrow();
+                var rOpenSSHConfigDir = runContext.render(openSSHConfigDir).as(String.class);
+                if (rOpenSSHConfigDir.isPresent()) {
+                    runContext.logger().warn("openSSHConfigDir is deprecated, use openSSHConfigPath instead");
                 }
+                String configPath = rOpenSSHConfigPath
+                    .or(() -> rOpenSSHConfigDir)
+                    .orElse("~/.ssh/config");
                 ConfigRepository configRepository = OpenSSHConfig.parseFile(configPath);
                 jsch.setConfigRepository(configRepository);
             }

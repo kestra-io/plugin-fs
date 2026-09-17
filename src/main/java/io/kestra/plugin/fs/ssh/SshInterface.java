@@ -61,7 +61,7 @@ public interface SshInterface {
         description = "Deprecated. Use openSSHConfigPath instead."
     )
     @Deprecated
-    @PluginProperty(group = "advanced")
+    @PluginProperty(group = "deprecated")
     Property<String> getOpenSSHConfigDir();
 
     @Schema(
