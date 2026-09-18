@@ -58,10 +58,10 @@ public interface SshInterface {
 
     @Schema(
         title = "OpenSSH configuration directory in case the authentication method is `OPEN_SSH`",
-        description = "Deprecated. Use openSSHConfigPath instead."
+        description = "Deprecated; use `openSSHConfigPath` instead."
     )
     @Deprecated
-    @PluginProperty(group = "advanced")
+    @PluginProperty(group = "deprecated")
     Property<String> getOpenSSHConfigDir();
 
     @Schema(
