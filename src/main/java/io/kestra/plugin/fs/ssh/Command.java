@@ -117,6 +117,7 @@ import java.util.regex.Pattern;
 )
 public class Command extends Task implements SshInterface, RunnableTask<Command.Output> {
     private static final long SLEEP_DELAY_MS = 25L;
+    private static final String DEFAULT_OPEN_SSH_CONFIG_PATH = System.getProperty("user.home") + "/.ssh/config";
 
     @PluginProperty(group = "main")
     private Property<String> host;
@@ -148,7 +149,8 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
 
     @Schema(
         title = "OpenSSH config file path",
-        description = "Used when `authMethod` is OPEN_SSH. Access must be allowed via plugin configuration."
+        description = "Used when `authMethod` is OPEN_SSH. Access must be allowed via plugin configuration. " +
+            "Defaults to `~/.ssh/config` when neither this nor the deprecated `openSSHConfigDir` is set."
     )
     @PluginProperty(group = "advanced")
     private Property<String> openSSHConfigPath;
@@ -257,12 +259,12 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
             if (AuthMethod.OPEN_SSH.equals(renderedAuthMethod)) {
                 var rOpenSSHConfigPath = runContext.render(openSSHConfigPath).as(String.class);
                 var rOpenSSHConfigDir = runContext.render(openSSHConfigDir).as(String.class);
-                if (rOpenSSHConfigDir.isPresent()) {
+                if (rOpenSSHConfigPath.isEmpty() && rOpenSSHConfigDir.isPresent()) {
                     runContext.logger().warn("openSSHConfigDir is deprecated, use openSSHConfigPath instead");
                 }
                 String configPath = rOpenSSHConfigPath
                     .or(() -> rOpenSSHConfigDir)
-                    .orElse("~/.ssh/config");
+                    .orElse(DEFAULT_OPEN_SSH_CONFIG_PATH);
                 ConfigRepository configRepository = OpenSSHConfig.parseFile(configPath);
                 jsch.setConfigRepository(configRepository);
             }

@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -295,28 +296,35 @@ class CommandTest {
     }
 
     @Test
-    void run_openSSHMethod_withoutConfigPropertiesFallsBackToDefaultPath() {
+    void run_openSSHMethod_withResolvedConfigPathProceedsToConnectionAttempt() throws Exception {
+        Path tempConfig = Files.createTempFile("ssh-config", "");
+        Files.writeString(tempConfig, "Host *\n");
+
         Command command = Command.builder()
             .id(IdUtils.create())
             .type(Command.class.getName())
-            .host(Property.ofValue("localhost"))
+            .host(Property.ofValue("unreachable.invalid"))
+            .username(USERNAME)
             .password(PASSWORD)
+            .openSSHConfigPath(Property.ofValue(tempConfig.toString()))
             .authMethod(Property.ofValue(AuthMethod.OPEN_SSH))
             .port(Property.ofValue("2222"))
             .commands(new String[] {"echo 0"})
             .build();
 
-        // Neither `openSSHConfigPath` nor `openSSHConfigDir` is set. Before the fix, rendering the
-        // (now nullable) `openSSHConfigDir` with `.orElseThrow()` would fail immediately with a
-        // `NoSuchElementException`, before ever attempting to resolve or parse an OpenSSH config.
-        // The task must instead fall back to the historical `~/.ssh/config` default and proceed to
-        // an actual connection attempt (whose outcome depends on the host's OpenSSH config, if any).
+        // The temp fixture guarantees the OpenSSH config file actually exists on disk (unlike the
+        // real `~/.ssh/config`, whose presence depends on the machine running the test), so parsing
+        // it never throws `FileNotFoundException`, and the `openSSHConfigPath` -> `openSSHConfigDir`
+        // -> default `Optional` resolution chain never throws `NoSuchElementException` either.
+        // Execution genuinely reaches an SSH connection attempt, which fails against the unreachable
+        // host with a connection error.
         Exception exception = Assertions.assertThrows(
             Exception.class,
             () -> command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()))
         );
 
         assertThat(exception, is(not(instanceOf(NoSuchElementException.class))));
+        assertThat(exception, is(not(instanceOf(FileNotFoundException.class))));
         assertThat(exception.getMessage(), not(containsString("No value present")));
     }
 
