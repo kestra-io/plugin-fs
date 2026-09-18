@@ -12,7 +12,7 @@ Transfer and manage files over FTP, FTPS, SFTP, SMB, SSH, TCP, UDP, NFS, and the
 
 **SSH**: set `host`, `username`, and either `password` for password auth or `privateKey` and `privateKeyPassphrase` for key auth. Set `authMethod` to `PASSWORD` (default), `PUBLIC_KEY`, or `OPEN_SSH`.
 
-Store secrets in [secrets](https://kestra.io/docs/concepts/secret) and apply connection properties globally with [plugin defaults](https://kestra.io/docs/workflow-components/plugin-defaults).
+Store secrets in [secrets](https://kestra.io/docs/concepts/secret) and set connection properties on each task.
 
 ## Tasks
 

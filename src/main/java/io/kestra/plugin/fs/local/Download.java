@@ -27,7 +27,7 @@ import io.kestra.core.models.annotations.PluginProperty;
     title = "Download local file to internal storage",
     description = """
         Copies a local file (within configured `allowed-paths`) into Kestra internal storage. Fails if the source is missing; preserves size and file extension when possible.
-        Local access requires `allowed-paths` in plugin defaults.
+        Local access requires `allowed-paths` in the plugin configuration.
 
         Example (Kestra config):
         ```yaml
