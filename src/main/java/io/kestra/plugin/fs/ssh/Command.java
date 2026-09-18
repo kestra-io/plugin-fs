@@ -117,7 +117,6 @@ import java.util.regex.Pattern;
 )
 public class Command extends Task implements SshInterface, RunnableTask<Command.Output> {
     private static final long SLEEP_DELAY_MS = 25L;
-    private static final String DEFAULT_OPEN_SSH_CONFIG_PATH = System.getProperty("user.home") + "/.ssh/config";
 
     @PluginProperty(group = "main")
     private Property<String> host;
@@ -149,8 +148,10 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
 
     @Schema(
         title = "OpenSSH config file path",
-        description = "Used when `authMethod` is OPEN_SSH. Access must be allowed via plugin configuration. " +
-            "Defaults to `~/.ssh/config` when neither this nor the deprecated `openSSHConfigDir` is set."
+        description = """
+            Used when `authMethod` is OPEN_SSH. Access must be allowed via plugin configuration.
+            Defaults to `~/.ssh/config` when neither this nor the deprecated `openSSHConfigDir` is set.
+            """
     )
     @PluginProperty(group = "advanced")
     private Property<String> openSSHConfigPath;
@@ -260,11 +261,17 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
                 var rOpenSSHConfigPath = runContext.render(openSSHConfigPath).as(String.class);
                 var rOpenSSHConfigDir = runContext.render(openSSHConfigDir).as(String.class);
                 if (rOpenSSHConfigPath.isEmpty() && rOpenSSHConfigDir.isPresent()) {
+                    // Kestra core also reports `openSSHConfigDir` as deprecated via its generic
+                    // @Deprecated-property traversal (io.kestra.core.services.FlowService#deprecationPaths),
+                    // but that one only feeds the flow save/validation response (a one-time warning shown
+                    // in the UI when the flow is saved) and never touches the RunContext logger. It never
+                    // runs at task-execution time, so this is the only warning that ends up in the
+                    // execution logs and is not a duplicate of core's warning.
                     runContext.logger().warn("openSSHConfigDir is deprecated, use openSSHConfigPath instead");
                 }
                 String configPath = rOpenSSHConfigPath
                     .or(() -> rOpenSSHConfigDir)
-                    .orElse(DEFAULT_OPEN_SSH_CONFIG_PATH);
+                    .orElseGet(() -> System.getProperty("user.home") + "/.ssh/config");
                 ConfigRepository configRepository = OpenSSHConfig.parseFile(configPath);
                 jsch.setConfigRepository(configRepository);
             }

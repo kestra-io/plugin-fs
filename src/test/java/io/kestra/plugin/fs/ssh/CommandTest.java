@@ -329,6 +329,45 @@ class CommandTest {
     }
 
     @Test
+    void run_openSSHMethod_withoutConfigPropertiesFallsBackToDefaultPath() throws Exception {
+        Path tempHome = Files.createTempDirectory("ssh-home");
+        Path sshDir = Files.createDirectory(tempHome.resolve(".ssh"));
+        Files.writeString(sshDir.resolve("config"), "Host *\n");
+
+        String previousUserHome = System.getProperty("user.home");
+        System.setProperty("user.home", tempHome.toString());
+        try {
+            Command command = Command.builder()
+                .id(IdUtils.create())
+                .type(Command.class.getName())
+                .host(Property.ofValue("unreachable.invalid"))
+                .username(USERNAME)
+                .password(PASSWORD)
+                .authMethod(Property.ofValue(AuthMethod.OPEN_SSH))
+                .port(Property.ofValue("2222"))
+                .commands(new String[] {"echo 0"})
+                .build();
+
+            // Neither `openSSHConfigPath` nor `openSSHConfigDir` is set, so the task must fall back to
+            // the default `~/.ssh/config` computed from `user.home` at run time (overridden here to a
+            // temp directory containing a real config fixture). Parsing it never throws
+            // `FileNotFoundException`, and the resolution chain never throws `NoSuchElementException`
+            // either: execution genuinely reaches an SSH connection attempt, which fails against the
+            // unreachable host with a connection error.
+            Exception exception = Assertions.assertThrows(
+                Exception.class,
+                () -> command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()))
+            );
+
+            assertThat(exception, is(not(instanceOf(NoSuchElementException.class))));
+            assertThat(exception, is(not(instanceOf(FileNotFoundException.class))));
+            assertThat(exception.getMessage(), not(containsString("No value present")));
+        } finally {
+            System.setProperty("user.home", previousUserHome);
+        }
+    }
+
+    @Test
     void run_openSSHMethod() throws Exception {
         Command command = Command.builder()
             .id(IdUtils.create())
