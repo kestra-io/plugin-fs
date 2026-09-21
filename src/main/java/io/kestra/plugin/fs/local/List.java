@@ -30,7 +30,7 @@ import io.kestra.core.models.annotations.PluginProperty;
     title = "List local files",
     description = """
         Lists files under a directory allowed by `allowed-paths`; optional regexp filter and recursion. Sorted with `sort` (default `NONE`) before limiting results to `maxFiles` (default 25).
-        Local access requires `allowed-paths` in plugin defaults.
+        Local access requires `allowed-paths` in the plugin configuration.
 
         Example (Kestra config):
         ```yaml

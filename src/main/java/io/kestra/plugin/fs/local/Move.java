@@ -29,7 +29,7 @@ import io.kestra.core.models.annotations.PluginProperty;
     description = """
         Moves files or directories within configured `allowed-paths`; destination parents are created as needed.
         Overwrite is false by default and directories cannot be moved into themselves.
-        Local access requires `allowed-paths` in plugin defaults.
+        Local access requires `allowed-paths` in the plugin configuration.
 
         Example (Kestra config):
         ```yaml

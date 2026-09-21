@@ -27,7 +27,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Schema(
     title = "Copy files on the local filesystem",
     description = """
-        Copies files or directories within allowed local paths. Local access requires configuring `allowed-paths` in plugin defaults; operations outside are blocked.
+        Copies files or directories within allowed local paths. Local access requires configuring `allowed-paths` in the plugin configuration; operations outside are blocked.
         Set `overwrite: true` to replace existing targets.
 
         Example (Kestra config):
