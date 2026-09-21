@@ -3,6 +3,7 @@ package io.kestra.plugin.fs.ssh;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.jcraft.jsch.*;
+import io.kestra.core.models.WorkerJobLifecycle;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -21,12 +22,15 @@ import lombok.extern.slf4j.Slf4j;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.net.Socket;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 
 @SuperBuilder
@@ -34,6 +38,7 @@ import java.util.regex.Pattern;
 @EqualsAndHashCode
 @Getter
 @NoArgsConstructor
+@Slf4j
 @Schema(
     title = "Run commands over SSH",
     description = "Executes one or more commands on a remote host via SSH. Supports PASSWORD, PUBLIC_KEY, or OPEN_SSH auth. Default port 22 and strict host key checking off (`no`). Allow weak rsa-sha1 only when `enableSshRsa1` is true."
@@ -115,8 +120,38 @@ import java.util.regex.Pattern;
         )
     }
 )
-public class Command extends Task implements SshInterface, RunnableTask<Command.Output> {
+public class Command extends Task implements SshInterface, RunnableTask<Command.Output>, WorkerJobLifecycle {
     private static final long SLEEP_DELAY_MS = 25L;
+    private static final Duration READER_JOIN_TIMEOUT = Duration.ofSeconds(5);
+
+    /**
+     * Tracks whether {@link #kill()}/{@link #stop()} has terminated the SSH channel/session, so the
+     * wait loop can unwind and the misleading exit-status check is not reached.
+     */
+    @JsonIgnore
+    @Getter(AccessLevel.NONE)
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
+    @Builder.Default
+    private final AtomicBoolean killed = new AtomicBoolean(false);
+
+    /**
+     * Records the channel currently executing the remote command, so that {@link #kill()} or
+     * {@link #stop()} can abort the live SSH channel instead of a stale one from a previous retry attempt.
+     */
+    @JsonIgnore
+    @Getter(AccessLevel.NONE)
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
+    @Builder.Default
+    private final AtomicReference<ChannelExec> trackedChannel = new AtomicReference<>();
+
+    @JsonIgnore
+    @Getter(AccessLevel.NONE)
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
+    @Builder.Default
+    private final AtomicReference<Session> trackedSession = new AtomicReference<>();
 
     @PluginProperty(group = "main")
     private Property<String> host;
@@ -306,8 +341,10 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
 
             session.setConfig("StrictHostKeyChecking", runContext.render(strictHostKeyChecking).as(String.class).orElse(null));
             session.connect();
+            trackedSession.set(session);
 
             channel = (ChannelExec) session.openChannel("exec");
+            trackedChannel.set(channel);
             channel.setCommand(String.join("\n", renderedCommands));
             channel.setOutputStream(outStream);
             channel.setErrStream(errStream);
@@ -322,14 +359,18 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
             }
 
             channel.connect();
-            while (channel.isConnected()) {
+            while (channel.isConnected() && !killed.get()) {
                 Thread.sleep(SLEEP_DELAY_MS);
+            }
+
+            if (killed.get()) {
+                throw new Exception("SSH command was killed before completion");
             }
 
             outStream.flush();
             errStream.flush();
-            stdOut.join();
-            stdErr.join();
+            stdOut.join(READER_JOIN_TIMEOUT);
+            stdErr.join(READER_JOIN_TIMEOUT);
 
             if (channel.getExitStatus() != 0) {
                 throw new Exception("SSH command fails with exit status " + channel.getExitStatus());
@@ -354,10 +395,52 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
                 session.disconnect();
             }
             if (stdOut != null) {
-                stdOut.join();
+                stdOut.join(READER_JOIN_TIMEOUT);
             }
             if (stdErr != null) {
-                stdErr.join();
+                stdErr.join(READER_JOIN_TIMEOUT);
+            }
+            // Clear tracked references so a retry attempt of this same task instance never cancels a stale channel/session.
+            trackedChannel.set(null);
+            trackedSession.set(null);
+        }
+    }
+
+    /**
+     * Aborts the remote SSH command in flight. Delegates to {@link #terminate()}, which is idempotent
+     * and safe to call from a killer thread while {@link #run(RunContext)} is still executing.
+     */
+    @Override
+    public void kill() {
+        terminate();
+    }
+
+    @Override
+    public void stop() {
+        terminate();
+    }
+
+    private void terminate() {
+        if (!killed.compareAndSet(false, true)) {
+            return;
+        }
+
+        ChannelExec channel = trackedChannel.get();
+        if (channel != null) {
+            try {
+                channel.disconnect();
+            } catch (Exception e) {
+                log.debug("Failed to disconnect SSH channel while killing task", e);
+            }
+        }
+
+        Session session = trackedSession.get();
+        if (session != null) {
+            try {
+                // Session#disconnect() also closes any configured Proxy (e.g. proxyCommand), which destroys the local helper process.
+                session.disconnect();
+            } catch (Exception e) {
+                log.debug("Failed to disconnect SSH session while killing task", e);
             }
         }
     }

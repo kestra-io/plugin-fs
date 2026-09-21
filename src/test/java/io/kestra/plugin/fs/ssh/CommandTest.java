@@ -15,13 +15,18 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 // WARNING, the 'setpasswd.sh' script must be runnable for the test to pass, if the test fail try launching:
 // chmod go+x src/test/resources/ssh/setpasswd.sh
@@ -291,5 +296,64 @@ class CommandTest {
         assertThat(run.getStdErrLineCount(), is(2));
         assertThat(run.getVars().get("out"), is("1"));
         assertThat(run.getVars().get("err"), is("2"));
+    }
+
+    @Test
+    void kill_stopsRunningCommand() throws Exception {
+        Command command = Command.builder()
+            .id(IdUtils.create())
+            .type(Command.class.getName())
+            .host(Property.ofValue("localhost"))
+            .username(USERNAME)
+            .authMethod(Property.ofValue(AuthMethod.PASSWORD))
+            .password(PASSWORD)
+            .port(Property.ofValue("2222"))
+            .commands(new String[] {"sleep 30"})
+            .build();
+
+        AtomicReference<Exception> thrown = new AtomicReference<>();
+        long start = System.nanoTime();
+
+        Thread runner = new Thread(() -> {
+            try {
+                command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));
+            } catch (Exception e) {
+                thrown.set(e);
+            }
+        }, "ssh-command-kill-test");
+        runner.start();
+
+        // Let the SSH connection establish and the remote `sleep 30` actually start before killing it.
+        Thread.sleep(2000);
+
+        command.kill();
+
+        runner.join(Duration.ofSeconds(10).toMillis());
+        long elapsedSeconds = Duration.ofNanos(System.nanoTime() - start).toSeconds();
+
+        assertThat("run() should have unwound well before the full 30s sleep completes", runner.isAlive(), is(false));
+        assertThat(elapsedSeconds, lessThan(15L));
+        assertThat(thrown.get(), is(notNullValue()));
+        assertThat(thrown.get().getMessage(), containsString("killed"));
+    }
+
+    @Test
+    void kill_isNoOpBeforeRunAndWhenCalledTwice() {
+        Command command = Command.builder()
+            .id(IdUtils.create())
+            .type(Command.class.getName())
+            .host(Property.ofValue("localhost"))
+            .username(USERNAME)
+            .authMethod(Property.ofValue(AuthMethod.PASSWORD))
+            .password(PASSWORD)
+            .port(Property.ofValue("2222"))
+            .commands(new String[] {"echo 0"})
+            .build();
+
+        // Nothing was ever tracked, kill()/stop() must simply no-op instead of throwing.
+        assertDoesNotThrow(command::kill);
+        assertDoesNotThrow(command::stop);
+        // A second kill() after the first must also be a no-op (compareAndSet guard).
+        assertDoesNotThrow(command::kill);
     }
 }
