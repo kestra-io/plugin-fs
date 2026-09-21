@@ -338,6 +338,45 @@ class CommandTest {
     }
 
     @Test
+    void run_succeedsAfterPriorKill_retrySafety() throws Exception {
+        // Same task instance killed once, then re-run: `killed` must be reset at the start of run()
+        // so the fresh attempt is not short-circuited by the previous kill.
+        Command command = Command.builder()
+            .id(IdUtils.create())
+            .type(Command.class.getName())
+            .host(Property.ofValue("localhost"))
+            .username(USERNAME)
+            .authMethod(Property.ofValue(AuthMethod.PASSWORD))
+            .password(PASSWORD)
+            .port(Property.ofValue("2222"))
+            .commands(new String[] {"sleep 5"})
+            .build();
+
+        AtomicReference<Exception> thrown = new AtomicReference<>();
+        Thread runner = new Thread(() -> {
+            try {
+                command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));
+            } catch (Exception e) {
+                thrown.set(e);
+            }
+        }, "ssh-command-retry-kill-test");
+        runner.start();
+
+        Thread.sleep(1000);
+        command.kill();
+        runner.join(Duration.ofSeconds(10).toMillis());
+
+        assertThat(runner.isAlive(), is(false));
+        assertThat(thrown.get(), is(notNullValue()));
+        assertThat(thrown.get().getMessage(), containsString("killed"));
+
+        // Retry: same task instance, allowed to run to completion this time (no kill() called).
+        Command.Output run = command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));
+
+        assertThat(run.getExitCode(), is(0));
+    }
+
+    @Test
     void kill_isNoOpBeforeRunAndWhenCalledTwice() {
         Command command = Command.builder()
             .id(IdUtils.create())
