@@ -41,7 +41,7 @@ import io.kestra.core.models.annotations.PluginProperty;
         ```yaml
         plugins:
           configurations:
-            - type: io.kestra.plugin.fs.local
+            - type: io.kestra.plugin.fs.local.Trigger
               values:
                 allowed-paths:
                   - /data/files
