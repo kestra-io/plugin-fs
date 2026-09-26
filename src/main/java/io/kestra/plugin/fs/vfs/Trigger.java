@@ -1,5 +1,6 @@
 package io.kestra.plugin.fs.vfs;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import com.jcraft.jsch.JSch;
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
@@ -28,6 +29,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static io.kestra.core.models.triggers.StatefulTriggerService.*;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -85,6 +88,56 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
     private Property<String> stateKey;
     private Property<Duration> stateTtl;
 
+    /**
+     * Latches once {@link #kill()} has been called, so a kill that races with manager publication
+     * is still honoured. The worker calls {@code kill()} only once, so a kill that lands before
+     * the manager is published would otherwise be lost. Checked right after publication, at the
+     * start of each poll, and before each download.
+     */
+    @JsonIgnore
+    @Getter(AccessLevel.NONE)
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
+    @Builder.Default
+    private final AtomicBoolean killed = new AtomicBoolean(false);
+
+    /**
+     * Tracks the {@link StandardFileSystemManager} of the in-flight {@link #evaluate} call, so that
+     * {@link #kill()} can close it from the killer thread and unblock the underlying SFTP/FTP operation.
+     * Each poll creates its own manager; the reference is published after init and cleared when the poll ends.
+     */
+    @JsonIgnore
+    @Getter(AccessLevel.NONE)
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
+    @Builder.Default
+    private final AtomicReference<StandardFileSystemManager> trackedFileSystemManager = new AtomicReference<>();
+
+    /**
+     * Tracks the active evaluation's logger alongside its manager, following {@code ssh/Command},
+     * so {@link #kill()} can report a failed manager close instead of swallowing it silently.
+     */
+    @JsonIgnore
+    @Getter(AccessLevel.NONE)
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
+    @Builder.Default
+    private final AtomicReference<Logger> trackedLogger = new AtomicReference<>();
+
+    /**
+     * Guards the kill-versus-poll lifecycle transition (publication check, MOVE/DELETE commit,
+     * and manager/logger handover in {@link #kill()}) so both threads observe a well-defined
+     * ordering. A plain flag plus {@code compareAndSet} alone is not enough: {@code kill()} may
+     * set the flag immediately before the evaluation thread performs its compare-and-set, and both
+     * would then believe they won. Holding this lock for the check-and-detach makes exactly one win.
+     */
+    @JsonIgnore
+    @Getter(AccessLevel.NONE)
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
+    @Builder.Default
+    private final Object lifecycleLock = new Object();
+
     @Builder.Default
     @Schema(title = "Maximum files to process per poll")
     @PluginProperty(group = "execution")
@@ -117,6 +170,10 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
 
     @Override
     public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
+        // A kill that landed before this poll started (worker calls kill() only once) must abort
+        // before any remote work, so a DELETE/MOVE never runs for a cancelled poll.
+        ensureNotKilled();
+
         RunContext runContext = conditionContext.getRunContext();
         Logger logger = runContext.logger();
         URI from = createUri(runContext);
@@ -153,9 +210,23 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
             session.setConfig("PubkeyAcceptedAlgorithms", session.getConfig("PubkeyAcceptedAlgorithms") + ",ssh-rsa");
         }
 
-        try (StandardFileSystemManager fsm = new KestraStandardFileSystemManager(runContext)) {
+        StandardFileSystemManager fsm = new KestraStandardFileSystemManager(runContext);
+        try (fsm) {
             fsm.setConfiguration(StandardFileSystemManager.class.getResource(KestraStandardFileSystemManager.CONFIG_RESOURCE));
             fsm.init();
+            // Publish for kill(): closing the manager disconnects the underlying client
+            // (SFTP: JSch session, FTP(S): idle control connection) and unblocks the poll.
+            // Either kill()'s getAndSet sees this manager and closes it, or kill() ran first
+            // (nothing to close) and this check honours the latched flag instead.
+            synchronized (lifecycleLock) {
+                trackedLogger.set(logger);
+                trackedFileSystemManager.set(fsm);
+                if (killed.get()) {
+                    trackedFileSystemManager.compareAndSet(fsm, null);
+                    trackedLogger.compareAndSet(logger, null);
+                    throw new IllegalStateException("Trigger '" + id + "' was killed");
+                }
+            }
 
             List.Output run;
             try {
@@ -238,6 +309,9 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
 
             // 1) Download first, do NOT update state yet.
             for (PendingFile pending : limitedPending) {
+                // A kill that landed during listing (manager already closed) surfaces here with a
+                // clear message instead of a confusing closed-manager failure downstream.
+                ensureNotKilled();
                 Download.Output download = VfsService.download(VfsDownloadRequest.of(
                     runContext,
                     fsm,
@@ -271,6 +345,21 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
 
             // 2) Perform remote action BEFORE committing state.
             if (shouldRemoveFiles) {
+                // Point of no return: once files start being moved/deleted, the poll must finish
+                // and emit the execution, otherwise already-removed files would never be listed
+                // again and no execution would exist for them. Detach the manager under the
+                // lifecycle lock so kill() can no longer close it; if kill() already won the
+                // lock, nothing has been removed yet and aborting here is safe. The lock gives
+                // both sides a well-defined ordering (a bare flag plus compareAndSet alone would
+                // let a kill that sets the flag just before this compareAndSet slip through).
+                // No cancellation check is performed after this boundary: an execution for files
+                // already moved/deleted must not be discarded.
+                synchronized (lifecycleLock) {
+                    if (killed.get()) {
+                        throw new IllegalStateException("Trigger '" + id + "' was killed before " + rAction);
+                    }
+                    trackedFileSystemManager.compareAndSet(fsm, null);
+                }
                 VfsService.performAction(
                     runContext,
                     fsm,
@@ -307,6 +396,74 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
             );
 
             return Optional.of(execution);
+        } finally {
+            // Clear only if still ours: a concurrent kill() may have already taken and closed the
+            // manager, and a subsequent poll must never lose its own reference to this stale cleanup.
+            // Held under the lifecycle lock so the handover in kill() (manager + logger capture)
+            // cannot interleave with this cleanup and lose the logger for a close failure.
+            synchronized (lifecycleLock) {
+                trackedFileSystemManager.compareAndSet(fsm, null);
+                trackedLogger.compareAndSet(logger, null);
+            }
+        }
+    }
+
+    private void ensureNotKilled() {
+        if (killed.get()) {
+            throw new IllegalStateException("Trigger '" + id + "' was killed");
+        }
+    }
+
+    /**
+     * Aborts an in-flight {@link #evaluate} poll by closing its VFS manager from the killer thread.
+     * Closing the manager disconnects the underlying client, which unblocks the worker thread stuck in
+     * SFTP/FTP I/O so the scheduler evaluation lock can be released instead of stalling the trigger.
+     *
+     * <p>A kill during connection setup (TCP connect, SSH handshake/auth) cannot reach the client,
+     * since the file system is only registered with the VFS provider once connected: it takes effect
+     * when the connect returns or hits its timeout (10s {@code sessionTimeout} for SFTP, 30s
+     * {@code connectionTimeout}/{@code dataTimeout}/{@code socketTimeout} defaults for FTP(S)).
+     *
+     * <p>Cancellation strength depends on the provider once connected: for SFTP closing the manager
+     * disconnects the shared JSch session, failing blocked channels; for FTP(S), Commons VFS only
+     * disconnects the idle client and exposes no handle to an already checked-out active connection,
+     * so a poll blocked inside a transfer may still run until the socket times out.
+     *
+     * <p>Once a poll crosses the MOVE/DELETE point of no return, it is detached from this mechanism
+     * and runs to completion (emitting its execution) rather than risking data loss: files already
+     * moved or deleted would otherwise disappear without any execution. A poll stuck inside that
+     * short irreversible step can therefore no longer be killed.
+     *
+     * <p>Idempotent and safe to call when no poll is running. Never interrupts the Java thread itself:
+     * the client libraries ignore interrupts while blocked in socket I/O. A failed manager close is
+     * logged as a warning with the trigger id; this method itself never throws so a cleanup failure
+     * does not prevent the worker's shutdown handling.
+     */
+    @Override
+    public void kill() {
+        StandardFileSystemManager toClose;
+        Logger loggerToUse;
+        synchronized (lifecycleLock) {
+            // Latch first, before retrieving the manager: evaluate() re-checks the flag right after
+            // publication, so both orderings are covered with a single kill signal.
+            killed.set(true);
+            toClose = trackedFileSystemManager.getAndSet(null);
+            // Capture under the same lock that evaluate()'s cleanup uses, so the warning below
+            // cannot lose its logger to a concurrent clear.
+            loggerToUse = trackedLogger.get();
+        }
+        if (toClose != null) {
+            try {
+                toClose.close();
+            } catch (Exception e) {
+                // kill() must not throw: the poll is already being torn down, and the
+                // try-with-resources in evaluate() will close the manager again (thread-safe
+                // and repeatable in KestraStandardFileSystemManager). But a failed close means
+                // the poll may stay blocked, so make it visible like ssh/Command does.
+                if (loggerToUse != null) {
+                    loggerToUse.warn("Failed to close the file system manager while killing trigger '{}'", id, e);
+                }
+            }
         }
     }
 
