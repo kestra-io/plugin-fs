@@ -1,5 +1,6 @@
 package io.kestra.plugin.fs.vfs;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import com.jcraft.jsch.JSch;
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
@@ -28,6 +29,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static io.kestra.core.models.triggers.StatefulTriggerService.*;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -84,6 +86,18 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
 
     private Property<String> stateKey;
     private Property<Duration> stateTtl;
+
+    /**
+     * Tracks the {@link StandardFileSystemManager} of the in-flight {@link #evaluate} call, so that
+     * {@link #kill()} can close it from the killer thread and unblock the underlying SFTP/FTP operation.
+     * Each poll creates its own manager; the reference is published after init and cleared when the poll ends.
+     */
+    @JsonIgnore
+    @Getter(AccessLevel.NONE)
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
+    @Builder.Default
+    private final AtomicReference<StandardFileSystemManager> trackedFileSystemManager = new AtomicReference<>();
 
     @Builder.Default
     @Schema(title = "Maximum files to process per poll")
@@ -153,9 +167,13 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
             session.setConfig("PubkeyAcceptedAlgorithms", session.getConfig("PubkeyAcceptedAlgorithms") + ",ssh-rsa");
         }
 
-        try (StandardFileSystemManager fsm = new KestraStandardFileSystemManager(runContext)) {
+        StandardFileSystemManager fsm = new KestraStandardFileSystemManager(runContext);
+        try (fsm) {
             fsm.setConfiguration(StandardFileSystemManager.class.getResource(KestraStandardFileSystemManager.CONFIG_RESOURCE));
             fsm.init();
+            // Publish for kill(): closing the manager disconnects the underlying client
+            // (SFTP: JSch session, FTP(S): idle control connection) and unblocks the poll.
+            trackedFileSystemManager.set(fsm);
 
             List.Output run;
             try {
@@ -307,7 +325,42 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
             );
 
             return Optional.of(execution);
+        } finally {
+            // Clear only if still ours: a concurrent kill() may have already taken and closed the
+            // manager, and a subsequent poll must never lose its own reference to this stale cleanup.
+            trackedFileSystemManager.compareAndSet(fsm, null);
         }
+    }
+
+    /**
+     * Aborts an in-flight {@link #evaluate} poll by closing its VFS manager from the killer thread.
+     * Closing the manager disconnects the underlying client, which unblocks the worker thread stuck in
+     * SFTP/FTP I/O so the scheduler evaluation lock can be released instead of stalling the trigger.
+     *
+     * <p>Cancellation strength depends on the provider: for SFTP this reliably interrupts in-flight
+     * operations (the shared JSch session is disconnected, failing blocked channels); for FTP(S),
+     * Commons VFS only disconnects the idle client and exposes no handle to an already checked-out
+     * connection, so a poll blocked inside a transfer may still run until the socket times out.
+     *
+     * <p>Idempotent and safe to call when no poll is running. Never interrupts the Java thread itself:
+     * the client libraries ignore interrupts while blocked in socket I/O.
+     */
+    @Override
+    public void kill() {
+        StandardFileSystemManager fsm = trackedFileSystemManager.getAndSet(null);
+        if (fsm != null) {
+            try {
+                fsm.close();
+            } catch (Exception ignored) {
+                // kill() must not throw: the poll is already being torn down, and the
+                // try-with-resources in evaluate() will close the manager again idempotently.
+            }
+        }
+    }
+
+    @Override
+    public void stop() {
+        kill();
     }
 
     // Persists pending state updates (a no-op for MOVE/DELETE) and signals that nothing fired this poll.
