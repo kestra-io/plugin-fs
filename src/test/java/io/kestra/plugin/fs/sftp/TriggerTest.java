@@ -217,4 +217,29 @@ public class TriggerTest extends AbstractFileTriggerTest {
             (java.util.List<Object>) execution.get().getTrigger().getVariables().get("files");
         assertThat(rawFiles, hasSize(10));
     }
+
+    @Test
+    void killBeforePollAbortsWithoutTouchingFiles() throws Exception {
+        String dir = "/upload/trigger/kill-" + IdUtils.create() + "/";
+        utils().upload(dir + FriendlyId.createFriendlyId() + ".yml");
+
+        var trigger = Trigger.builder()
+            .id("sftp-kill-" + IdUtils.create())
+            .type(Trigger.class.getName())
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .from(Property.ofValue(dir))
+            .action(Property.ofValue(Downloads.Action.DELETE))
+            .interval(Duration.ofSeconds(5))
+            .build();
+        var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+
+        trigger.kill();
+
+        assertThrows(IllegalStateException.class, () -> trigger.evaluate(context.getKey(), context.getValue()));
+        // DELETE must not have run: the file is still there for the next poll.
+        assertThat(utils().list(dir).getFiles(), hasSize(1));
+    }
 }
