@@ -6,10 +6,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
-/**
- * Reads the log level a program declared at the start of one of its output lines.
- * The detected level is never below INFO so that a line can never be dropped by the task's `logLevel`.
- */
+// The detected level is never below INFO so that a line can never be dropped by the task's `logLevel`.
 final class LogLevelDetector {
     private static final int MAX_PREFIX_LENGTH = 128;
 

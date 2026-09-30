@@ -120,7 +120,7 @@ import java.util.regex.Pattern;
                     username: foo
                     password: "{{ secret('SSH_PASSWORD') }}"
                     commands:
-                      - "echo 'WARNING:root:disk almost full' >&2"
+                      - python3 /opt/scripts/backup.py  # logs with the `logging` module, e.g. "WARNING:root:disk almost full"
                 """
         ),
         @Example(
@@ -139,7 +139,7 @@ import java.util.regex.Pattern;
                     password: "{{ secret('SSH_PASSWORD') }}"
                     parseLogLevel: false
                     commands:
-                      - "echo 'WARNING:root:disk almost full' >&2"
+                      - python3 /opt/scripts/backup.py  # logs with the `logging` module, e.g. "WARNING:root:disk almost full"
                 """
         ),
         @Example(
@@ -314,7 +314,8 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
             or bare followed by a space or colon (`WARNING:root:msg`, `2026-01-01 10:00:00 ERROR msg`).
             Recognized levels are FATAL, CRITICAL, SEVERE, ERROR, WARN, WARNING, INFO and NOTICE, plus DEBUG, TRACE, FINE, FINER and FINEST in brackets only.
             The detected level is never below INFO, so `[DEBUG]` lines are shown at INFO.
-            Lines without a recognized level stay at ERROR, and stdout is not affected.
+            Lines without a recognized level stay at ERROR, including continuation lines of a multi-line record, and stdout is not affected.
+            A `::{...}::` payload still takes priority over level detection.
             Set to `false` to log every stderr line at ERROR.
             """
     )

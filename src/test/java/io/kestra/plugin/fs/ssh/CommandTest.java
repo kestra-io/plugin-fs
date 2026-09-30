@@ -88,7 +88,7 @@ class CommandTest {
     @Test
     void logLevels_stderrLineWithDeclaredLevelIsNotError() throws Exception {
         assertThat(levelOf(">&2 echo 'WARNING:root:disk almost full'", "disk almost full", null, null), is(Level.WARN));
-        assertThat(levelOf(">&2 echo '2026-01-01 10:00:00 ERROR boom'", "boom", null, null), is(Level.ERROR));
+        assertThat(levelOf(">&2 echo '2026-01-01 10:00:00 WARN boom'", "boom", null, null), is(Level.WARN));
         assertThat(levelOf(">&2 echo '2026-01-01 10:00:00 INFO started'", "started", null, null), is(Level.INFO));
         assertThat(levelOf(">&2 echo '[INFO] started2'", "started2", null, null), is(Level.INFO));
         assertThat(levelOf(">&2 echo '[WARN] slow'", "slow", null, null), is(Level.WARN));
