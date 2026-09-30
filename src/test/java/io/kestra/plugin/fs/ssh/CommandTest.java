@@ -51,7 +51,6 @@ class CommandTest {
     @Named(QueueFactoryInterface.WORKERTASKLOG_NAMED)
     private QueueInterface<LogEntry> logQueue;
 
-
     private Level levelOf(String command, String marker, Property<Boolean> parseLogLevel, Level taskLogLevel) throws Exception {
         var logs = new CopyOnWriteArrayList<LogEntry>();
         var receive = TestsUtils.receive(logQueue, l -> logs.add(l.getLeft()));
@@ -112,6 +111,37 @@ class CommandTest {
         var command = ">&2 echo '::{\"logs\":[{\"level\":\"INFO\",\"message\":\"declared info\"}]}::'";
 
         assertThat(levelOf(command, "declared info", null, null), is(Level.INFO));
+    }
+
+    // Kestra only recognizes a payload spanning the whole line (`^::{...}::$`), so a level prefix makes it plain text
+    // with or without level detection: nothing is lost by detecting the level first.
+    @Test
+    void logLevels_prefixedPayloadIsPlainTextAsBefore() throws Exception {
+        var logs = new CopyOnWriteArrayList<LogEntry>();
+        var receive = TestsUtils.receive(logQueue, l -> logs.add(l.getLeft()));
+
+        var command = Command.builder()
+            .id(IdUtils.create())
+            .type(Command.class.getName())
+            .host(Property.ofValue("localhost"))
+            .username(USERNAME)
+            .authMethod(Property.ofValue(AuthMethod.PASSWORD))
+            .password(PASSWORD)
+            .port(Property.ofValue("2222"))
+            .commands(new String[] {">&2 echo '[INFO] ::{\"outputs\":{\"k\":\"v\"}}::'"})
+            .build();
+
+        var run = command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));
+
+        TestsUtils.awaitLog(logs, log -> log.getMessage() != null && log.getMessage().contains("\"outputs\""));
+        receive.blockLast();
+
+        assertThat(run.getVars().get("k"), is(nullValue()));
+        assertThat(logs.stream()
+            .filter(log -> log.getMessage() != null && log.getMessage().contains("\"outputs\""))
+            .map(LogEntry::getLevel)
+            .findFirst()
+            .orElseThrow(), is(Level.INFO));
     }
 
     @Test

@@ -316,7 +316,8 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
             The detected level is never below INFO, so `[DEBUG]` lines are shown at INFO.
             Lines without a recognized level stay at ERROR, including continuation lines of a multi-line record, and stdout is not affected.
             A `::{...}::` payload still takes priority over level detection.
-            Set to `false` to log every stderr line at ERROR.
+            Since detection is on by default, some stderr lines move from ERROR to WARN or INFO, so flows alerting on ERROR logs may stop firing for them.
+            Set to `false` to log every stderr line at ERROR, as before.
             """
     )
     @PluginProperty(group = "execution")

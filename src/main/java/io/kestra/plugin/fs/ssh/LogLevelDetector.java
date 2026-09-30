@@ -2,6 +2,7 @@ package io.kestra.plugin.fs.ssh;
 
 import org.slf4j.event.Level;
 
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -53,6 +54,6 @@ final class LogLevelDetector {
         }
 
         var token = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
-        return Optional.ofNullable(LEVELS.get(token.toUpperCase()));
+        return Optional.ofNullable(LEVELS.get(token.toUpperCase(Locale.ROOT)));
     }
 }
