@@ -1,14 +1,19 @@
 package io.kestra.plugin.fs.ssh;
 
 import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.models.executions.LogEntry;
 import io.kestra.core.models.property.Property;
+import io.kestra.core.queues.QueueFactoryInterface;
+import io.kestra.core.queues.QueueInterface;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.ssh.SshInterface.AuthMethod;
 import jakarta.inject.Inject;
+import jakarta.inject.Named;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.slf4j.event.Level;
 
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
@@ -19,6 +24,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -40,6 +46,105 @@ class CommandTest {
 
     @Inject
     private RunContextFactory runContextFactory;
+
+    @Inject
+    @Named(QueueFactoryInterface.WORKERTASKLOG_NAMED)
+    private QueueInterface<LogEntry> logQueue;
+
+
+    private Level levelOf(String command, String marker, Property<Boolean> parseLogLevel, Level taskLogLevel) throws Exception {
+        var logs = new CopyOnWriteArrayList<LogEntry>();
+        var receive = TestsUtils.receive(logQueue, l -> logs.add(l.getLeft()));
+
+        var builder = Command.builder()
+            .id(IdUtils.create())
+            .type(Command.class.getName())
+            .host(Property.ofValue("localhost"))
+            .username(USERNAME)
+            .authMethod(Property.ofValue(AuthMethod.PASSWORD))
+            .password(PASSWORD)
+            .port(Property.ofValue("2222"))
+            .commands(new String[] {command});
+        if (parseLogLevel != null) {
+            builder.parseLogLevel(parseLogLevel);
+        }
+        if (taskLogLevel != null) {
+            builder.logLevel(taskLogLevel);
+        }
+        var task = builder.build();
+
+        task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        TestsUtils.awaitLog(logs, log -> log.getMessage() != null && log.getMessage().contains(marker));
+        receive.blockLast();
+
+        return logs.stream()
+            .filter(log -> log.getMessage() != null && log.getMessage().contains(marker))
+            .map(LogEntry::getLevel)
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("No log line containing '" + marker + "' was emitted"));
+    }
+
+    @Test
+    void logLevels_stderrLineWithDeclaredLevelIsNotError() throws Exception {
+        assertThat(levelOf(">&2 echo 'WARNING:root:disk almost full'", "disk almost full", null, null), is(Level.WARN));
+        assertThat(levelOf(">&2 echo '2026-01-01 10:00:00 ERROR boom'", "boom", null, null), is(Level.ERROR));
+        assertThat(levelOf(">&2 echo '2026-01-01 10:00:00 INFO started'", "started", null, null), is(Level.INFO));
+        assertThat(levelOf(">&2 echo '[INFO] started2'", "started2", null, null), is(Level.INFO));
+        assertThat(levelOf(">&2 echo '[WARN] slow'", "slow", null, null), is(Level.WARN));
+    }
+
+    @Test
+    void logLevels_parseLogLevelDisabledKeepsErrorOnStderr() throws Exception {
+        var level = levelOf(">&2 echo 'WARNING:root:disk almost full'", "disk almost full", Property.ofValue(false), null);
+
+        assertThat(level, is(Level.ERROR));
+    }
+
+    @Test
+    void logLevels_stdoutIsNeverReclassified() throws Exception {
+        assertThat(levelOf("echo 'INFO started3'", "started3", null, null), is(Level.INFO));
+        assertThat(levelOf("echo 'ERROR boom2'", "boom2", null, null), is(Level.INFO));
+    }
+
+    @Test
+    void logLevels_declaredLogsPayloadStillWins() throws Exception {
+        var command = ">&2 echo '::{\"logs\":[{\"level\":\"INFO\",\"message\":\"declared info\"}]}::'";
+
+        assertThat(levelOf(command, "declared info", null, null), is(Level.INFO));
+    }
+
+    @Test
+    void logLevels_linesWithoutDeclaredLevelStayError() throws Exception {
+        assertThat(levelOf(">&2 echo 'debug: connection refused by 10.0.0.5'", "connection refused", null, null), is(Level.ERROR));
+        assertThat(levelOf(">&2 echo '404 error page served'", "page served", null, null), is(Level.ERROR));
+        assertThat(levelOf(">&2 echo 'Debug symbols stripped from libfoo.so'", "libfoo.so", null, null), is(Level.ERROR));
+    }
+
+    @Test
+    void logLevels_debugLineIsFlooredAtInfoAndNeverDropped() throws Exception {
+        var level = levelOf(">&2 echo '[DEBUG] visible?'", "visible?", null, Level.INFO);
+
+        assertThat(level, is(Level.INFO));
+    }
+
+    @Test
+    void run_outputsOnStderrStillCaptured() throws Exception {
+        var command = Command.builder()
+            .id(IdUtils.create())
+            .type(Command.class.getName())
+            .host(Property.ofValue("localhost"))
+            .username(USERNAME)
+            .authMethod(Property.ofValue(AuthMethod.PASSWORD))
+            .password(PASSWORD)
+            .port(Property.ofValue("2222"))
+            .commands(new String[] {">&2 echo '::{\"outputs\":{\"k\":\"v\"}}::'"})
+            .build();
+
+        var run = command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));
+
+        assertThat(run.getVars().get("k"), is("v"));
+    }
 
     @Test
     void run_passwordMethod() throws Exception {
