@@ -19,6 +19,7 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
+import org.slf4j.event.Level;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -28,6 +29,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -101,6 +103,43 @@ import java.util.regex.Pattern;
                       cloudflared access ssh --service-token-id {{ secret('SSH_PROXY_SERVICE_TOKEN_ID') }} --service-token-secret {{ secret('SSH_PROXY_SERVICE_TOKEN_SECRET') }} --hostname proxy_host
                     commands:
                       - mycmd
+                """
+        ),
+        @Example(
+            title = "Run a tool that logs its levels on stderr; the level declared in each line is kept",
+            full = true,
+            code = """
+                id: fs_ssh_stderr_levels
+                namespace: company.team
+
+                tasks:
+                  - id: backup
+                    type: io.kestra.plugin.fs.ssh.Command
+                    host: localhost
+                    authMethod: PASSWORD
+                    username: foo
+                    password: "{{ secret('SSH_PASSWORD') }}"
+                    commands:
+                      - python3 /opt/scripts/backup.py  # logs with the `logging` module, e.g. "WARNING:root:disk almost full"
+                """
+        ),
+        @Example(
+            title = "Keep every stderr line at the ERROR level by disabling log level detection",
+            full = true,
+            code = """
+                id: fs_ssh_stderr_as_error
+                namespace: company.team
+
+                tasks:
+                  - id: backup
+                    type: io.kestra.plugin.fs.ssh.Command
+                    host: localhost
+                    authMethod: PASSWORD
+                    username: foo
+                    password: "{{ secret('SSH_PASSWORD') }}"
+                    parseLogLevel: false
+                    commands:
+                      - python3 /opt/scripts/backup.py  # logs with the `logging` module, e.g. "WARNING:root:disk almost full"
                 """
         ),
         @Example(
@@ -266,6 +305,24 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
     @PluginProperty(group = "advanced")
     private Property<Boolean> enableSshRsa1 = Property.ofValue(false);
 
+    @Builder.Default
+    @Schema(
+        title = "Detect the log level of stderr lines",
+        description = """
+            When `true` (default), a stderr line starting with a level is logged at that level instead of ERROR.
+            The level is read from the start of the line, after an optional timestamp, either in brackets (`[WARN] msg`)
+            or bare followed by a space or colon (`WARNING:root:msg`, `2026-01-01 10:00:00 ERROR msg`).
+            Recognized levels are FATAL, CRITICAL, SEVERE, ERROR, WARN, WARNING, INFO and NOTICE, plus DEBUG, TRACE, FINE, FINER and FINEST in brackets only.
+            The detected level is never below INFO, so `[DEBUG]` lines are shown at INFO.
+            Lines without a recognized level stay at ERROR, including continuation lines of a multi-line record, and stdout is not affected.
+            A `::{...}::` payload still takes priority over level detection.
+            Since detection is on by default, some stderr lines move from ERROR to WARN or INFO, so flows alerting on ERROR logs may stop firing for them.
+            Set to `false` to log every stderr line at ERROR, as before.
+            """
+    )
+    @PluginProperty(group = "execution")
+    private Property<Boolean> parseLogLevel = Property.ofValue(true);
+
     @Override
     public Output run(RunContext runContext) throws Exception {
         // Reset from a possible previous run() of this same task instance (e.g. a retry) before any
@@ -377,6 +434,8 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
                 throw new Exception("SSH command was killed before completion");
             }
 
+            final var rParseLogLevel = runContext.render(this.parseLogLevel).as(Boolean.class).orElse(true);
+
             LogRunnable stdOutRunnable;
             LogRunnable stdErrRunnable;
             try {
@@ -385,8 +444,8 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
                 channel.setCommand(String.join("\n", renderedCommands));
                 channel.setOutputStream(outStream);
                 channel.setErrStream(errStream);
-                stdOutRunnable = new LogRunnable(inStream, false, runContext);
-                stdErrRunnable = new LogRunnable(inErrStream, true, runContext);
+                stdOutRunnable = new LogRunnable(inStream, false, false, runContext);
+                stdErrRunnable = new LogRunnable(inErrStream, true, rParseLogLevel, runContext);
                 stdOut = Thread.ofVirtual().name("ssh-log-out").start(stdOutRunnable);
                 stdErr = Thread.ofVirtual().name("ssh-log-err").start(stdErrRunnable);
 
@@ -639,15 +698,18 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
 
         private final boolean isStdErr;
 
+        private final boolean parseLogLevel;
+
         private final RunContext runContext;
 
         private final AtomicInteger count = new AtomicInteger(0);
 
         private final Map<String, Object> outputs = new ConcurrentHashMap<>();
 
-        protected LogRunnable(InputStream inputStream, boolean isStdErr, RunContext runContext) {
+        protected LogRunnable(InputStream inputStream, boolean isStdErr, boolean parseLogLevel, RunContext runContext) {
             this.inputStream = inputStream;
             this.isStdErr = isStdErr;
+            this.parseLogLevel = parseLogLevel;
             this.runContext = runContext;
         }
 
@@ -660,7 +722,12 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
                     String line;
                     while ((line = bufferedReader.readLine()) != null) {
                         count.incrementAndGet();
-                        outputs.putAll(PluginUtilsService.parseOut(line, runContext.logger(), runContext, isStdErr, null));
+                        var detected = parseLogLevel ? LogLevelDetector.detect(line) : Optional.<Level>empty();
+                        if (detected.isPresent()) {
+                            runContext.logger().atLevel(detected.get()).log(line);
+                        } else {
+                            outputs.putAll(PluginUtilsService.parseOut(line, runContext.logger(), runContext, isStdErr, null));
+                        }
                     }
                 }
             } catch (Exception e) {
