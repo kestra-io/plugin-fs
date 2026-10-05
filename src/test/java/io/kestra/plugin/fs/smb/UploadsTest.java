@@ -104,7 +104,6 @@ class UploadsTest {
         assertThat(filePaths.stream().anyMatch(p -> p.endsWith("/report.csv")), is(true));
         assertThat(filePaths.stream().anyMatch(p -> p.endsWith("/data.json")), is(true));
 
-        // Cleanup
         Downloads downloads = Downloads.builder()
             .id(UploadsTest.class.getSimpleName())
             .type(UploadsTest.class.getName())
