@@ -151,6 +151,13 @@ public class Uploads extends AbstractSmbTask implements RunnableTask<Uploads.Out
                     .<Map.Entry<String, String>>map(uri -> new SimpleEntry<>(null, uri))
                     .toList();
             }
+
+            if (rFrom.startsWith("{") && rFrom.endsWith("}")) {
+                Map<String, String> uris = JacksonMapper.ofJson().readValue(rFrom, new com.fasterxml.jackson.core.type.TypeReference<Map<String, String>>() {});
+                return uris.entrySet().stream()
+                    .<Map.Entry<String, String>>map(e -> new SimpleEntry<>(e.getKey(), e.getValue()))
+                    .toList();
+            }
         }
 
         return Objects.requireNonNull(Data.from(this.from)
