@@ -81,4 +81,38 @@ class UploadsTest {
             Matchers.is(Matchers.in(remoteFileUris))
         ));
     }
+
+    @Test
+    void run_withJsonMapStringShouldPreserveFilenames() throws Exception {
+        URI uri1 = smbUtils.uploadToStorage();
+        URI uri2 = smbUtils.uploadToStorage();
+        // Simulates {{ outputs.download_files.outputFiles }} rendering to a JSON object string
+        String jsonMapFrom = "{\"report.csv\":\"" + uri1 + "\",\"data.json\":\"" + uri2 + "\"}";
+
+        Uploads uploads = Uploads.builder().id(UploadsTest.class.getSimpleName())
+            .type(UploadsTest.class.getName())
+            .from(jsonMapFrom)
+            .to(Property.ofValue(SmbUtils.SHARE_NAME + "/" + random + "/"))
+            .host(Property.ofValue("localhost"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+        Uploads.Output uploadsRun = uploads.run(TestsUtils.mockRunContext(runContextFactory, uploads, Map.of()));
+
+        assertThat(uploadsRun.getFiles().size(), is(2));
+        List<String> filePaths = uploadsRun.getFiles().stream().map(URI::getPath).toList();
+        assertThat(filePaths.stream().anyMatch(p -> p.endsWith("/report.csv")), is(true));
+        assertThat(filePaths.stream().anyMatch(p -> p.endsWith("/data.json")), is(true));
+
+        Downloads downloads = Downloads.builder()
+            .id(UploadsTest.class.getSimpleName())
+            .type(UploadsTest.class.getName())
+            .from(Property.ofValue(SmbUtils.SHARE_NAME + "/" + random + "/"))
+            .action(Property.ofValue(io.kestra.plugin.fs.vfs.Downloads.Action.DELETE))
+            .host(Property.ofValue("localhost"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+        downloads.run(TestsUtils.mockRunContext(runContextFactory, downloads, Map.of()));
+    }
 }

@@ -1,5 +1,6 @@
 package io.kestra.plugin.fs.smb;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -149,6 +150,13 @@ public class Uploads extends AbstractSmbTask implements RunnableTask<Uploads.Out
                 String[] uris = JacksonMapper.ofJson().readValue(rFrom, String[].class);
                 return Arrays.stream(uris)
                     .<Map.Entry<String, String>>map(uri -> new SimpleEntry<>(null, uri))
+                    .toList();
+            }
+
+            if (rFrom.startsWith("{") && rFrom.endsWith("}")) {
+                var uris = JacksonMapper.ofJson().readValue(rFrom, new TypeReference<Map<String, String>>() {});
+                return uris.entrySet().stream()
+                    .<Map.Entry<String, String>>map(e -> new SimpleEntry<>(e.getKey(), e.getValue()))
                     .toList();
             }
         }
