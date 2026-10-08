@@ -44,32 +44,7 @@ public class File {
             .build();
     }
 
-    /**
-     * Creates a File from a path and optional file attributes.
-     * When attrs is null, only path-based information is populated (used for DELETE events);
-     * size, timestamps, and directory flag are unavailable.
-     *
-     * @param path the file path
-     * @param attrs file attributes (may be null for degraded mode)
-     * @return a File object with available metadata
-     */
     public static File from(Path path, BasicFileAttributes attrs) {
-        if (attrs == null) {
-            // Degraded mode: file was deleted, only path is available
-            return File.builder()
-                .uri(path.toUri())
-                .localPath(path.toAbsolutePath())
-                .name(path.getFileName().toString())
-                .parent(path.getParent() != null ? path.getParent().toString() : null)
-                .size(null)
-                .isDirectory(false)
-                .modifiedDate(null)
-                .accessedDate(null)
-                .createdDate(null)
-                .build();
-        }
-
-        // Normal mode: full metadata available
         return File.builder()
             .uri(path.toUri())
             .localPath(path.toAbsolutePath())
