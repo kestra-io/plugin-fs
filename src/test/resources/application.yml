@@ -52,4 +52,4 @@ kestra:
         values:
           allowed-paths:
             - /tmp
-            - "C:\\Users"  # Allow temp directories on Windows (system temp folder)
+            - "${java.io.tmpdir}"

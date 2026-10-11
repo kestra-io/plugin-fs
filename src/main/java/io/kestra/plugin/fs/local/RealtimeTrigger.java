@@ -6,12 +6,21 @@ import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
-import io.kestra.core.models.triggers.*;
+import io.kestra.core.models.triggers.AbstractTrigger;
+import io.kestra.core.models.triggers.RealtimeTriggerInterface;
+import io.kestra.core.models.triggers.TriggerContext;
+import io.kestra.core.models.triggers.TriggerOutput;
+import io.kestra.core.models.triggers.TriggerService;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.fs.local.models.File;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
@@ -19,12 +28,23 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 
 import java.io.IOException;
-import java.nio.file.*;
+import java.nio.file.ClosedWatchServiceException;
+import java.nio.file.DirectoryStream;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardWatchEventKinds;
+import java.nio.file.WatchEvent;
+import java.nio.file.WatchKey;
+import java.nio.file.WatchService;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Pattern;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -40,7 +60,7 @@ import java.util.stream.Collectors;
     title = "Trigger on local filesystem events (realtime)",
     description = """
         Watches a local directory for filesystem events (create, modify, delete) using Java NIO WatchService.
-        Fires immediately when files matching the filter are detected, without polling.
+        Emits executions when matching filesystem events are reported, without polling.
 
         Note: On macOS, WatchService uses a polling-based fallback and may not detect events as quickly as on Linux or Windows.
         """
@@ -111,11 +131,12 @@ public class RealtimeTrigger extends AbstractTrigger
     implements RealtimeTriggerInterface, TriggerOutput<RealtimeTrigger.Output> {
 
     /**
-     * Event types that trigger execution.
-     * Matches WatchService StandardWatchEventKinds semantics:
-     * CREATE  → ENTRY_CREATE
-     * UPDATE  → ENTRY_MODIFY
-     * DELETE  → ENTRY_DELETE
+     * Event filters supported by the trigger.
+     * Each filter is mapped to one or more WatchService event kinds:
+     * CREATE          → ENTRY_CREATE
+     * UPDATE          → ENTRY_MODIFY
+     * CREATE_OR_UPDATE → ENTRY_CREATE and ENTRY_MODIFY
+     * DELETE          → ENTRY_DELETE
      */
     public enum EventType {
         CREATE,
@@ -153,9 +174,24 @@ public class RealtimeTrigger extends AbstractTrigger
     private Property<EventType> on = Property.ofValue(EventType.CREATE_OR_UPDATE);
 
     // Runtime state fields
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    @Getter(AccessLevel.NONE)
     private transient final AtomicBoolean active = new AtomicBoolean(false);
+
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    @Getter(AccessLevel.NONE)
     private transient final AtomicBoolean ready = new AtomicBoolean(false);
+
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    @Getter(AccessLevel.NONE)
     private transient final AtomicReference<WatchService> watchService = new AtomicReference<>();
+
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    @Getter(AccessLevel.NONE)
     private transient Logger logger;
 
     /**
@@ -245,8 +281,6 @@ public class RealtimeTrigger extends AbstractTrigger
         final RunContext runContext = conditionContext.getRunContext();
         this.logger = runContext.logger();
 
-        logger.info("RealtimeTrigger starting for directory: {}", this.from);
-
         return Flux.<Execution>create(emitter -> {
             Map<WatchKey, Path> watchKeyMap = new ConcurrentHashMap<>();
             Set<Path> registeredDirectories = Collections.newSetFromMap(new ConcurrentHashMap<>());
@@ -269,10 +303,12 @@ public class RealtimeTrigger extends AbstractTrigger
                     .orElseThrow(() -> new IllegalArgumentException("`from` is required"));
                 Path rootDirectory = Paths.get(renderedFrom).toAbsolutePath().normalize();
 
+                logger.info("RealtimeTrigger starting for directory: {}", rootDirectory);
+
                 // Step 2: Render and compile regex pattern BEFORE creating resources (fail-fast)
                 EventType renderedOn = runContext.render(this.on).as(EventType.class)
                     .orElse(EventType.CREATE_OR_UPDATE);
-                java.util.regex.Pattern compiledPattern = null;
+                Pattern compiledPattern = null;
                 if (this.regExp != null) {
                     String renderedRegExp = runContext.render(this.regExp).as(String.class).orElse(null);
                     if (renderedRegExp != null) {
@@ -285,6 +321,10 @@ public class RealtimeTrigger extends AbstractTrigger
                         }
                     }
                 }
+
+                boolean rRecursive = runContext.render(this.recursive)
+                    .as(Boolean.class)
+                    .orElse(false);
 
                 // Step 3: Validate root directory against allowed-paths configuration
                 validatePath(rootDirectory, runContext);
@@ -315,16 +355,16 @@ public class RealtimeTrigger extends AbstractTrigger
 
                 // Step 6: Register root directory
                 registerDirectory(rootDirectory, watchKeyMap, registeredDirectories);
-                knownDirectories.add(rootDirectory.toAbsolutePath());
-
-                boolean rRecursive = runContext.render(this.recursive)
-                    .as(Boolean.class)
-                    .orElse(false);
+                knownDirectories.add(rootDirectory.toAbsolutePath().normalize());
 
                 if (rRecursive) {
-                    registerDirectoryTree(rootDirectory, watchKeyMap, registeredDirectories);
-                    // Add all registered directories to knownDirectories
-                    knownDirectories.addAll(registeredDirectories);
+                    registerDirectoryTree(
+                        rootDirectory,
+                        watchKeyMap,
+                        registeredDirectories,
+                        knownDirectories,
+                        runContext
+                    );
                 } else {
                     // For non-recursive mode, track immediate child directories (pre-existing)
                     // so DELETE events for them can be suppressed
@@ -335,7 +375,7 @@ public class RealtimeTrigger extends AbstractTrigger
                             } catch (Exception e) {
                                 return false;
                             }
-                        }).forEach(childDir -> knownDirectories.add(childDir.toAbsolutePath()));
+                        }).forEach(childDir -> knownDirectories.add(childDir.toAbsolutePath().normalize()));
                     } catch (IOException e) {
                         logger.debug("Could not list child directories for tracking: {}", e.getMessage());
                     }
@@ -397,14 +437,38 @@ public class RealtimeTrigger extends AbstractTrigger
                             }
 
                             Path eventPath = directory.resolve((Path) event.context());
+                            Path normalizedEventPath = eventPath.toAbsolutePath().normalize();
 
-                            if (kind == StandardWatchEventKinds.ENTRY_CREATE && rRecursive && Files.isDirectory(eventPath) && !Files.isSymbolicLink(eventPath)) {
+                            // Directory cleanup is internal bookkeeping and must not depend
+                            // on the configured event type or regex filter.
+                            if (kind == StandardWatchEventKinds.ENTRY_DELETE
+                                && knownDirectories.contains(normalizedEventPath)) {
+                                unregisterDirectoryTree(
+                                    normalizedEventPath,
+                                    watchKeyMap,
+                                    registeredDirectories,
+                                    knownDirectories
+                                );
+                                continue;
+                            }
+
+                            if (kind == StandardWatchEventKinds.ENTRY_CREATE
+                                && rRecursive
+                                && Files.isDirectory(eventPath)
+                                && !Files.isSymbolicLink(eventPath)) {
                                 try {
                                     validatePath(eventPath, runContext);
+
                                     registerDirectory(eventPath, watchKeyMap, registeredDirectories);
-                                    registerDirectoryTree(eventPath, watchKeyMap, registeredDirectories);
-                                    // Track all newly registered directories (including nested) so DELETE events can be suppressed
-                                    knownDirectories.addAll(registeredDirectories);
+                                    knownDirectories.add(eventPath.toAbsolutePath().normalize());
+
+                                    registerDirectoryTree(
+                                        eventPath,
+                                        watchKeyMap,
+                                        registeredDirectories,
+                                        knownDirectories,
+                                        runContext
+                                    );
                                 } catch (SecurityException e) {
                                     logger.warn(
                                         "Security: Rejecting dynamically created directory outside allowed-paths: {} - {}",
@@ -428,9 +492,12 @@ public class RealtimeTrigger extends AbstractTrigger
                             }
 
                             // Track directories for non-recursive mode (ENTRY_CREATE for child directories)
-                            if (kind == StandardWatchEventKinds.ENTRY_CREATE && !rRecursive && Files.exists(eventPath) && Files.isDirectory(eventPath) && !Files.isSymbolicLink(eventPath)) {
-                                knownDirectories.add(eventPath.toAbsolutePath());
-                                continue; // Don't emit CREATE events for directories
+                            if (kind == StandardWatchEventKinds.ENTRY_CREATE
+                                && !rRecursive
+                                && Files.isDirectory(eventPath)
+                                && !Files.isSymbolicLink(eventPath)) {
+                                knownDirectories.add(eventPath.toAbsolutePath().normalize());
+                                continue;
                             }
 
                             if (!shouldTrigger(kind, renderedOn)) {
@@ -469,13 +536,6 @@ public class RealtimeTrigger extends AbstractTrigger
                             }
 
                             if (changeType != null) {
-                                // Skip DELETE events for known directories (file-only trigger)
-                                // Use knownDirectories instead of registeredDirectories to handle both
-                                // registered (recursive) and unregistered (non-recursive child dirs)
-                                if (changeType == ChangeType.DELETE && knownDirectories.contains(eventPath.toAbsolutePath())) {
-                                    knownDirectories.remove(eventPath.toAbsolutePath());
-                                    continue;
-                                }
                                 emitEventExecution(eventPath, changeType, conditionContext, context, emitter);
                             }
 
@@ -492,9 +552,13 @@ public class RealtimeTrigger extends AbstractTrigger
                         // Key is no longer valid (directory deleted, etc.)
                         Path registeredDirectory = watchKeyMap.remove(key);
                         if (registeredDirectory != null) {
-                            // Also remove from registered directories to avoid stale entries
-                            // that could incorrectly suppress DELETE events for reused paths
-                            registeredDirectories.remove(registeredDirectory.toAbsolutePath());
+                            Path normalizedDirectory = registeredDirectory.toAbsolutePath().normalize();
+
+                            registeredDirectories.remove(normalizedDirectory);
+
+                            // Keep knownDirectories until the parent ENTRY_DELETE event
+                            // consumes the directory path. The child WatchKey becoming
+                            // invalid may be processed before that parent event.
                         }
                         // If all directories are gone, stop watching
                         if (watchKeyMap.isEmpty()) {
@@ -516,7 +580,7 @@ public class RealtimeTrigger extends AbstractTrigger
                     emitter.complete();
                 }
             } finally {
-                cleanup(watchKeyMap, registeredDirectories);
+                cleanup(watchKeyMap, registeredDirectories, knownDirectories);
             }
         });
     }
@@ -624,7 +688,7 @@ public class RealtimeTrigger extends AbstractTrigger
      * @param pattern the compiled regex pattern (may be null)
      * @return true if the pattern is null (no filter) or the path matches; false otherwise
      */
-    private boolean matchesRegExp(Path path, java.util.regex.Pattern pattern) {
+    private boolean matchesRegExp(Path path, Pattern pattern) {
         if (pattern == null) {
             return true;
         }
@@ -641,6 +705,43 @@ public class RealtimeTrigger extends AbstractTrigger
         }
         watchService.set(FileSystems.getDefault().newWatchService());
     }
+    /**
+    * Cancels watch registrations for a removed directory and its descendants,
+    * and removes the corresponding tracking paths.
+    *
+    * @param directory the removed directory
+    * @param watchKeyMap the map of watch keys to directories
+    * @param registeredDirectories the set of registered directories
+    * @param knownDirectories the set of known directories
+    */
+
+    private void unregisterDirectoryTree(
+        Path directory,
+        Map<WatchKey, Path> watchKeyMap,
+        Set<Path> registeredDirectories,
+        Set<Path> knownDirectories
+    ) {
+        Path normalizedDirectory = directory.toAbsolutePath().normalize();
+
+        // Cancel and remove registrations for this directory and its descendants.
+        synchronized (registeredDirectories) {
+            for (Map.Entry<WatchKey, Path> entry : watchKeyMap.entrySet()) {
+                Path registeredPath = entry.getValue().toAbsolutePath().normalize();
+
+                if (registeredPath.startsWith(normalizedDirectory)) {
+                    WatchKey key = entry.getKey();
+                    key.cancel();
+
+                    if (watchKeyMap.remove(key, entry.getValue())) {
+                        registeredDirectories.remove(registeredPath);
+                    }
+                }
+            }
+        }
+
+        // Remove the directory and all known descendant paths.
+        knownDirectories.removeIf(path -> path.startsWith(normalizedDirectory));
+    }
 
     /**
      * Registers a single directory to be watched for events.
@@ -651,57 +752,106 @@ public class RealtimeTrigger extends AbstractTrigger
      * @param dirs the set to track registered directories
      * @throws Exception if registration fails
      */
-    private void registerDirectory(Path directory, Map<WatchKey, Path> map, Set<Path> dirs) throws Exception {
-        WatchService svc = watchService.get();
-        if (svc == null) {
-            throw new IllegalStateException("WatchService not initialized");
-        }
-        WatchKey key = directory.register(
-            svc,
-            StandardWatchEventKinds.ENTRY_CREATE,
-            StandardWatchEventKinds.ENTRY_MODIFY,
-            StandardWatchEventKinds.ENTRY_DELETE
-        );
+    private void registerDirectory(
+        Path directory,
+        Map<WatchKey, Path> map,
+        Set<Path> dirs
+    ) throws Exception {
+        Path normalizedDirectory = directory.toAbsolutePath().normalize();
 
-        // Check if trigger was stopped during registration (race condition fix)
-        if (!active.get()) {
-            key.cancel();
-            throw new IllegalStateException("Trigger stopped during registration");
-        }
+        synchronized (dirs) {
+            if (dirs.contains(normalizedDirectory)) {
+                return;
+            }
 
-        map.put(key, directory);
-        dirs.add(directory.toAbsolutePath());
+            WatchService svc = watchService.get();
+            if (svc == null) {
+                throw new IllegalStateException("WatchService not initialized");
+            }
+
+            WatchKey key = normalizedDirectory.register(
+                svc,
+                StandardWatchEventKinds.ENTRY_CREATE,
+                StandardWatchEventKinds.ENTRY_MODIFY,
+                StandardWatchEventKinds.ENTRY_DELETE
+            );
+
+            if (!active.get()) {
+                key.cancel();
+                throw new IllegalStateException("Trigger stopped during registration");
+            }
+
+            dirs.add(normalizedDirectory);
+            map.put(key, normalizedDirectory);
+        }
     }
 
     /**
      * Recursively walks the directory tree and registers all subdirectories.
-     * Called during startup when recursive: true.
+     * Each directory is validated against the configured allowed-paths before
+     * registration. Symbolic links are excluded to prevent following linked paths.
      *
-     * If a child directory disappears during the walk (race condition),
-     * it is skipped and registration continues. Only the root directory
-     * disappearance is treated as a fatal error (handled by caller).
+     * If a child directory disappears or becomes inaccessible during traversal,
+     * it is skipped and registration continues.
      *
      * @param root the root directory to walk
      * @param map the map to store WatchKey -> Path associations
      * @param dirs the set to track registered directories
-     * @throws Exception if walking the root fails
+     * @param knownDirs the set to track all known directories for DELETE suppression
+     * @param runContext the current run context used for path validation
+     * @throws Exception if the directory stream cannot be opened or an unrecoverable
+     *                    registration error occurs
      */
-    private void registerDirectoryTree(Path root, Map<WatchKey, Path> map, Set<Path> dirs) throws Exception {
+    private void registerDirectoryTree(
+        Path root,
+        Map<WatchKey, Path> map,
+        Set<Path> dirs,
+        Set<Path> knownDirs,
+        RunContext runContext
+    ) throws Exception {
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(root)) {
             for (Path entry : stream) {
-                if (Files.isDirectory(entry) && !Files.isSymbolicLink(entry)) {
-                    try {
-                        registerDirectory(entry, map, dirs);
-                        // Recursively register subdirectories
-                        registerDirectoryTree(entry, map, dirs);
-                    } catch (IOException e) {
-                        // Child directory disappeared or became inaccessible during the walk.
-                        // This is a race condition, not a startup failure. Skip and continue.
-                    }
+                if (!Files.isDirectory(entry) || Files.isSymbolicLink(entry)) {
+                    continue;
                 }
+
+                try {
+                    validatePath(entry, runContext);
+
+                    registerDirectory(entry, map, dirs);
+                    knownDirs.add(entry.toAbsolutePath().normalize());
+
+                    registerDirectoryTree(
+                        entry,
+                        map,
+                        dirs,
+                        knownDirs,
+                        runContext
+                    );
+                } catch (SecurityException e) {
+                    logger.warn(
+                        "Security: Rejecting directory outside allowed-paths during recursive registration: {} - {}",
+                        entry,
+                        e.getMessage()
+                    );
+                } catch (IllegalArgumentException e) {
+                    logger.debug(
+                        "Could not validate directory {} during recursive registration: {}",
+                        entry,
+                        e.getMessage()
+                    );
+                } catch (IOException e) {
+                    // The directory may have disappeared or become inaccessible
+                    // between discovery and registration. Continue with siblings.
+                    logger.debug(
+                        "Could not register directory {} during recursive registration: {}",
+                        entry,
+                        e.getMessage()
+                    );
             }
         }
     }
+}
 
     @Override
     public void stop() {
@@ -739,7 +889,11 @@ public class RealtimeTrigger extends AbstractTrigger
         }
     }
 
-    private void cleanup(Map<WatchKey, Path> watchKeyMap, Set<Path> registeredDirectories) {
+    private void cleanup(
+        Map<WatchKey, Path> watchKeyMap,
+        Set<Path> registeredDirectories,
+        Set<Path> knownDirectories
+    ) {
         // Atomically claim ownership of the WatchService.
         // getAndSet(null) ensures only one thread gets a non-null reference.
         WatchService svc = watchService.getAndSet(null);
@@ -761,6 +915,9 @@ public class RealtimeTrigger extends AbstractTrigger
             }
             if (registeredDirectories != null) {
                 registeredDirectories.clear();
+            }
+            if (knownDirectories != null) {
+                knownDirectories.clear();
             }
         }
     }

@@ -8,378 +8,336 @@ import io.kestra.core.utils.TestsUtils;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
 /**
  * Integration tests for RealtimeTrigger.
- * Tests the CREATE event → File → Execution pipeline.
  */
 @KestraTest
 class RealtimeTriggerTest {
     @Inject
     private RunContextFactory runContextFactory;
 
-    private static void waitForWatcherReady(RealtimeTrigger trigger, int timeoutSeconds) throws InterruptedException {
-        long deadline = System.nanoTime() + java.time.Duration.ofSeconds(timeoutSeconds).toNanos();
+    private static final Duration WATCHER_READY_TIMEOUT = Duration.ofSeconds(5);
 
-        while (!trigger.isReady() && System.nanoTime() < deadline) {
+    /**
+     * Wait for the trigger to become ready (watcher initialized and active).
+     */
+    private static void waitForWatcherReady(RealtimeTrigger trigger) throws InterruptedException {
+        long deadline = System.nanoTime() + WATCHER_READY_TIMEOUT.toNanos();
+
+        while (!trigger.isReady()) {
+            if (System.nanoTime() >= deadline) {
+                throw new AssertionError("Watcher did not become ready within " + WATCHER_READY_TIMEOUT);
+            }
             Thread.sleep(25);
         }
+    }
 
-        if (!trigger.isReady()) {
-            throw new AssertionError("Watcher not ready after " + timeoutSeconds + " seconds");
+    /**
+     * Recursively delete a directory and all its contents.
+     */
+    private static void deleteRecursively(Path root) throws IOException {
+        if (!Files.exists(root)) {
+            return;
+        }
+
+        try (var paths = Files.walk(root)) {
+            paths.sorted(Comparator.reverseOrder())
+                .forEach(path -> {
+                    try {
+                        Files.deleteIfExists(path);
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                });
+        } catch (UncheckedIOException e) {
+            throw e.getCause();
         }
     }
 
     @Test
     @Timeout(15)
     void testCreateEvent() throws Exception {
-        // Setup: Create a temporary directory
         Path tempDir = Files.createTempDirectory("realtime-trigger-test");
         Path testFile = tempDir.resolve("test.txt");
 
         try {
-            // Create the realtime trigger with DEFAULT event type (CREATE_OR_UPDATE)
-            // This tests that the default behavior is CREATE_OR_UPDATE, not just CREATE
             RealtimeTrigger trigger = RealtimeTrigger.builder()
-                .id("test-realtime-default")
+                .id("test-create")
                 .type(RealtimeTrigger.class.getName())
                 .from(Property.ofValue(tempDir.toString()))
-                // .on() is NOT specified - defaults to CREATE_OR_UPDATE
+                .on(Property.ofValue(RealtimeTrigger.EventType.CREATE))
                 .build();
 
-            // Mock the trigger context
             var context = TestsUtils.mockTrigger(runContextFactory, trigger);
 
-            // Capture the execution
-            Execution[] receivedExecution = new Execution[1];
-            Thread watcherThread = new Thread(() -> {
-                try {
-                    receivedExecution[0] = Flux.from(
-                            trigger.evaluate(context.getKey(), context.getValue())
-                        )
-                        .subscribeOn(Schedulers.boundedElastic())
-                        .blockFirst(Duration.ofSeconds(10));
-                } catch (Exception e) {
-                    System.err.println("✗ Watcher error: " + e.getMessage());
-                    e.printStackTrace();
-                }
-            });
+            List<Execution> receivedExecutions = new CopyOnWriteArrayList<>();
+            AtomicReference<Throwable> watcherError = new AtomicReference<>();
+            CountDownLatch eventLatch = new CountDownLatch(1);
 
-            watcherThread.setName("RealtimeTrigger-Default-Event-Test");
-            watcherThread.start();
+            Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                    execution -> {
+                        receivedExecutions.add(execution);
+                        eventLatch.countDown();
+                    },
+                    watcherError::set
+                );
 
-            // Wait for watcher to initialize with deterministic polling
-            waitForWatcherReady(trigger, 5);
+            try {
+                waitForWatcherReady(trigger);
 
-            // Create a test file - should trigger with default behavior
-            Files.write(testFile, "test content".getBytes());
+                Files.writeString(testFile, "test content", StandardCharsets.UTF_8);
 
-            // Wait for watcher thread to complete (with timeout)
-            watcherThread.join(12000);
+                assertThat(
+                    "Expected CREATE event",
+                    eventLatch.await(5, TimeUnit.SECONDS),
+                    is(true)
+                );
 
-            if (watcherThread.isAlive()) {
+                assertThat("Watcher must not fail", watcherError.get(), nullValue());
+                assertThat("Should have received execution", receivedExecutions.size(), is(1));
+
+                Execution execution = receivedExecutions.get(0);
+                Map<String, Object> variables = execution.getTrigger().getVariables();
+                assertThat(variables.get("changeType"), equalTo("CREATE"));
+
+            } finally {
                 trigger.stop();
-                watcherThread.join(2000);
+                subscription.dispose();
             }
-
-            // Verify execution was received
-            assertThat("Should have received execution when creating a file with default event type",
-                receivedExecution[0], notNullValue());
-
-            // Verify changeType is CREATE (default on() includes CREATE)
-            Map<String, Object> variables = receivedExecution[0].getTrigger().getVariables();
-            assertThat("changeType should be CREATE for newly created file",
-                variables.get("changeType"), equalTo("CREATE"));
-
-            System.out.println("\n✓ Default Event Type (CREATE_OR_UPDATE) Test Passed:");
-            System.out.println("  Default on() includes CREATE");
-            System.out.println("  File creation triggers execution with CREATE changeType");
-
         } finally {
-            // Cleanup
-            Files.deleteIfExists(testFile);
-            Files.deleteIfExists(tempDir);
+            deleteRecursively(tempDir);
         }
     }
 
     @Test
     @Timeout(15)
     void testCreateEventOutputContract() throws Exception {
-        // Setup: Create a temporary directory
         Path tempDir = Files.createTempDirectory("realtime-trigger-test");
         Path testFile = tempDir.resolve("test.txt");
 
         try {
-            // Create the realtime trigger
             RealtimeTrigger trigger = RealtimeTrigger.builder()
-                .id("test-realtime")
+                .id("test-output-contract")
                 .type(RealtimeTrigger.class.getName())
                 .from(Property.ofValue(tempDir.toString()))
                 .on(Property.ofValue(RealtimeTrigger.EventType.CREATE))
                 .build();
 
-            // Mock the trigger context
             var context = TestsUtils.mockTrigger(runContextFactory, trigger);
 
-            // Capture the execution
-            Execution[] receivedExecution = new Execution[1];
-            Thread watcherThread = new Thread(() -> {
-                try {
-                    receivedExecution[0] = Flux.from(
-                            trigger.evaluate(context.getKey(), context.getValue())
-                        )
-                        .subscribeOn(Schedulers.boundedElastic())
-                        .blockFirst(Duration.ofSeconds(10));
-                } catch (Exception e) {
-                    System.err.println("✗ Watcher error: " + e.getMessage());
-                    e.printStackTrace();
-                }
-            });
+            List<Execution> receivedExecutions = new CopyOnWriteArrayList<>();
+            AtomicReference<Throwable> watcherError = new AtomicReference<>();
+            CountDownLatch eventLatch = new CountDownLatch(1);
 
-            watcherThread.setName("RealtimeTrigger-OutputContract-Test");
-            watcherThread.start();
+            Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                    execution -> {
+                        receivedExecutions.add(execution);
+                        eventLatch.countDown();
+                    },
+                    watcherError::set
+                );
 
-            // Wait for watcher to initialize with deterministic polling
-            waitForWatcherReady(trigger, 5);
+            try {
+                waitForWatcherReady(trigger);
 
-            // Create test file
-            Files.write(testFile, "test content".getBytes());
-            System.out.println("✓ Test file created: " + testFile);
+                Files.writeString(testFile, "test content", StandardCharsets.UTF_8);
 
-            // Wait for execution
-            watcherThread.join(12000);
+                assertThat(
+                    "Expected CREATE event",
+                    eventLatch.await(5, TimeUnit.SECONDS),
+                    is(true)
+                );
 
-            if (watcherThread.isAlive()) {
+                assertThat("Watcher must not fail", watcherError.get(), nullValue());
+                assertThat("Should have received execution", receivedExecutions.size(), is(1));
+
+                Execution execution = receivedExecutions.get(0);
+                Map<String, Object> variables = execution.getTrigger().getVariables();
+
+                assertThat(variables, hasKey("file"));
+                assertThat(variables, hasKey("changeType"));
+                assertThat(variables.get("changeType"), equalTo("CREATE"));
+
+                @SuppressWarnings("unchecked")
+                Map<String, Object> fileVariables = (Map<String, Object>) variables.get("file");
+
+                assertThat(fileVariables.get("name"), equalTo("test.txt"));
+                assertThat(
+                    fileVariables.get("localPath").toString(),
+                    equalTo(testFile.toAbsolutePath().normalize().toUri().toString())
+                );
+                assertThat(fileVariables, hasKey("uri"));
+
+            } finally {
                 trigger.stop();
-                watcherThread.join(2000);
+                subscription.dispose();
             }
-
-            // Verify execution was received
-            assertThat("Should have received execution", receivedExecution[0], notNullValue());
-
-            Execution execution = receivedExecution[0];
-            Map<String, Object> variables = execution.getTrigger().getVariables();
-
-            // Verify top-level structure
-            assertThat("Variables should contain 'file'", variables, hasKey("file"));
-            assertThat("Variables should contain 'changeType'", variables, hasKey("changeType"));
-            assertThat("changeType should be CREATE", variables.get("changeType"), equalTo("CREATE"));
-
-            // Verify file structure
-            @SuppressWarnings("unchecked")
-            Map<String, Object> fileVariables = (Map<String, Object>) variables.get("file");
-
-            assertThat("File should contain 'name'", fileVariables, hasKey("name"));
-            assertThat("File name should match", fileVariables.get("name"),
-                equalTo(testFile.getFileName().toString()));
-
-            assertThat("File should contain 'localPath'", fileVariables, hasKey("localPath"));
-            String localPathValue = fileVariables.get("localPath").toString();
-            // localPath could be a URI or a Path string, so just verify it contains the filename
-            assertThat("localPath should contain filename", localPathValue, containsString("test.txt"));
-
-            assertThat("File should contain 'uri'", fileVariables, hasKey("uri"));
-
-            // Print actual structure for documentation
-            System.out.println("\n✓ Output Contract Verified:");
-            System.out.println("  trigger.file.name = " + fileVariables.get("name"));
-            System.out.println("  trigger.file.localPath = " + localPathValue);
-            System.out.println("  trigger.file.uri = " + fileVariables.get("uri"));
-            System.out.println("  trigger.changeType = " + variables.get("changeType"));
-
         } finally {
-            // Cleanup
-            Files.deleteIfExists(testFile);
-            Files.deleteIfExists(tempDir);
+            deleteRecursively(tempDir);
         }
     }
 
     @Test
     @Timeout(15)
     void testModifyEvent() throws Exception {
-        // Setup: Create a temporary directory
         Path tempDir = Files.createTempDirectory("realtime-trigger-test");
         Path testFile = tempDir.resolve("test.txt");
 
         try {
-            // Create test file before trigger starts (so it already exists)
-            Files.write(testFile, "initial content".getBytes());
-            System.out.println("✓ Test file created before trigger: " + testFile);
+            Files.writeString(testFile, "initial content", StandardCharsets.UTF_8);
 
-            // Create the realtime trigger watching for MODIFY events
             RealtimeTrigger trigger = RealtimeTrigger.builder()
-                .id("test-realtime-modify")
+                .id("test-modify")
                 .type(RealtimeTrigger.class.getName())
                 .from(Property.ofValue(tempDir.toString()))
                 .on(Property.ofValue(RealtimeTrigger.EventType.UPDATE))
                 .build();
 
-            // Mock the trigger context
             var context = TestsUtils.mockTrigger(runContextFactory, trigger);
 
-            // Capture the execution
-            Execution[] receivedExecution = new Execution[1];
-            Thread watcherThread = new Thread(() -> {
-                try {
-                    receivedExecution[0] = Flux.from(
-                            trigger.evaluate(context.getKey(), context.getValue())
-                        )
-                        .subscribeOn(Schedulers.boundedElastic())
-                        .blockFirst(Duration.ofSeconds(10));
-                } catch (Exception e) {
-                    System.err.println("✗ Watcher error: " + e.getMessage());
-                    e.printStackTrace();
-                }
-            });
+            List<Execution> receivedExecutions = new CopyOnWriteArrayList<>();
+            AtomicReference<Throwable> watcherError = new AtomicReference<>();
+            CountDownLatch eventLatch = new CountDownLatch(1);
 
-            watcherThread.setName("RealtimeTrigger-Modify-Test");
-            watcherThread.start();
+            Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                    execution -> {
+                        receivedExecutions.add(execution);
+                        eventLatch.countDown();
+                    },
+                    watcherError::set
+                );
 
-            // Wait for watcher to initialize with deterministic polling
-            waitForWatcherReady(trigger, 5);
+            try {
+                waitForWatcherReady(trigger);
 
-            // Modify the existing file
-            Files.write(testFile, "modified content".getBytes());
-            System.out.println("✓ Test file modified: " + testFile);
+                Files.writeString(testFile, "modified content", StandardCharsets.UTF_8);
 
-            // Wait for execution
-            watcherThread.join(12000);
+                assertThat(
+                    "Expected UPDATE event",
+                    eventLatch.await(5, TimeUnit.SECONDS),
+                    is(true)
+                );
 
-            if (watcherThread.isAlive()) {
+                assertThat("Watcher must not fail", watcherError.get(), nullValue());
+                assertThat("Should have received execution", receivedExecutions.size(), is(1));
+
+                Execution execution = receivedExecutions.get(0);
+                Map<String, Object> variables = execution.getTrigger().getVariables();
+                assertThat(variables.get("changeType"), equalTo("UPDATE"));
+
+            } finally {
                 trigger.stop();
-                watcherThread.join(2000);
+                subscription.dispose();
             }
-
-            // Verify execution was received
-            assertThat("Should have received execution", receivedExecution[0], notNullValue());
-
-            Execution execution = receivedExecution[0];
-            Map<String, Object> variables = execution.getTrigger().getVariables();
-
-            // Verify changeType is UPDATE
-            assertThat("changeType should be UPDATE", variables.get("changeType"), equalTo("UPDATE"));
-
-            System.out.println("\n✓ MODIFY Event Test Passed:");
-            System.out.println("  changeType = " + variables.get("changeType"));
-
         } finally {
-            // Cleanup
-            Files.deleteIfExists(testFile);
-            Files.deleteIfExists(tempDir);
+            deleteRecursively(tempDir);
         }
     }
 
     @Test
     @Timeout(15)
     void testDeleteEvent() throws Exception {
-        // Setup: Create a temporary directory
         Path tempDir = Files.createTempDirectory("realtime-trigger-test");
         Path testFile = tempDir.resolve("test.txt");
 
         try {
-            // Create test file before trigger starts
-            Files.write(testFile, "content".getBytes());
-            System.out.println("✓ Test file created before trigger: " + testFile);
+            Files.writeString(testFile, "content", StandardCharsets.UTF_8);
 
-            // Create the realtime trigger watching for DELETE events
             RealtimeTrigger trigger = RealtimeTrigger.builder()
-                .id("test-realtime-delete")
+                .id("test-delete")
                 .type(RealtimeTrigger.class.getName())
                 .from(Property.ofValue(tempDir.toString()))
                 .on(Property.ofValue(RealtimeTrigger.EventType.DELETE))
                 .build();
 
-            // Mock the trigger context
             var context = TestsUtils.mockTrigger(runContextFactory, trigger);
 
-            // Capture the execution
-            Execution[] receivedExecution = new Execution[1];
-            Thread watcherThread = new Thread(() -> {
-                try {
-                    receivedExecution[0] = Flux.from(
-                            trigger.evaluate(context.getKey(), context.getValue())
-                        )
-                        .subscribeOn(Schedulers.boundedElastic())
-                        .blockFirst(Duration.ofSeconds(10));
-                } catch (Exception e) {
-                    System.err.println("✗ Watcher error: " + e.getMessage());
-                    e.printStackTrace();
-                }
-            });
+            List<Execution> receivedExecutions = new CopyOnWriteArrayList<>();
+            AtomicReference<Throwable> watcherError = new AtomicReference<>();
+            CountDownLatch eventLatch = new CountDownLatch(1);
 
-            watcherThread.setName("RealtimeTrigger-Delete-Test");
-            watcherThread.start();
+            Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                    execution -> {
+                        receivedExecutions.add(execution);
+                        eventLatch.countDown();
+                    },
+                    watcherError::set
+                );
 
-            // Wait for watcher to initialize with deterministic polling
-            waitForWatcherReady(trigger, 5);
+            try {
+                waitForWatcherReady(trigger);
 
-            // Delete the file
-            Files.deleteIfExists(testFile);
-            System.out.println("✓ Test file deleted: " + testFile);
+                Files.deleteIfExists(testFile);
 
-            // Wait for execution
-            watcherThread.join(12000);
+                assertThat(
+                    "Expected DELETE event",
+                    eventLatch.await(5, TimeUnit.SECONDS),
+                    is(true)
+                );
 
-            if (watcherThread.isAlive()) {
+                assertThat("Watcher must not fail", watcherError.get(), nullValue());
+                assertThat("Should have received execution", receivedExecutions.size(), is(1));
+
+                Execution execution = receivedExecutions.get(0);
+                Map<String, Object> variables = execution.getTrigger().getVariables();
+                assertThat(variables.get("changeType"), equalTo("DELETE"));
+
+                @SuppressWarnings("unchecked")
+                Map<String, Object> fileVariables = (Map<String, Object>) variables.get("file");
+                assertThat(fileVariables.get("name"), equalTo("test.txt"));
+
+            } finally {
                 trigger.stop();
-                watcherThread.join(2000);
+                subscription.dispose();
             }
-
-            // Verify execution was received
-            assertThat("Should have received execution", receivedExecution[0], notNullValue());
-
-            Execution execution = receivedExecution[0];
-            Map<String, Object> variables = execution.getTrigger().getVariables();
-
-            // Verify changeType is DELETE
-            assertThat("changeType should be DELETE", variables.get("changeType"), equalTo("DELETE"));
-
-            @SuppressWarnings("unchecked")
-            Map<String, Object> fileVariables = (Map<String, Object>) variables.get("file");
-            // For DELETE events, file object has degraded metadata
-            assertThat("File should contain 'name'", fileVariables, hasKey("name"));
-            assertThat("File name should match", fileVariables.get("name"),
-                equalTo(testFile.getFileName().toString()));
-
-            System.out.println("\n✓ DELETE Event Test Passed:");
-            System.out.println("  changeType = " + variables.get("changeType"));
-            System.out.println("  file.name = " + fileVariables.get("name"));
-
         } finally {
-            // Cleanup (file may already be deleted)
-            Files.deleteIfExists(testFile);
-            Files.deleteIfExists(tempDir);
+            deleteRecursively(tempDir);
         }
     }
 
     @Test
     @Timeout(15)
     void testDeleteDirectoryDoesNotEmitExecution() throws Exception {
-        // Test that deleting a child directory with recursive=false does NOT emit an execution.
-        // Only file deletions should emit executions; directory deletions should be suppressed.
         Path tempDir = Files.createTempDirectory("realtime-trigger-test");
         Path childDir = tempDir.resolve("subdir");
 
         try {
-            // Create child directory before trigger starts
             Files.createDirectory(childDir);
-            System.out.println("✓ Child directory created before trigger: " + childDir);
 
-            // Create the realtime trigger watching for DELETE events with recursive=false
             RealtimeTrigger trigger = RealtimeTrigger.builder()
-                .id("test-realtime-delete-dir")
+                .id("test-delete-dir-suppression")
                 .type(RealtimeTrigger.class.getName())
                 .from(Property.ofValue(tempDir.toString()))
                 .on(Property.ofValue(RealtimeTrigger.EventType.DELETE))
@@ -387,61 +345,54 @@ class RealtimeTriggerTest {
                 .build();
 
             var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            List<Execution> receivedExecutions = new CopyOnWriteArrayList<>();
+            AtomicReference<Throwable> watcherError = new AtomicReference<>();
+            CountDownLatch eventLatch = new CountDownLatch(1);
+            CountDownLatch terminationLatch = new CountDownLatch(1);
 
-            Execution[] receivedExecution = new Execution[1];
-            Thread watcherThread = new Thread(() -> {
-                try {
-                    receivedExecution[0] = Flux.from(
-                            trigger.evaluate(context.getKey(), context.getValue())
-                        )
-                        .subscribeOn(Schedulers.boundedElastic())
-                        .blockFirst(Duration.ofSeconds(10));
-                } catch (Exception e) {
-                    System.err.println("✗ Watcher error: " + e.getMessage());
-                }
-            });
+            Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .doFinally(signalType -> terminationLatch.countDown())
+                .subscribe(
+                    execution -> {
+                        receivedExecutions.add(execution);
+                        eventLatch.countDown();
+                    },
+                    watcherError::set
+                );
 
-            watcherThread.setName("RealtimeTrigger-DeleteDir-Test");
-            watcherThread.start();
+            try {
+                waitForWatcherReady(trigger);
+                Files.delete(childDir);
 
-            waitForWatcherReady(trigger, 5);
+                boolean eventArrived = eventLatch.await(2, TimeUnit.SECONDS);
 
-            // Delete the child directory
-            Files.deleteIfExists(childDir);
-            System.out.println("✓ Child directory deleted: " + childDir);
-
-            // Wait for potential execution
-            watcherThread.join(5000);
-
-            if (watcherThread.isAlive()) {
+                assertThat("Watcher must not fail", watcherError.get(), nullValue());
+                assertThat("Watcher must remain active during observation", terminationLatch.getCount(), is(1L));
+                assertThat("Directory deletion should not emit execution", eventArrived, is(false));
+                assertThat("No executions should be received", receivedExecutions, empty());
+            } finally {
                 trigger.stop();
-                watcherThread.join(2000);
+                subscription.dispose();
             }
-
-            // Verify NO execution was received (directories should be suppressed)
-            assertThat("Directory deletion should not emit execution", receivedExecution[0], nullValue());
-
-            System.out.println("\n✓ DELETE Directory Suppression Test Passed:");
-            System.out.println("  Child directory deletion did not emit execution");
-            System.out.println("  Only file deletions emit executions (consistent with polling trigger)");
-
         } finally {
-            Files.deleteIfExists(childDir);
-            Files.deleteIfExists(tempDir);
+            deleteRecursively(tempDir);
         }
     }
 
     @Test
     @Timeout(15)
     void testDeleteNestedDirectoryDoesNotEmitExecution() throws Exception {
-        // Regression test: With recursive=true, dynamically created nested directories
-        // should be tracked in knownDirectories so their deletion doesn't emit execution.
         Path tempDir = Files.createTempDirectory("realtime-trigger-test");
+        Path newDir = tempDir.resolve("new");
+        Path nestedDir = newDir.resolve("nested");
 
         try {
-            // Create the realtime trigger watching for DELETE events with recursive=true
+            // Pre-create the nested hierarchy so startup registration is the behavior under test.
+            Files.createDirectories(nestedDir);
+
             RealtimeTrigger trigger = RealtimeTrigger.builder()
-                .id("test-realtime-delete-nested-dir")
+                .id("test-delete-nested-dir-suppression")
                 .type(RealtimeTrigger.class.getName())
                 .from(Property.ofValue(tempDir.toString()))
                 .on(Property.ofValue(RealtimeTrigger.EventType.DELETE))
@@ -449,74 +400,49 @@ class RealtimeTriggerTest {
                 .build();
 
             var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            List<Execution> receivedExecutions = new CopyOnWriteArrayList<>();
+            AtomicReference<Throwable> watcherError = new AtomicReference<>();
+            CountDownLatch eventLatch = new CountDownLatch(1);
+            CountDownLatch terminationLatch = new CountDownLatch(1);
 
-            java.util.List<Execution> receivedExecutions = Collections.synchronizedList(new java.util.ArrayList<>());
-            Thread watcherThread = new Thread(() -> {
-                try {
-                    Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
-                        .subscribeOn(Schedulers.boundedElastic())
-                        .subscribe(receivedExecutions::add);
-                    // Keep thread alive for test duration
-                    Thread.sleep(10000);
-                } catch (Exception e) {
-                    System.err.println("✗ Watcher error: " + e.getMessage());
-                }
-            });
+            Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .doFinally(signalType -> terminationLatch.countDown())
+                .subscribe(
+                    execution -> {
+                        receivedExecutions.add(execution);
+                        eventLatch.countDown();
+                    },
+                    watcherError::set
+                );
 
-            watcherThread.setName("RealtimeTrigger-DeleteNestedDir-Test");
-            watcherThread.start();
+            try {
+                waitForWatcherReady(trigger);
+                Files.delete(nestedDir);
 
-            waitForWatcherReady(trigger, 5);
+                boolean eventArrived = eventLatch.await(2, TimeUnit.SECONDS);
 
-            // Create nested directory structure
-            Path newDir = tempDir.resolve("new");
-            Path nestedDir = newDir.resolve("nested");
-            Files.createDirectories(nestedDir);
-            System.out.println("✓ Created nested directory: " + nestedDir);
-
-            // Wait for registration
-            Thread.sleep(500);
-
-            // Delete the nested directory
-            Files.deleteIfExists(nestedDir);
-            System.out.println("✓ Deleted nested directory: " + nestedDir);
-
-            // Wait to ensure no execution is emitted
-            Thread.sleep(2000);
-
-            trigger.stop();
-            watcherThread.join(2000);
-
-            // Verify NO execution was received (nested directory deletion should be suppressed)
-            assertThat("Nested directory deletion should not emit execution",
-                receivedExecutions.size(), equalTo(0));
-
-            System.out.println("\n✓ DELETE Nested Directory Suppression Test Passed:");
-            System.out.println("  Dynamically created nested directory deletion did not emit execution");
-            System.out.println("  knownDirectories correctly tracks all registered directories");
-
+                assertThat("Watcher must not fail", watcherError.get(), nullValue());
+                assertThat("Watcher must remain active during observation", terminationLatch.getCount(), is(1L));
+                assertThat("Nested directory deletion should not emit execution", eventArrived, is(false));
+                assertThat("No executions should be received", receivedExecutions, empty());
+            } finally {
+                trigger.stop();
+                subscription.dispose();
+            }
         } finally {
-            // Cleanup (directories may already be deleted)
-            java.nio.file.Files.walk(tempDir)
-                .sorted(java.util.Comparator.reverseOrder())
-                .forEach(path -> {
-                    try {
-                        Files.deleteIfExists(path);
-                    } catch (Exception ignored) {}
-                });
+            deleteRecursively(tempDir);
         }
     }
 
     @Test
     @Timeout(15)
     void testRegexFilter() throws Exception {
-        // Setup: Create a temporary directory
         Path tempDir = Files.createTempDirectory("realtime-trigger-test");
         Path csvFile = tempDir.resolve("data.csv");
         Path txtFile = tempDir.resolve("readme.txt");
 
         try {
-            // Create the realtime trigger with regex filter for .csv files only
             RealtimeTrigger trigger = RealtimeTrigger.builder()
                 .id("test-regex-filter")
                 .type(RealtimeTrigger.class.getName())
@@ -525,81 +451,57 @@ class RealtimeTriggerTest {
                 .regExp(Property.ofValue(".*\\.csv$"))
                 .build();
 
-            // Mock the trigger context
             var context = TestsUtils.mockTrigger(runContextFactory, trigger);
 
-            // Capture the execution
-            Execution[] receivedExecution = new Execution[1];
-            Thread watcherThread = new Thread(() -> {
-                try {
-                    receivedExecution[0] = Flux.from(
-                            trigger.evaluate(context.getKey(), context.getValue())
-                        )
-                        .subscribeOn(Schedulers.boundedElastic())
-                        .blockFirst(Duration.ofSeconds(10));
-                } catch (Exception e) {
-                    System.err.println("✗ Watcher error: " + e.getMessage());
-                    e.printStackTrace();
-                }
-            });
+            List<Execution> receivedExecutions = new CopyOnWriteArrayList<>();
+            AtomicReference<Throwable> watcherError = new AtomicReference<>();
+            CountDownLatch eventLatch = new CountDownLatch(1);
 
-            watcherThread.setName("RealtimeTrigger-Regex-Test");
-            watcherThread.start();
+            Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                    execution -> {
+                        receivedExecutions.add(execution);
+                        eventLatch.countDown();
+                    },
+                    watcherError::set
+                );
 
-            // Wait for watcher to initialize with deterministic polling
-            waitForWatcherReady(trigger, 5);
+            try {
+                waitForWatcherReady(trigger);
 
-            // Create a .txt file (should NOT trigger)
-            Files.write(txtFile, "readme".getBytes());
-            System.out.println("✓ Created readme.txt (should not trigger due to regex filter)");
+                Files.writeString(txtFile, "readme", StandardCharsets.UTF_8);
+                Files.writeString(csvFile, "header1,header2", StandardCharsets.UTF_8);
 
-            // Create a .csv file (should trigger)
-            Files.write(csvFile, "header1,header2".getBytes());
-            System.out.println("✓ Created data.csv (should trigger - matches .*\\.csv$)");
+                assertThat(
+                    "Expected CSV event",
+                    eventLatch.await(5, TimeUnit.SECONDS),
+                    is(true)
+                );
 
-            // Wait for execution
-            watcherThread.join(12000);
+                assertThat("Watcher must not fail", watcherError.get(), nullValue());
+                assertThat("Should have received one execution", receivedExecutions.size(), is(1));
 
-            if (watcherThread.isAlive()) {
+                Execution execution = receivedExecutions.get(0);
+                @SuppressWarnings("unchecked")
+                Map<String, Object> fileVariables = (Map<String, Object>) execution.getTrigger().getVariables().get("file");
+                assertThat(fileVariables.get("name"), equalTo("data.csv"));
+
+            } finally {
                 trigger.stop();
-                watcherThread.join(2000);
+                subscription.dispose();
             }
-
-            // Verify execution was received (should be for CSV only)
-            assertThat("Should have received execution for CSV file", receivedExecution[0], notNullValue());
-
-            Execution execution = receivedExecution[0];
-            Map<String, Object> variables = execution.getTrigger().getVariables();
-
-            @SuppressWarnings("unchecked")
-            Map<String, Object> fileVariables = (Map<String, Object>) variables.get("file");
-            String fileName = fileVariables.get("name").toString();
-
-            assertThat("Should have triggered for CSV file (not .txt)", fileName, endsWith(".csv"));
-            assertThat("Triggered file should be data.csv", fileName, equalTo("data.csv"));
-
-            System.out.println("\n✓ Regex Filter Test Passed:");
-            System.out.println("  Pattern: .*\\.csv$");
-            System.out.println("  Filtered out: readme.txt");
-            System.out.println("  Detected: " + fileName);
-
         } finally {
-            // Cleanup
-            Files.deleteIfExists(csvFile);
-            Files.deleteIfExists(txtFile);
-            Files.deleteIfExists(tempDir);
+            deleteRecursively(tempDir);
         }
     }
 
     @Test
     @Timeout(15)
     void testStopAndCleanup() throws Exception {
-        // Setup: Create a temporary directory
         Path tempDir = Files.createTempDirectory("realtime-trigger-test");
-        Path testFile = tempDir.resolve("test.txt");
 
         try {
-            // Create the realtime trigger
             RealtimeTrigger trigger = RealtimeTrigger.builder()
                 .id("test-stop-cleanup")
                 .type(RealtimeTrigger.class.getName())
@@ -607,277 +509,216 @@ class RealtimeTriggerTest {
                 .on(Property.ofValue(RealtimeTrigger.EventType.CREATE))
                 .build();
 
-            // Mock the trigger context
             var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            AtomicReference<Throwable> watcherError = new AtomicReference<>();
+            CountDownLatch terminationLatch = new CountDownLatch(1);
 
-            // Capture any exception from the watcher thread
-            Throwable[] watcherException = new Throwable[1];
-            Thread watcherThread = new Thread(() -> {
-                try {
-                    Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
-                        .subscribeOn(Schedulers.boundedElastic())
-                        .blockFirst(Duration.ofSeconds(10));
-                } catch (Exception e) {
-                    // Store the exception - it's expected when trigger is stopped, but we want to verify
-                    watcherException[0] = e;
+            Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .doFinally(signalType -> terminationLatch.countDown())
+                .subscribe(ignored -> {}, watcherError::set);
+
+            try {
+                waitForWatcherReady(trigger);
+                assertThat("Watcher should be ready", trigger.isReady(), is(true));
+                assertThat("Stream should not have terminated before stop()", terminationLatch.getCount(), is(1L));
+                assertThat("No error should have occurred before stop()", watcherError.get(), nullValue());
+
+                trigger.stop();
+
+                assertThat("Watcher should terminate after stop()", terminationLatch.await(3, TimeUnit.SECONDS), is(true));
+                assertThat("Watcher should not be ready after stop", trigger.isReady(), is(false));
+
+                Throwable error = watcherError.get();
+                if (error != null && !(error instanceof CancellationException)) {
+                    throw new AssertionError("Unexpected error after stop()", error);
                 }
-            });
-
-            watcherThread.setName("RealtimeTrigger-Stop-Test");
-            watcherThread.start();
-
-            // Wait for watcher to initialize
-            waitForWatcherReady(trigger, 5);
-            System.out.println("✓ Watcher initialized");
-
-            // Verify initial state
-            assertThat("Watcher should be ready", trigger.isReady(), is(true));
-
-            // Call stop to shut down the trigger
-            trigger.stop();
-            System.out.println("✓ Trigger stopped");
-
-            // Wait for watcher thread to complete
-            watcherThread.join(5000);
-            assertThat("Watcher thread should have completed",
-                watcherThread.isAlive(), is(false));
-
-            // Give a bit of time for the ready flag to be cleared
-            Thread.sleep(100);
-
-            // Verify cleanup: watcher should no longer be ready
-            assertThat("Watcher should not be ready after stop", trigger.isReady(), is(false));
-
-            // Verify no unexpected exceptions occurred
-            if (watcherException[0] != null && !(watcherException[0] instanceof CancellationException)) {
-                if (watcherException[0] instanceof RuntimeException) {
-                    throw (RuntimeException) watcherException[0];
-                } else if (watcherException[0] instanceof Exception) {
-                    throw (Exception) watcherException[0];
-                } else {
-                    throw new RuntimeException("Unexpected exception in watcher thread", watcherException[0]);
-                }
+            } finally {
+                trigger.stop();
+                subscription.dispose();
             }
-
-            System.out.println("\n✓ Stop and Cleanup Test Passed:");
-            System.out.println("  Trigger stopped cleanly");
-            System.out.println("  Watcher thread terminated");
-            System.out.println("  Resources cleaned up (watchKeyMap cleared)");
-
-
         } finally {
-            // Cleanup
-            Files.deleteIfExists(testFile);
-            Files.deleteIfExists(tempDir);
+            deleteRecursively(tempDir);
         }
     }
 
     @Test
-    @Timeout(15)
+    @Timeout(20)
     void testRecursiveDirectoryRegistration() throws Exception {
-        // Setup: Create only the root directory
-        // DO NOT pre-create subdir - it must be created AFTER the watcher starts
         Path tempDir = Files.createTempDirectory("realtime-trigger-test");
         Path subDir = tempDir.resolve("subdir");
         Path fileInSubDir = subDir.resolve("file.txt");
+        Path barrierFile = tempDir.resolve("registration-barrier.txt");
 
         try {
-            // Create the realtime trigger with recursive watching
             RealtimeTrigger trigger = RealtimeTrigger.builder()
-                .id("test-recursive-dir")
+                .id("test-recursive-registration")
                 .type(RealtimeTrigger.class.getName())
                 .from(Property.ofValue(tempDir.toString()))
                 .recursive(Property.ofValue(true))
                 .on(Property.ofValue(RealtimeTrigger.EventType.CREATE))
                 .build();
 
-            // Mock the trigger context
             var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            List<Execution> receivedExecutions = new CopyOnWriteArrayList<>();
+            AtomicReference<Throwable> watcherError = new AtomicReference<>();
+            CountDownLatch registrationBarrierLatch = new CountDownLatch(1);
+            CountDownLatch fileLatch = new CountDownLatch(1);
 
-            // Capture the execution
-            Execution[] receivedExecution = new Execution[1];
-            Thread watcherThread = new Thread(() -> {
-                try {
-                    receivedExecution[0] = Flux.from(
-                            trigger.evaluate(context.getKey(), context.getValue())
-                        )
-                        .subscribeOn(Schedulers.boundedElastic())
-                        .blockFirst(Duration.ofSeconds(10));
-                } catch (Exception e) {
-                    System.err.println("✗ Watcher error: " + e.getMessage());
-                    e.printStackTrace();
-                }
-            });
+            Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                    execution -> {
+                        receivedExecutions.add(execution);
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> fileVariables = (Map<String, Object>) execution.getTrigger()
+                            .getVariables().get("file");
+                        String fileName = (String) fileVariables.get("name");
+                        if ("registration-barrier.txt".equals(fileName)) {
+                            registrationBarrierLatch.countDown();
+                        } else if ("file.txt".equals(fileName)) {
+                            fileLatch.countDown();
+                        }
+                    },
+                    watcherError::set
+                );
 
-            watcherThread.setName("RealtimeTrigger-Recursive-Test");
-            watcherThread.start();
+            try {
+                waitForWatcherReady(trigger);
 
-            // Wait for watcher to initialize with deterministic polling
-            waitForWatcherReady(trigger, 5);
-            System.out.println("✓ Watcher initialized for root directory only");
+                Files.createDirectory(subDir);
+                // ENTRY_CREATE events for the root are processed in order. Processing the directory
+                // event registers subDir synchronously before the subsequent barrier-file event.
+                Files.createFile(barrierFile);
+                assertThat(
+                    "Watcher must process the registration barrier",
+                    registrationBarrierLatch.await(5, TimeUnit.SECONDS),
+                    is(true)
+                );
 
-            // NOW create the subdirectory dynamically
-            // This tests that the trigger registers new directories as they appear
-            Files.createDirectory(subDir);
-            System.out.println("✓ Created subdirectory after watcher started: " + subDir);
+                Files.writeString(fileInSubDir, "content", StandardCharsets.UTF_8);
+                assertThat(
+                    "Expected CREATE event in the dynamically registered subdirectory",
+                    fileLatch.await(5, TimeUnit.SECONDS),
+                    is(true)
+                );
+                assertThat("Watcher must not fail", watcherError.get(), nullValue());
 
-            // Wait a bit to allow the watcher to process the ENTRY_CREATE for the subdirectory
-            // and register it before we create the file. This is especially important on Windows
-            // where file system events can have delays.
-            Thread.sleep(1000);
+                Execution fileExecution = receivedExecutions.stream()
+                    .filter(execution -> {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> fileVariables = (Map<String, Object>) execution.getTrigger()
+                            .getVariables().get("file");
+                        return "file.txt".equals(fileVariables.get("name"));
+                    })
+                    .findFirst()
+                    .orElseThrow(() -> new AssertionError("File event not found"));
 
-            // Create a file inside the newly-created subdirectory
-            // This should be detected because the subdirectory was dynamically registered
-            Files.write(fileInSubDir, "content".getBytes());
-            System.out.println("✓ Created file in dynamically-registered subdirectory: " + fileInSubDir);
-
-            // Wait for execution
-            watcherThread.join(12000);
-
-            if (watcherThread.isAlive()) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> fileVariables = (Map<String, Object>) fileExecution.getTrigger()
+                    .getVariables().get("file");
+                assertThat(fileVariables.get("name"), equalTo("file.txt"));
+                assertThat(
+                    fileVariables.get("localPath").toString(),
+                    equalTo(fileInSubDir.toAbsolutePath().normalize().toUri().toString())
+                );
+            } finally {
                 trigger.stop();
-                watcherThread.join(2000);
+                subscription.dispose();
             }
-
-            // Verify execution was received for file in dynamically-created subdirectory
-            assertThat("Should have received execution for file in dynamically-created subdirectory",
-                receivedExecution[0], notNullValue());
-
-            Execution execution = receivedExecution[0];
-            Map<String, Object> variables = execution.getTrigger().getVariables();
-
-            @SuppressWarnings("unchecked")
-            Map<String, Object> fileVariables = (Map<String, Object>) variables.get("file");
-            String filePath = fileVariables.get("localPath").toString();
-
-            assertThat("File path should be in dynamically-created subdirectory",
-                filePath, containsString("subdir"));
-
-            System.out.println("\n✓ Recursive Directory Registration Test Passed:");
-            System.out.println("  Subdirectory was created AFTER watcher started");
-            System.out.println("  Trigger dynamically registered the new directory");
-            System.out.println("  File in new subdirectory was detected");
-
         } finally {
-            // Cleanup
-            Files.deleteIfExists(fileInSubDir);
-            Files.deleteIfExists(subDir);
-            Files.deleteIfExists(tempDir);
+            deleteRecursively(tempDir);
         }
     }
 
 
 
-    // ========== BEHAVIOR TESTS (4) ==========
+    // ========== BEHAVIOR TESTS (3) ==========
 
     @Test
-    @Timeout(15)
+    @Timeout(25)
     void testCreateOrUpdateDefaultIncludesBoth() throws Exception {
-        // Test that default on() behavior is CREATE_OR_UPDATE (includes both CREATE and UPDATE events)
         Path tempDir = Files.createTempDirectory("realtime-trigger-test");
         Path testFile = tempDir.resolve("test.txt");
+        Path barrierFile = tempDir.resolve("registration-barrier.txt");
 
         try {
             RealtimeTrigger trigger = RealtimeTrigger.builder()
                 .id("test-default-create-or-update")
                 .type(RealtimeTrigger.class.getName())
                 .from(Property.ofValue(tempDir.toString()))
-                // .on() NOT specified - should default to CREATE_OR_UPDATE
+                // .on() intentionally omitted: the default is CREATE_OR_UPDATE.
                 .build();
 
             var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            List<Execution> receivedExecutions = new CopyOnWriteArrayList<>();
+            AtomicReference<Throwable> watcherError = new AtomicReference<>();
+            CountDownLatch createLatch = new CountDownLatch(1);
+            CountDownLatch registrationBarrierLatch = new CountDownLatch(1);
+            CountDownLatch updateLatch = new CountDownLatch(1);
+            AtomicBoolean acceptUpdates = new AtomicBoolean(false);
 
-            // Capture first execution (file creation)
-            Execution[] firstExecution = new Execution[1];
-            Thread firstWatcher = new Thread(() -> {
-                try {
-                    firstExecution[0] = Flux.from(
-                            trigger.evaluate(context.getKey(), context.getValue())
-                        )
-                        .subscribeOn(Schedulers.boundedElastic())
-                        .blockFirst(Duration.ofSeconds(10));
-                } catch (Exception e) {
-                    System.err.println("✗ First watcher error: " + e.getMessage());
-                }
-            });
+            Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                    execution -> {
+                        Map<String, Object> variables = execution.getTrigger().getVariables();
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> fileVariables = (Map<String, Object>) variables.get("file");
+                        String fileName = (String) fileVariables.get("name");
+                        String changeType = (String) variables.get("changeType");
 
-            firstWatcher.setName("RealtimeTrigger-CreateOrUpdate-First");
-            firstWatcher.start();
+                        if ("registration-barrier.txt".equals(fileName)) {
+                            registrationBarrierLatch.countDown();
+                            return;
+                        }
+                        if (!"test.txt".equals(fileName)) {
+                            return;
+                        }
 
-            waitForWatcherReady(trigger, 5);
+                        receivedExecutions.add(execution);
+                        if ("CREATE".equals(changeType)) {
+                            createLatch.countDown();
+                        } else if ("UPDATE".equals(changeType) && acceptUpdates.get()) {
+                            updateLatch.countDown();
+                        }
+                    },
+                    watcherError::set
+                );
 
-            // Create a file - should trigger with changeType=CREATE
-            Files.write(testFile, "initial".getBytes());
-            System.out.println("✓ File created");
+            try {
+                waitForWatcherReady(trigger);
+                Files.createFile(testFile);
+                assertThat("Expected CREATE event", createLatch.await(5, TimeUnit.SECONDS), is(true));
 
-            firstWatcher.join(12000);
-            if (firstWatcher.isAlive()) {
+                // Process a later event from the same root key before enabling UPDATE observation.
+                // This drains earlier events (including any incidental CREATE-side filesystem event).
+                Files.createFile(barrierFile);
+                assertThat("Watcher must process the registration barrier",
+                    registrationBarrierLatch.await(5, TimeUnit.SECONDS), is(true));
+
+                acceptUpdates.set(true);
+                Files.writeString(testFile, "modified", StandardCharsets.UTF_8);
+                assertThat("Expected explicit UPDATE event", updateLatch.await(5, TimeUnit.SECONDS), is(true));
+                assertThat("Watcher must not fail", watcherError.get(), nullValue());
+
+                List<String> changeTypes = receivedExecutions.stream()
+                    .map(execution -> (String) execution.getTrigger().getVariables().get("changeType"))
+                    .collect(Collectors.toList());
+                assertThat(changeTypes, hasItem("CREATE"));
+                assertThat(changeTypes, hasItem("UPDATE"));
+            } finally {
                 trigger.stop();
-                firstWatcher.join(2000);
+                subscription.dispose();
             }
-
-            assertThat("Should have triggered on file creation", firstExecution[0], notNullValue());
-            Map<String, Object> firstVars = firstExecution[0].getTrigger().getVariables();
-            assertThat("First event should be CREATE", firstVars.get("changeType"), equalTo("CREATE"));
-
-            System.out.println("✓ First event: CREATE");
-
-            // Now start a new watcher for the UPDATE event
-            RealtimeTrigger trigger2 = RealtimeTrigger.builder()
-                .id("test-default-create-or-update-2")
-                .type(RealtimeTrigger.class.getName())
-                .from(Property.ofValue(tempDir.toString()))
-                .build();
-
-            var context2 = TestsUtils.mockTrigger(runContextFactory, trigger2);
-
-            Execution[] secondExecution = new Execution[1];
-            Thread secondWatcher = new Thread(() -> {
-                try {
-                    secondExecution[0] = Flux.from(
-                            trigger2.evaluate(context2.getKey(), context2.getValue())
-                        )
-                        .subscribeOn(Schedulers.boundedElastic())
-                        .blockFirst(Duration.ofSeconds(10));
-                } catch (Exception e) {
-                    System.err.println("✗ Second watcher error: " + e.getMessage());
-                }
-            });
-
-            secondWatcher.setName("RealtimeTrigger-CreateOrUpdate-Second");
-            secondWatcher.start();
-
-            waitForWatcherReady(trigger2, 5);
-
-            // Modify the file - should trigger with changeType=UPDATE
-            Files.write(testFile, "modified".getBytes());
-            System.out.println("✓ File modified");
-
-            secondWatcher.join(12000);
-            if (secondWatcher.isAlive()) {
-                trigger2.stop();
-                secondWatcher.join(2000);
-            }
-
-            assertThat("Should have triggered on file modification", secondExecution[0], notNullValue());
-            Map<String, Object> secondVars = secondExecution[0].getTrigger().getVariables();
-            assertThat("Second event should be UPDATE", secondVars.get("changeType"), equalTo("UPDATE"));
-
-            System.out.println("✓ Second event: UPDATE");
-            System.out.println("\n✓ Default CREATE_OR_UPDATE Behavior Test Passed:");
-            System.out.println("  Default on() includes both CREATE and UPDATE");
-
         } finally {
-            Files.deleteIfExists(testFile);
-            Files.deleteIfExists(tempDir);
+            deleteRecursively(tempDir);
         }
     }
 
     @Test
     @Timeout(15)
     void testMultipleEventsInSequence() throws Exception {
-        // Test that ONE trigger instance can detect multiple file events in sequence.
-        // This proves Issue #365 requirement: one execution per matched event from a single trigger.
         Path tempDir = Files.createTempDirectory("realtime-trigger-test");
         Path file1 = tempDir.resolve("file1.txt");
         Path file2 = tempDir.resolve("file2.txt");
@@ -892,97 +733,66 @@ class RealtimeTriggerTest {
 
             var context = TestsUtils.mockTrigger(runContextFactory, trigger);
 
-            // Collect all executions from this single trigger
-            java.util.List<Execution> receivedExecutions = Collections.synchronizedList(new java.util.ArrayList<>());
-            Throwable[] watcherError = new Throwable[1];
+            List<Execution> receivedExecutions = new CopyOnWriteArrayList<>();
+            AtomicReference<Throwable> watcherError = new AtomicReference<>();
+            CountDownLatch eventLatch = new CountDownLatch(2);
 
-            Thread watcherThread = new Thread(() -> {
-                try {
-                    var subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
-                        .subscribeOn(Schedulers.boundedElastic())
-                        // Collect all emissions for 5 seconds or until complete
-                        .subscribe(
-                            receivedExecutions::add,
-                            e -> watcherError[0] = e,
-                            () -> System.out.println("✓ Watcher stream completed")
-                        );
-                    // Keep the thread alive while watching, with bounded timeout
-                    long startTime = System.currentTimeMillis();
-                    while (System.currentTimeMillis() - startTime < 5000 && !subscription.isDisposed()) {
-                        Thread.sleep(100);
-                    }
-                    subscription.dispose();
-                } catch (Exception e) {
-                    System.err.println("✗ Watcher error: " + e.getMessage());
-                }
-            });
+            Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                    execution -> {
+                        receivedExecutions.add(execution);
+                        eventLatch.countDown();
+                    },
+                    watcherError::set
+                );
 
-            watcherThread.setName("RealtimeTrigger-MultipleEvents-SingleWatcher");
-            watcherThread.start();
+            try {
+                waitForWatcherReady(trigger);
 
-            waitForWatcherReady(trigger, 5);
+                Files.writeString(file1, "file1", StandardCharsets.UTF_8);
+                Files.writeString(file2, "file2", StandardCharsets.UTF_8);
 
-            // Create first file
-            Files.write(file1, "file1".getBytes());
-            System.out.println("✓ Created file1.txt");
+                assertThat(
+                    "Expected two events from one trigger instance",
+                    eventLatch.await(5, TimeUnit.SECONDS),
+                    is(true)
+                );
 
-            // Wait for first event to be collected with bounded timeout
-            long waitStart = System.currentTimeMillis();
-            while (receivedExecutions.size() < 1 && System.currentTimeMillis() - waitStart < 3000) {
-                Thread.sleep(50);
-            }
+                assertThat("Watcher must not fail", watcherError.get(), nullValue());
+                assertThat("Should have received two executions", receivedExecutions.size(), is(2));
 
-            // Create second file (while watcher still running)
-            Files.write(file2, "file2".getBytes());
-            System.out.println("✓ Created file2.txt");
+                List<String> fileNames = receivedExecutions.stream()
+                    .map(exec -> {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> fileVars = (Map<String, Object>) exec.getTrigger().getVariables().get("file");
+                        return (String) fileVars.get("name");
+                    })
+                    .collect(Collectors.toList());
 
-            // Wait for watcher to finish collection
-            watcherThread.join(6000);
+                assertThat(
+                    "Both files should be detected (unordered)",
+                    fileNames,
+                    containsInAnyOrder("file1.txt", "file2.txt")
+                );
 
-            if (watcherThread.isAlive()) {
+            } finally {
                 trigger.stop();
-                watcherThread.join(2000);
+                subscription.dispose();
             }
-
-            // Verify we received both executions from the single trigger instance
-            assertThat("Should have received 2 executions from one trigger",
-                receivedExecutions.size(), greaterThanOrEqualTo(2));
-
-            // Verify no errors occurred during watching
-            assertThat("Watcher should not have encountered errors", watcherError[0], nullValue());
-
-            // Verify first execution is for file1
-            Execution firstExec = receivedExecutions.get(0);
-            @SuppressWarnings("unchecked")
-            Map<String, Object> firstFile = (Map<String, Object>) firstExec.getTrigger().getVariables().get("file");
-            assertThat("First execution should be for file1.txt", firstFile.get("name"), equalTo("file1.txt"));
-
-            // Verify second execution is for file2
-            Execution secondExec = receivedExecutions.get(1);
-            @SuppressWarnings("unchecked")
-            Map<String, Object> secondFile = (Map<String, Object>) secondExec.getTrigger().getVariables().get("file");
-            assertThat("Second execution should be for file2.txt", secondFile.get("name"), equalTo("file2.txt"));
-
-            System.out.println("✓ Multiple Events in Sequence Test Passed:");
-            System.out.println("  One trigger instance detected " + receivedExecutions.size() + " file creation events");
-            System.out.println("  Events received in correct order: file1.txt → file2.txt");
-
         } finally {
-            Files.deleteIfExists(file1);
-            Files.deleteIfExists(file2);
-            Files.deleteIfExists(tempDir);
+            deleteRecursively(tempDir);
         }
     }
 
 
     @Test
-    @Timeout(15)
+    @Timeout(25)
     void testRegexFilterAcrossEventTypes() throws Exception {
-        // Test that regex filter is consistently applied to different event types.
-        // Simplified version that proves regex works for CREATE events.
         Path tempDir = Files.createTempDirectory("realtime-trigger-test");
         Path csvFile = tempDir.resolve("data.csv");
         Path txtFile = tempDir.resolve("readme.txt");
+        Path barrierFile = tempDir.resolve("registration-barrier.csv");
 
         try {
             RealtimeTrigger trigger = RealtimeTrigger.builder()
@@ -994,73 +804,88 @@ class RealtimeTriggerTest {
                 .build();
 
             var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            List<Execution> receivedExecutions = new CopyOnWriteArrayList<>();
+            AtomicReference<Throwable> watcherError = new AtomicReference<>();
+            CountDownLatch csvCreateLatch = new CountDownLatch(1);
+            CountDownLatch registrationBarrierLatch = new CountDownLatch(1);
+            CountDownLatch csvUpdateLatch = new CountDownLatch(1);
+            AtomicBoolean acceptCsvUpdates = new AtomicBoolean(false);
 
-            Execution[] receivedExecution = new Execution[1];
-            Thread watcherThread = new Thread(() -> {
-                try {
-                    receivedExecution[0] = Flux.from(
-                            trigger.evaluate(context.getKey(), context.getValue())
-                        )
-                        .subscribeOn(Schedulers.boundedElastic())
-                        .blockFirst(Duration.ofSeconds(10));
-                } catch (Exception e) {
-                    System.err.println("✗ Watcher error: " + e.getMessage());
-                }
-            });
+            Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                    execution -> {
+                        Map<String, Object> variables = execution.getTrigger().getVariables();
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> fileVariables = (Map<String, Object>) variables.get("file");
+                        String fileName = (String) fileVariables.get("name");
+                        String changeType = (String) variables.get("changeType");
 
-            watcherThread.setName("RealtimeTrigger-RegexFilterAcrossEvents");
-            watcherThread.start();
+                        if ("registration-barrier.csv".equals(fileName)) {
+                            registrationBarrierLatch.countDown();
+                            return;
+                        }
+                        if (!"data.csv".equals(fileName)) {
+                            return;
+                        }
 
-            waitForWatcherReady(trigger, 5);
+                        receivedExecutions.add(execution);
+                        if ("CREATE".equals(changeType)) {
+                            csvCreateLatch.countDown();
+                        } else if ("UPDATE".equals(changeType) && acceptCsvUpdates.get()) {
+                            csvUpdateLatch.countDown();
+                        }
+                    },
+                    watcherError::set
+                );
 
-            // Create .txt file (should not match regex)
-            Files.write(txtFile, "readme".getBytes());
-            System.out.println("✓ Created readme.txt (should not match .*\\.csv$)");
+            try {
+                waitForWatcherReady(trigger);
+                Files.writeString(txtFile, "readme", StandardCharsets.UTF_8);
+                Files.createFile(csvFile);
+                assertThat("Expected CSV CREATE event", csvCreateLatch.await(5, TimeUnit.SECONDS), is(true));
 
-            Thread.sleep(200);
+                // The barrier is also a matching CSV event but is intentionally excluded from the
+                // assertions. Its callback confirms the earlier root-directory CREATE was processed.
+                Files.createFile(barrierFile);
+                assertThat("Watcher must process the regex-filtered registration barrier",
+                    registrationBarrierLatch.await(5, TimeUnit.SECONDS), is(true));
 
-            // Create .csv file (should match - CREATE event)
-            Files.write(csvFile, "col1,col2".getBytes());
-            System.out.println("✓ Created data.csv (should match - CREATE event)");
+                acceptCsvUpdates.set(true);
+                Files.writeString(csvFile, "col1,col2,col3", StandardCharsets.UTF_8);
+                assertThat("Expected CSV UPDATE event", csvUpdateLatch.await(5, TimeUnit.SECONDS), is(true));
+                assertThat("Watcher must not fail", watcherError.get(), nullValue());
 
-            watcherThread.join(12000);
-            if (watcherThread.isAlive()) {
+                assertThat("Only data.csv should contribute to the test assertions",
+                    receivedExecutions.stream().map(execution -> {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> fileVariables = (Map<String, Object>) execution.getTrigger()
+                            .getVariables().get("file");
+                        return (String) fileVariables.get("name");
+                    }).toList(), everyItem(equalTo("data.csv")));
+
+                List<String> changeTypes = receivedExecutions.stream()
+                    .map(execution -> (String) execution.getTrigger().getVariables().get("changeType"))
+                    .collect(Collectors.toList());
+                assertThat("Should have observed CREATE", changeTypes, hasItem("CREATE"));
+                assertThat("Should have observed UPDATE", changeTypes, hasItem("UPDATE"));
+            } finally {
                 trigger.stop();
-                watcherThread.join(2000);
+                subscription.dispose();
             }
-
-            assertThat("Should have triggered for CSV", receivedExecution[0], notNullValue());
-            Map<String, Object> variables = receivedExecution[0].getTrigger().getVariables();
-            @SuppressWarnings("unchecked")
-            Map<String, Object> fileVariables = (Map<String, Object>) variables.get("file");
-            String fileName = fileVariables.get("name").toString();
-
-            assertThat("Should have detected CSV file", fileName, equalTo("data.csv"));
-
-            System.out.println("\n✓ Regex Filter Across Event Types Test Passed:");
-            System.out.println("  Regex pattern .*\\.csv$ applied consistently");
-            System.out.println("  Detected: " + fileName + " (matched pattern)");
-            System.out.println("  Ignored: readme.txt (did not match pattern)");
-
         } finally {
-            Files.deleteIfExists(csvFile);
-            Files.deleteIfExists(txtFile);
-            Files.deleteIfExists(tempDir);
+            deleteRecursively(tempDir);
         }
     }
 
     @Test
     @Timeout(15)
     void testDeleteEventFileMetadata() throws Exception {
-        // Test that DELETE events have correct file metadata (name, path)
-        // even though file no longer exists on disk
         Path tempDir = Files.createTempDirectory("realtime-trigger-test");
         Path testFile = tempDir.resolve("test-delete.txt");
 
         try {
-            // Pre-create file
-            Files.write(testFile, "content".getBytes());
-            System.out.println("✓ Test file created before trigger: " + testFile);
+            Files.writeString(testFile, "content", StandardCharsets.UTF_8);
 
             RealtimeTrigger trigger = RealtimeTrigger.builder()
                 .id("test-delete-metadata")
@@ -1070,59 +895,43 @@ class RealtimeTriggerTest {
                 .build();
 
             var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            List<Execution> receivedExecutions = new CopyOnWriteArrayList<>();
+            AtomicReference<Throwable> watcherError = new AtomicReference<>();
+            CountDownLatch eventLatch = new CountDownLatch(1);
 
-            Execution[] receivedExecution = new Execution[1];
-            Thread watcherThread = new Thread(() -> {
-                try {
-                    receivedExecution[0] = Flux.from(
-                            trigger.evaluate(context.getKey(), context.getValue())
-                        )
-                        .subscribeOn(Schedulers.boundedElastic())
-                        .blockFirst(Duration.ofSeconds(10));
-                } catch (Exception e) {
-                    System.err.println("✗ Watcher error: " + e.getMessage());
-                }
-            });
+            Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                    execution -> {
+                        receivedExecutions.add(execution);
+                        eventLatch.countDown();
+                    },
+                    watcherError::set
+                );
 
-            watcherThread.setName("RealtimeTrigger-DeleteMetadata");
-            watcherThread.start();
+            try {
+                waitForWatcherReady(trigger);
+                Files.delete(testFile);
 
-            waitForWatcherReady(trigger, 5);
+                assertThat("Expected DELETE event", eventLatch.await(5, TimeUnit.SECONDS), is(true));
+                assertThat("Watcher must not fail", watcherError.get(), nullValue());
+                assertThat("Should have received one execution", receivedExecutions.size(), is(1));
 
-            // Delete the file
-            Files.deleteIfExists(testFile);
-            System.out.println("✓ Test file deleted");
-
-            watcherThread.join(12000);
-            if (watcherThread.isAlive()) {
+                Map<String, Object> variables = receivedExecutions.get(0).getTrigger().getVariables();
+                assertThat(variables.get("changeType"), equalTo("DELETE"));
+                @SuppressWarnings("unchecked")
+                Map<String, Object> fileVariables = (Map<String, Object>) variables.get("file");
+                assertThat(fileVariables.get("name"), equalTo("test-delete.txt"));
+                assertThat(
+                    fileVariables.get("localPath").toString(),
+                    equalTo(testFile.toAbsolutePath().normalize().toUri().toString())
+                );
+            } finally {
                 trigger.stop();
-                watcherThread.join(2000);
+                subscription.dispose();
             }
-
-            assertThat("Should have triggered on DELETE", receivedExecution[0], notNullValue());
-
-            Execution execution = receivedExecution[0];
-            Map<String, Object> variables = execution.getTrigger().getVariables();
-
-            @SuppressWarnings("unchecked")
-            Map<String, Object> fileVariables = (Map<String, Object>) variables.get("file");
-
-            // Even though file is deleted, metadata should be available
-            assertThat("File should have name", fileVariables, hasKey("name"));
-            assertThat("File name should be correct", fileVariables.get("name"),
-                equalTo("test-delete.txt"));
-
-            assertThat("File should have localPath (for deleted files, metadata is degraded but present)",
-                fileVariables, hasKey("localPath"));
-
-            System.out.println("\n✓ DELETE Event File Metadata Test Passed:");
-            System.out.println("  DELETE event has file metadata:");
-            System.out.println("  file.name = " + fileVariables.get("name"));
-            System.out.println("  file.localPath = " + fileVariables.get("localPath"));
-
         } finally {
-            Files.deleteIfExists(testFile);
-            Files.deleteIfExists(tempDir);
+            deleteRecursively(tempDir);
         }
     }
 
@@ -1131,7 +940,6 @@ class RealtimeTriggerTest {
     @Test
     @Timeout(15)
     void testKillMethodCleanup() throws Exception {
-        // Test that kill() method properly stops the watcher and cleans up resources
         Path tempDir = Files.createTempDirectory("realtime-trigger-test");
 
         try {
@@ -1143,126 +951,173 @@ class RealtimeTriggerTest {
                 .build();
 
             var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            AtomicReference<Throwable> watcherError = new AtomicReference<>();
+            CountDownLatch terminationLatch = new CountDownLatch(1);
 
-            Throwable[] watcherError = new Throwable[1];
-            Thread watcherThread = new Thread(() -> {
-                try {
-                    Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
-                        .subscribeOn(Schedulers.boundedElastic())
-                        .blockFirst(Duration.ofSeconds(15));
-                } catch (Throwable e) {
-                    if (!(e instanceof CancellationException)) {
-                        watcherError[0] = e;
-                    }
+            Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .doFinally(signalType -> terminationLatch.countDown())
+                .subscribe(ignored -> {}, watcherError::set);
+
+            try {
+                waitForWatcherReady(trigger);
+                assertThat("Watcher should be ready", trigger.isReady(), is(true));
+                assertThat("Stream should not have terminated before kill()", terminationLatch.getCount(), is(1L));
+                assertThat("No error should have occurred before kill()", watcherError.get(), nullValue());
+
+                trigger.kill();
+
+                assertThat("Watcher should terminate after kill()", terminationLatch.await(3, TimeUnit.SECONDS), is(true));
+                assertThat("Watcher should not be ready after kill", trigger.isReady(), is(false));
+
+                Throwable error = watcherError.get();
+                if (error != null && !(error instanceof CancellationException)) {
+                    throw new AssertionError("Unexpected error after kill()", error);
                 }
-            });
-
-            watcherThread.setName("RealtimeTrigger-KillCleanup");
-            watcherThread.start();
-
-            waitForWatcherReady(trigger, 5);
-            System.out.println("✓ Trigger ready");
-
-            // Verify isReady() returns true
-            assertThat("Trigger should be ready", trigger.isReady(), is(true));
-
-            // Call kill() to forcefully terminate
-            trigger.kill();
-            System.out.println("✓ Trigger killed");
-
-            // Wait for watcher thread to complete
-            watcherThread.join(5000);
-            assertThat("Watcher thread should complete after kill()",
-                watcherThread.isAlive(), is(false));
-
-            // Give a bit of time for the ready flag to be cleared
-            Thread.sleep(100);
-
-            // After kill(), isReady() should return false
-            assertThat("Trigger should not be ready after kill()",
-                trigger.isReady(), is(false));
-
-            // Verify no unexpected exceptions
-            if (watcherError[0] != null) {
-                throw new AssertionError("Unexpected error in watcher after kill(): " + watcherError[0], watcherError[0]);
+            } finally {
+                trigger.stop();
+                subscription.dispose();
             }
-
-            System.out.println("\n✓ Kill Method Cleanup Test Passed:");
-            System.out.println("  Trigger properly terminated via kill()");
-            System.out.println("  All resources cleaned up");
-
         } finally {
-            Files.deleteIfExists(tempDir);
+            deleteRecursively(tempDir);
         }
     }
-
     @Test
-    @Timeout(15)
-    void testThreadLifecycleAndNaming() throws Exception {
-        // Test that watcher thread is properly named and manages its lifecycle
+    @Timeout(20)
+    void testMovedDirectoryDoesNotLeaveStalePathsThatSuppressFileDeletions() throws Exception {
         Path tempDir = Files.createTempDirectory("realtime-trigger-test");
-        Path testFile = tempDir.resolve("test.txt");
+        Path outsideDir = Files.createTempDirectory("realtime-trigger-outside");
+        Path subDir = tempDir.resolve("a");
+        Path nestedDir = subDir.resolve("b");
 
         try {
+            Files.createDirectories(nestedDir);
+
             RealtimeTrigger trigger = RealtimeTrigger.builder()
-                .id("test-thread-lifecycle")
+                .id("test-stale-directory-paths")
                 .type(RealtimeTrigger.class.getName())
                 .from(Property.ofValue(tempDir.toString()))
-                .on(Property.ofValue(RealtimeTrigger.EventType.CREATE))
+                .on(Property.ofValue(RealtimeTrigger.EventType.DELETE))
+                .recursive(Property.ofValue(true))
+                // Exclude the removed directory path, but include barrier files and the final file "b".
+                .regExp(Property.ofValue(".*(barrier[12]\\.txt|/b)$"))
                 .build();
 
             var context = TestsUtils.mockTrigger(runContextFactory, trigger);
 
-            Execution[] receivedExecution = new Execution[1];
-            Thread watcherThread = new Thread(() -> {
+            List<Execution> receivedExecutions = new CopyOnWriteArrayList<>();
+            AtomicReference<Throwable> watcherError = new AtomicReference<>();
+            CountDownLatch barrier1Latch = new CountDownLatch(1);
+            CountDownLatch barrier2Latch = new CountDownLatch(1);
+            CountDownLatch fileBLatch = new CountDownLatch(1);
+
+            Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                    execution -> {
+                        receivedExecutions.add(execution);
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> fileVars = (Map<String, Object>)
+                            execution.getTrigger().getVariables().get("file");
+                        String fileName = (String) fileVars.get("name");
+
+                        if ("barrier1.txt".equals(fileName)) {
+                            barrier1Latch.countDown();
+                        } else if ("barrier2.txt".equals(fileName)) {
+                            barrier2Latch.countDown();
+                        } else if ("b".equals(fileName)) {
+                            fileBLatch.countDown();
+                        }
+                    },
+                    watcherError::set
+                );
+
+            try {
+                waitForWatcherReady(trigger);
+
+                // Step 1: Move 'a' directory outside watched root
+                Path movedDir = outsideDir.resolve("a");
                 try {
-                    receivedExecution[0] = Flux.from(
-                            trigger.evaluate(context.getKey(), context.getValue())
-                        )
-                        .subscribeOn(Schedulers.boundedElastic())
-                        .blockFirst(Duration.ofSeconds(10));
-                } catch (Exception e) {
-                    System.err.println("✗ Watcher error: " + e.getMessage());
+                    Files.move(subDir, movedDir);
+                } catch (java.nio.file.AccessDeniedException e) {
+                    if (System.getProperty("os.name")
+                        .toLowerCase(java.util.Locale.ROOT)
+                        .contains("win")) {
+                        org.junit.jupiter.api.Assumptions.abort(
+                            "This Windows filesystem provider denied moving a watched directory: "
+                                + e.getMessage()
+                        );
+                    }
+                    throw e;
                 }
-            });
 
-            watcherThread.setName("RealtimeTrigger-LifecycleTest");
-            watcherThread.start();
+                // Step 2: Create and delete barrier file #1 to prove directory DELETE processed
+                Path barrier1 = tempDir.resolve("barrier1.txt");
+                Files.createFile(barrier1);
+                Files.deleteIfExists(barrier1);
 
-            // Use deterministic readiness check instead of arbitrary sleep
-            waitForWatcherReady(trigger, 5);
+                assertThat(
+                    "Barrier 1 DELETE confirms directory move processed",
+                    barrier1Latch.await(5, TimeUnit.SECONDS),
+                    is(true)
+                );
 
-            // Verify thread name was set correctly
-            assertThat("Watcher thread should have correct name",
-                watcherThread.getName(), equalTo("RealtimeTrigger-LifecycleTest"));
-            System.out.println("✓ Thread started: " + watcherThread.getName());
+                // Step 3: Recreate 'a' as a directory
+                Files.createDirectory(subDir);
 
-            // Verify thread is alive
-            assertThat("Watcher thread should be running", watcherThread.isAlive(), is(true));
-            System.out.println("✓ Watcher ready and running");
+                // Step 4: Create and delete barrier file #2 to prove directory CREATE processed
+                Path barrier2 = tempDir.resolve("barrier2.txt");
+                Files.createFile(barrier2);
+                Files.deleteIfExists(barrier2);
 
-            // Create file to trigger event
-            Files.write(testFile, "content".getBytes());
-            System.out.println("✓ File created");
+                assertThat(
+                    "Barrier 2 DELETE confirms directory recreation processed",
+                    barrier2Latch.await(5, TimeUnit.SECONDS),
+                    is(true)
+                );
 
-            // Wait for execution
-            watcherThread.join(12000);
+                // Step 5: Create 'b' as a FILE (not directory), then delete it
+                Path fileB = subDir.resolve("b");
+                Files.writeString(fileB, "content", StandardCharsets.UTF_8);
+                Files.deleteIfExists(fileB);
 
-            assertThat("Watcher thread should complete after execution received",
-                watcherThread.isAlive(), is(false));
-            System.out.println("✓ Thread terminated cleanly");
+                assertThat(
+                    "File 'b' DELETE must emit execution (not suppressed by stale directory path)",
+                    fileBLatch.await(5, TimeUnit.SECONDS),
+                    is(true)
+                );
 
-            assertThat("Execution should have been received",
-                receivedExecution[0], notNullValue());
+                assertThat("Watcher must not fail", watcherError.get(), nullValue());
 
-            System.out.println("\n✓ Thread Lifecycle and Naming Test Passed:");
-            System.out.println("  Thread started with name: RealtimeTrigger-LifecycleTest");
-            System.out.println("  Thread ran and processed events deterministically");
-            System.out.println("  Thread terminated cleanly on completion");
+                // Verify the file 'b' execution specifically
+                Execution fileBExecution = receivedExecutions.stream()
+                    .filter(exec -> {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> fileVars = (Map<String, Object>)
+                            exec.getTrigger().getVariables().get("file");
+                        return "b".equals(fileVars.get("name"));
+                    })
+                    .findFirst()
+                    .orElseThrow(() -> new AssertionError("File 'b' DELETE execution    not found"));
 
+                @SuppressWarnings("unchecked")
+                Map<String, Object> fileVariables = (Map<String, Object>)
+                    fileBExecution.getTrigger().getVariables().get("file");
+
+                assertThat(fileVariables.get("name"), equalTo("b"));
+                assertThat(
+                    fileVariables.get("localPath").toString(),
+                    equalTo(fileB.toAbsolutePath().normalize().toUri().toString())
+                );
+
+            } finally {
+                trigger.stop();
+                subscription.dispose();
+            }
         } finally {
-            Files.deleteIfExists(testFile);
-            Files.deleteIfExists(tempDir);
+            deleteRecursively(tempDir);
+            deleteRecursively(outsideDir);
         }
     }
+
 }

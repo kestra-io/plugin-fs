@@ -6,158 +6,205 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.TestsUtils;
 import jakarta.inject.Inject;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.regex.PatternSyntaxException;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
 /**
  * Security-focused integration tests for RealtimeTrigger.
- * Tests allowed-paths, symlinks, regex validation, and path boundary enforcement.
+ * Tests allowed-path boundaries, symbolic-link rejection, and regex validation.
  */
 @KestraTest
 class RealtimeTriggerSecurityTest {
     @Inject
     private RunContextFactory runContextFactory;
 
-    private static void waitForWatcherReady(RealtimeTrigger trigger, int timeoutSeconds) throws InterruptedException {
-        long deadline = System.nanoTime() + java.time.Duration.ofSeconds(timeoutSeconds).toNanos();
-
-        while (!trigger.isReady() && System.nanoTime() < deadline) {
+    private static void waitForWatcherReady(RealtimeTrigger trigger) throws InterruptedException {
+        long deadline = System.nanoTime() + Duration.ofSeconds(5).toNanos();
+        while (!trigger.isReady()) {
+            if (System.nanoTime() >= deadline) {
+                throw new AssertionError("Watcher did not become ready within 5 seconds");
+            }
             Thread.sleep(25);
         }
+    }
 
-        if (!trigger.isReady()) {
-            throw new AssertionError("Watcher not ready after " + timeoutSeconds + " seconds");
+    private static void deleteRecursively(Path root) throws IOException {
+        if (!Files.exists(root)) {
+            return;
+        }
+
+        try (var paths = Files.walk(root)) {
+            paths.sorted(Comparator.reverseOrder())
+                .forEach(path -> {
+                    try {
+                        Files.deleteIfExists(path);
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                });
+        } catch (UncheckedIOException e) {
+            throw e.getCause();
         }
     }
 
-    @Test
-    @Timeout(15)
-    void testSecurityPathRejectedWhenOutsideAllowedPaths() throws Exception {
-        // Test that paths outside the configured allowed-paths are rejected.
-
-        Path outsideDir = null;
-        try {
-            // Create a temp directory that is guaranteed NOT under /tmp or C:\Users
-            // On Windows, use a different drive/path. On Unix, use /var/tmp or similar.
-            String osName = System.getProperty("os.name");
-            if (osName.contains("Windows")) {
-                // Windows: try to use C:\Temp (not C:\Users which is allowed)
-                outsideDir = Paths.get("C:\\Temp\\realtime-trigger-test-outside");
-                try {
-                    Files.createDirectories(outsideDir);
-                } catch (IOException e) {
-                    // C:\Temp may not be writable; try an alternative
-                    outsideDir = Paths.get(System.getProperty("user.home")).resolve("..\\..\\realtime-trigger-test-outside");
-                    Files.createDirectories(outsideDir);
-                }
-            } else {
-                // Unix/Linux: /var/tmp or use the temp directory but verify it's not under /tmp
-                String tmpDir = System.getProperty("java.io.tmpdir");
-                if (tmpDir.startsWith("/tmp")) {
-                    // java.io.tmpdir is /tmp, so create a sibling directory
-                    outsideDir = Paths.get("/var/realtime-trigger-test-outside");
-                    try {
-                        Files.createDirectories(outsideDir);
-                    } catch (IOException e) {
-                        // /var may not be writable; use home directory approach
-                        outsideDir = Paths.get(System.getProperty("user.home")).resolve("../realtime-trigger-test-outside");
-                        Files.createDirectories(outsideDir);
-                    }
-                } else {
-                    outsideDir = Paths.get(tmpDir).resolve("realtime-trigger-test-outside");
-                    Files.createDirectories(outsideDir);
-                }
+    private static boolean causeChainContains(Throwable error, Class<? extends Throwable> expectedType) {
+        Throwable current = error;
+        while (current != null) {
+            if (expectedType.isInstance(current)) {
+                return true;
             }
+            if (current.getCause() == current) {
+                break;
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
 
-            RealtimeTrigger trigger = RealtimeTrigger.builder()
-                .id("test-missing-allowed-paths")
+    private static String causeChainMessages(Throwable error) {
+        StringBuilder messages = new StringBuilder();
+        Throwable current = error;
+        while (current != null) {
+            if (current.getMessage() != null) {
+                if (messages.length() > 0) {
+                    messages.append(" | ");
+                }
+                messages.append(current.getMessage());
+            }
+            if (current.getCause() == current) {
+                break;
+            }
+            current = current.getCause();
+        }
+        return messages.toString().toLowerCase(Locale.ROOT);
+    }
+
+    private static Path pathOutsideConfiguredAllowedRoots() {
+        Path filesystemRoot = Path.of(System.getProperty("user.dir")).toAbsolutePath().getRoot();
+        if (filesystemRoot == null) {
+            throw new AssertionError("Could not determine the filesystem root for an outside-allowed-path test");
+        }
+        // RealtimeTrigger validates the normalized path before checking whether it exists, so no
+        // privileged directory creation is necessary. The root-level child is outside the test
+        // allowlist configured in application.yml (/tmp on Unix-like systems and C:\\Users on Windows).
+        return filesystemRoot.resolve("kestra-realtime-trigger-forbidden-" + UUID.randomUUID());
+    }
+
+    @Test
+    @Timeout(20)
+    void testSecurityPathOutsideAllowedRejected() throws Exception {
+        Path allowedDir = Files.createTempDirectory("realtime-trigger-allowed-");
+        try {
+            Path allowedFile = allowedDir.resolve("allowed.txt");
+            RealtimeTrigger allowedTrigger = RealtimeTrigger.builder()
+                .id("test-path-allowed")
                 .type(RealtimeTrigger.class.getName())
-                .from(Property.ofValue(outsideDir.toString()))
+                .from(Property.ofValue(allowedDir.toString()))
                 .on(Property.ofValue(RealtimeTrigger.EventType.CREATE))
                 .build();
+            var allowedContext = TestsUtils.mockTrigger(runContextFactory, allowedTrigger);
+            List<Execution> allowedExecutions = new CopyOnWriteArrayList<>();
+            AtomicReference<Throwable> allowedError = new AtomicReference<>();
+            CountDownLatch allowedEventLatch = new CountDownLatch(1);
+            Disposable allowedSubscription = Flux.from(allowedTrigger.evaluate(allowedContext.getKey(), allowedContext.getValue()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                    execution -> {
+                        allowedExecutions.add(execution);
+                        allowedEventLatch.countDown();
+                    },
+                    allowedError::set
+                );
 
-            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            try {
+                waitForWatcherReady(allowedTrigger);
+                Files.writeString(allowedFile, "allowed", StandardCharsets.UTF_8);
+                assertThat("Expected CREATE event inside configured allowed paths",
+                    allowedEventLatch.await(5, TimeUnit.SECONDS), is(true));
+                assertThat("Allowed-path watcher must not fail", allowedError.get(), nullValue());
+                assertThat("Expected one allowed-path execution", allowedExecutions.size(), is(1));
 
-            Throwable[] capturedError = new Throwable[1];
-            Thread watcherThread = new Thread(() -> {
-                try {
-                    Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
-                        .subscribeOn(Schedulers.boundedElastic())
-                        .blockFirst(Duration.ofSeconds(5));
-                } catch (Throwable e) {
-                    capturedError[0] = e;
-                }
-            });
-
-            watcherThread.setName("RealtimeTrigger-SecurityTest-MissingAllowedPaths");
-            watcherThread.start();
-            watcherThread.join(8000);
-
-            if (watcherThread.isAlive()) {
-                trigger.stop();
-                watcherThread.join(2000);
+                @SuppressWarnings("unchecked")
+                Map<String, Object> fileVariables = (Map<String, Object>) allowedExecutions.get(0)
+                    .getTrigger().getVariables().get("file");
+                assertThat(fileVariables.get("name"), equalTo("allowed.txt"));
+            } finally {
+                allowedTrigger.stop();
+                allowedSubscription.dispose();
             }
 
-            // Verify that a security exception occurred
-            assertThat("Trigger should have failed with a security error for path outside allowed-paths",
-                capturedError[0], notNullValue());
+            // The trigger validates allowed-path boundaries before checking whether the path exists,
+            // so this root-level path exercises rejection without writing outside the test workspace.
+            Path forbiddenPath = pathOutsideConfiguredAllowedRoots();
+            RealtimeTrigger forbiddenTrigger = RealtimeTrigger.builder()
+                .id("test-path-forbidden")
+                .type(RealtimeTrigger.class.getName())
+                .from(Property.ofValue(forbiddenPath.toString()))
+                .on(Property.ofValue(RealtimeTrigger.EventType.CREATE))
+                .build();
+            var forbiddenContext = TestsUtils.mockTrigger(runContextFactory, forbiddenTrigger);
+            AtomicReference<Throwable> forbiddenError = new AtomicReference<>();
+            CountDownLatch forbiddenErrorLatch = new CountDownLatch(1);
+            Disposable forbiddenSubscription = Flux.from(forbiddenTrigger.evaluate(forbiddenContext.getKey(), forbiddenContext.getValue()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                    execution -> {},
+                    error -> {
+                        forbiddenError.set(error);
+                        forbiddenErrorLatch.countDown();
+                    }
+                );
 
-            String errorMessage = capturedError[0].getMessage().toLowerCase();
-            assertThat("Error should mention allowed-paths configuration",
-                errorMessage, anyOf(
-                    containsString("allowed-path"),
-                    containsString("access denied"),
-                    containsString("security")
-                ));
-
-            System.out.println("\n✓ Security Test: Missing/Outside Allowed-Paths Rejected Passed:");
-            System.out.println("  Trigger rejected access to path outside allowed-paths: " + outsideDir);
-            System.out.println("  Error type: " + capturedError[0].getClass().getSimpleName());
-            System.out.println("  Error message: " + capturedError[0].getMessage());
-
+            try {
+                assertThat("Expected watcher startup to reject a path outside allowed-paths",
+                    forbiddenErrorLatch.await(5, TimeUnit.SECONDS), is(true));
+                assertThat("Expected a security exception in the error chain",
+                    causeChainContains(forbiddenError.get(), SecurityException.class), is(true));
+                assertThat("Error should identify the allowed-paths restriction",
+                    causeChainMessages(forbiddenError.get()), containsString("allowed-path"));
+            } finally {
+                forbiddenTrigger.stop();
+                forbiddenSubscription.dispose();
+            }
         } finally {
-            if (outsideDir != null) {
-                try {
-                    Files.deleteIfExists(outsideDir);
-                } catch (Exception e) {
-                    // Cleanup may fail; ignore
-                }
-            }
+            deleteRecursively(allowedDir);
         }
     }
 
     @Test
-    @Timeout(15)
+    @Timeout(20)
     void testSecuritySymlinkRejected() throws Exception {
-        // Test that symlinks are rejected to prevent directory traversal attacks.
-        // Scenario:
-        //   1. Start watcher with recursive=true on tempDir
-        //   2. After startup, create a symlink inside tempDir
-        //   3. Symlink ENTRY_CREATE event is received
-        //   4. Code checks Files.isSymbolicLink() and rejects it
-        //   5. Watcher does not register the symlink target
-        //   6. Files created through the symlink path are not detected
-
-        Path tempDir = Files.createTempDirectory("realtime-trigger-test");
-        Path externalDir = Files.createTempDirectory("realtime-trigger-external");
-        Path symlinkInTempDir = tempDir.resolve("evil-link");
-        Path fileInExternalDir = externalDir.resolve("file.txt");
-
-        boolean symlinkCreated = false;
-
+        Path tempDir = Files.createTempDirectory("realtime-trigger-watch-root-");
+        Path externalDir = Files.createTempDirectory("realtime-trigger-external-");
         try {
+            Path symlinkInTempDir = tempDir.resolve("evil-link");
+            Path externalFile = externalDir.resolve("file.txt");
+            Path barrierFile = tempDir.resolve("symlink-registration-barrier.txt");
+
             RealtimeTrigger trigger = RealtimeTrigger.builder()
                 .id("test-symlink-rejection")
                 .type(RealtimeTrigger.class.getName())
@@ -165,299 +212,118 @@ class RealtimeTriggerSecurityTest {
                 .recursive(Property.ofValue(true))
                 .on(Property.ofValue(RealtimeTrigger.EventType.CREATE))
                 .build();
-
             var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            List<Execution> receivedExecutions = new CopyOnWriteArrayList<>();
+            AtomicReference<Throwable> watcherError = new AtomicReference<>();
+            CountDownLatch barrierLatch = new CountDownLatch(1);
+            CountDownLatch externalFileLatch = new CountDownLatch(1);
+            CountDownLatch terminationLatch = new CountDownLatch(1);
 
-            Execution[] receivedExecution = new Execution[1];
-            Thread watcherThread = new Thread(() -> {
-                try {
-                    receivedExecution[0] = Flux.from(
-                            trigger.evaluate(context.getKey(), context.getValue())
-                        )
-                        .subscribeOn(Schedulers.boundedElastic())
-                        .blockFirst(Duration.ofSeconds(10));
-                } catch (Exception e) {
-                    System.err.println("✗ Watcher error: " + e.getMessage());
-                }
-            });
+            Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .doFinally(signalType -> terminationLatch.countDown())
+                .subscribe(
+                    execution -> {
+                        receivedExecutions.add(execution);
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> fileVariables = (Map<String, Object>) execution.getTrigger()
+                            .getVariables().get("file");
+                        String name = (String) fileVariables.get("name");
+                        if ("symlink-registration-barrier.txt".equals(name)) {
+                            barrierLatch.countDown();
+                        } else if ("file.txt".equals(name)) {
+                            externalFileLatch.countDown();
+                        }
+                    },
+                    watcherError::set
+                );
 
-            watcherThread.setName("RealtimeTrigger-SecurityTest-Symlink");
-            watcherThread.start();
-
-            waitForWatcherReady(trigger, 5);
-            System.out.println("✓ Watcher initialized and ready");
-
-            // Now create a symlink AFTER the watcher is running (this triggers ENTRY_CREATE)
             try {
-                Files.createSymbolicLink(symlinkInTempDir, externalDir);
-                symlinkCreated = true;
-                System.out.println("✓ Created symlink AFTER watcher startup: " + symlinkInTempDir + " → " + externalDir);
-            } catch (UnsupportedOperationException | IOException e) {
-                System.out.println("⊘ Symlink creation not supported on this platform; skipping symlink test");
+                waitForWatcherReady(trigger);
+                try {
+                    Files.createSymbolicLink(symlinkInTempDir, externalDir);
+                } catch (UnsupportedOperationException | IOException | SecurityException e) {
+                    Assumptions.assumeTrue(false,
+                        "Symbolic links are unavailable in this environment: " + e.getMessage());
+                    return;
+                }
+
+                // Both paths are entries in the watched root. Processing this barrier proves that
+                // the preceding symlink ENTRY_CREATE event has been handled by the event loop.
+                Files.createFile(barrierFile);
+                assertThat("Watcher must process the event-ordering barrier",
+                    barrierLatch.await(5, TimeUnit.SECONDS), is(true));
+                assertThat("Watcher must not fail while rejecting the symlink", watcherError.get(), nullValue());
+                assertThat("Watcher must still be active after the barrier", terminationLatch.getCount(), is(1L));
+                assertThat("The symlink itself must not emit an execution", receivedExecutions.size(), is(1));
+
+                Files.writeString(symlinkInTempDir.resolve("file.txt"), "content", StandardCharsets.UTF_8);
+                assertThat("The write through the symlink should reach its external target", Files.exists(externalFile), is(true));
+                boolean externalFileDetected = externalFileLatch.await(2, TimeUnit.SECONDS);
+
+                assertThat("File created through the symlink must not be detected", externalFileDetected, is(false));
+                assertThat("Watcher must not fail during the observation window", watcherError.get(), nullValue());
+                assertThat("Watcher must remain active during the observation window", terminationLatch.getCount(), is(1L));
+                assertThat("Only the barrier file should have generated an execution", receivedExecutions.stream()
+                    .map(execution -> {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> fileVariables = (Map<String, Object>) execution.getTrigger()
+                            .getVariables().get("file");
+                        return (String) fileVariables.get("name");
+                    }).toList(), everyItem(equalTo("symlink-registration-barrier.txt")));
+            } finally {
                 trigger.stop();
-                watcherThread.join(2000);
-                return;
+                subscription.dispose();
             }
-
-            // Wait for the watcher to process the ENTRY_CREATE for the symlink with bounded timeout
-            int maxWaitSeconds = 3;
-            long startTime = System.currentTimeMillis();
-            while (!trigger.isReady() && System.currentTimeMillis() - startTime < maxWaitSeconds * 1000) {
-                Thread.sleep(50);
-            }
-
-            // Now try to create a file THROUGH the symlink (not directly to external dir)
-            // The symlink should have been rejected, so this file should NOT be detected
-            Files.write(symlinkInTempDir.resolve("file.txt"), "content".getBytes());
-            System.out.println("✓ Created file in external directory: " + fileInExternalDir);
-
-            // The existing watcher thread should have received no execution
-            // because the symlink was rejected during ENTRY_CREATE
-            watcherThread.join(12000);
-            if (watcherThread.isAlive()) {
-                trigger.stop();
-                watcherThread.join(2000);
-            }
-
-            // Symlinks should be rejected - no execution should be received from the watcher
-            assertThat("Symlink should be rejected; file through symlink should not be detected",
-                receivedExecution[0], nullValue());
-
-            System.out.println("\n✓ Security Test: Symlink Rejection Passed:");
-            System.out.println("  Symlinks are blocked to prevent directory traversal");
-            System.out.println("  File created through symlink was not detected");
-
         } finally {
-            if (symlinkCreated) {
-                try {
-                    Files.deleteIfExists(symlinkInTempDir);
-                } catch (Exception e) {
-                    // Ignore cleanup errors
-                }
-            }
-            Files.deleteIfExists(fileInExternalDir);
-            Files.deleteIfExists(externalDir);
-            Files.deleteIfExists(tempDir);
-        }
-    }
-
-    @Test
-    @Timeout(15)
-    void testSecurityPathOutsideAllowedRejected() throws Exception {
-        // Test that files outside allowed-paths are rejected.
-        // Two-part test:
-        // 1. Start watcher on a directory inside allowed-paths (should succeed)
-        // 2. Verify file creation is detected
-        // 3. Verify attempt to start watcher on a directory outside allowed-paths fails
-
-        // From application.yml, allowed-paths are /tmp and C:\Users
-        // Create allowed directory under /tmp
-        Path allowedDir = Files.createTempDirectory("allowed");
-        Path allowedFile = allowedDir.resolve("allowed.txt");
-
-        // Create forbidden directory outside allowed-paths
-        Path forbiddenDir = null;
-        try {
-            String osName = System.getProperty("os.name");
-            if (osName.contains("Windows")) {
-                // C:\Temp is not in allowed-paths (only C:\Users is allowed)
-                forbiddenDir = Paths.get("C:\\Temp\\realtime-trigger-forbidden");
-                try {
-                    Files.createDirectories(forbiddenDir);
-                } catch (IOException e) {
-                    System.out.println("⊘ Cannot create C:\\Temp; skipping forbidden dir part of test");
-                    forbiddenDir = null;
-                }
-            } else {
-                // /var/tmp is not in allowed-paths (only /tmp is allowed)
-                forbiddenDir = Paths.get("/var/realtime-trigger-forbidden");
-                try {
-                    Files.createDirectories(forbiddenDir);
-                } catch (IOException e) {
-                    System.out.println("⊘ Cannot create /var directory; skipping forbidden dir part of test");
-                    forbiddenDir = null;
-                }
-            }
-
-            // Part 1: Start watcher on ALLOWED directory and verify it detects files
-            RealtimeTrigger allowedTrigger = RealtimeTrigger.builder()
-                .id("test-path-outside-allowed-1")
-                .type(RealtimeTrigger.class.getName())
-                .from(Property.ofValue(allowedDir.toString()))
-                .on(Property.ofValue(RealtimeTrigger.EventType.CREATE))
-                .build();
-
-            var allowedContext = TestsUtils.mockTrigger(runContextFactory, allowedTrigger);
-
-            Execution[] allowedExecution = new Execution[1];
-            Thread allowedWatcher = new Thread(() -> {
-                try {
-                    allowedExecution[0] = Flux.from(
-                            allowedTrigger.evaluate(allowedContext.getKey(), allowedContext.getValue())
-                        )
-                        .subscribeOn(Schedulers.boundedElastic())
-                        .blockFirst(Duration.ofSeconds(10));
-                } catch (Exception e) {
-                    System.err.println("✗ Allowed watcher error: " + e.getMessage());
-                }
-            });
-
-            allowedWatcher.setName("RealtimeTrigger-SecurityTest-AllowedPath");
-            allowedWatcher.start();
-
-            waitForWatcherReady(allowedTrigger, 5);
-            System.out.println("✓ Watcher started on ALLOWED directory: " + allowedDir);
-
-            // Create file in allowed directory
-            Files.write(allowedFile, "allowed".getBytes());
-            System.out.println("✓ Created file in allowed directory");
-
-            allowedWatcher.join(12000);
-            if (allowedWatcher.isAlive()) {
-                allowedTrigger.stop();
-                allowedWatcher.join(2000);
-            }
-
-            // Verify execution was received for allowed path
-            assertThat("Should have received execution for file in allowed directory",
-                allowedExecution[0], notNullValue());
-
-            System.out.println("✓ File in allowed directory was detected");
-
-            // Part 2: Attempt to start watcher on FORBIDDEN directory (if we could create one)
-            if (forbiddenDir != null) {
-                RealtimeTrigger forbiddenTrigger = RealtimeTrigger.builder()
-                    .id("test-path-outside-allowed-2")
-                    .type(RealtimeTrigger.class.getName())
-                    .from(Property.ofValue(forbiddenDir.toString()))
-                    .on(Property.ofValue(RealtimeTrigger.EventType.CREATE))
-                    .build();
-
-                var forbiddenContext = TestsUtils.mockTrigger(runContextFactory, forbiddenTrigger);
-
-                Throwable[] forbiddenError = new Throwable[1];
-                Thread forbiddenWatcher = new Thread(() -> {
-                    try {
-                        Flux.from(forbiddenTrigger.evaluate(forbiddenContext.getKey(), forbiddenContext.getValue()))
-                            .subscribeOn(Schedulers.boundedElastic())
-                            .blockFirst(Duration.ofSeconds(5));
-                    } catch (Throwable e) {
-                        forbiddenError[0] = e;
-                    }
-                });
-
-                forbiddenWatcher.setName("RealtimeTrigger-SecurityTest-ForbiddenPath");
-                forbiddenWatcher.start();
-                forbiddenWatcher.join(8000);
-
-                if (forbiddenWatcher.isAlive()) {
-                    forbiddenTrigger.stop();
-                    forbiddenWatcher.join(2000);
-                }
-
-                assertThat("Should have failed to start watcher on forbidden directory",
-                    forbiddenError[0], notNullValue());
-
-                String errorMsg = forbiddenError[0].getMessage().toLowerCase();
-                assertThat("Error should mention allowed-paths",
-                    errorMsg, anyOf(
-                        containsString("allowed-path"),
-                        containsString("access denied"),
-                        containsString("security")
-                    ));
-
-                System.out.println("✓ Watcher correctly rejected forbidden directory: " + forbiddenDir);
-            }
-
-            System.out.println("\n✓ Security Test: Path Outside Allowed Rejected Passed:");
-            System.out.println("  Allowed directory: files were detected");
-            if (forbiddenDir != null) {
-                System.out.println("  Forbidden directory: watcher startup was rejected");
-            }
-
-        } finally {
-            Files.deleteIfExists(allowedFile);
-            Files.deleteIfExists(allowedDir);
-            if (forbiddenDir != null) {
-                try {
-                    Files.deleteIfExists(forbiddenDir);
-                } catch (Exception e) {
-                    // Cleanup may fail; ignore
-                }
-            }
+            deleteRecursively(tempDir);
+            deleteRecursively(externalDir);
         }
     }
 
     @Test
     @Timeout(15)
     void testSecurityInvalidRegexThrowsException() throws Exception {
-        // Test that invalid regex patterns fail early with clear error.
-        // With the reordering, regex compilation happens BEFORE WatchService creation.
-
-        Path tempDir = Files.createTempDirectory("realtime-trigger-test");
-
+        Path tempDir = Files.createTempDirectory("realtime-trigger-invalid-regex-");
         try {
             RealtimeTrigger trigger = RealtimeTrigger.builder()
                 .id("test-invalid-regex")
                 .type(RealtimeTrigger.class.getName())
                 .from(Property.ofValue(tempDir.toString()))
                 .on(Property.ofValue(RealtimeTrigger.EventType.CREATE))
-                .regExp(Property.ofValue("[invalid(regex"))  // Invalid: unclosed bracket
+                .regExp(Property.ofValue("[invalid(regex"))
                 .build();
-
             var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            AtomicReference<Throwable> capturedError = new AtomicReference<>();
+            CountDownLatch errorLatch = new CountDownLatch(1);
+            Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                    execution -> {},
+                    error -> {
+                        capturedError.set(error);
+                        errorLatch.countDown();
+                    }
+                );
 
-            Throwable[] capturedError = new Throwable[1];
-            Thread watcherThread = new Thread(() -> {
-                try {
-                    Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
-                        .subscribeOn(Schedulers.boundedElastic())
-                        .blockFirst(Duration.ofSeconds(5));
-                } catch (Throwable e) {
-                    capturedError[0] = e;
-                }
-            });
-
-            watcherThread.setName("RealtimeTrigger-SecurityTest-InvalidRegex");
-            watcherThread.start();
-            watcherThread.join(8000);
-
-            if (watcherThread.isAlive()) {
+            try {
+                assertThat("Invalid regex must fail before watcher startup",
+                    errorLatch.await(5, TimeUnit.SECONDS), is(true));
+                Throwable error = capturedError.get();
+                assertThat("Expected an IllegalArgumentException in the error chain",
+                    causeChainContains(error, IllegalArgumentException.class), is(true));
+                assertThat("Expected PatternSyntaxException in the cause chain",
+                    causeChainContains(error, PatternSyntaxException.class), is(true));
+                assertThat("Error should mention regex validation",
+                    causeChainMessages(error), anyOf(containsString("regex"), containsString("pattern")));
+                assertThat("Watcher should not have become ready after regex validation failed",
+                    trigger.isReady(), is(false));
+            } finally {
                 trigger.stop();
-                watcherThread.join(2000);
+                subscription.dispose();
             }
-
-            // Verify that an error was thrown
-            assertThat("Invalid regex should cause an exception",
-                capturedError[0], notNullValue());
-
-            // Check for IllegalArgumentException (our wrapper)
-            assertThat("Error should be IllegalArgumentException or wrapper",
-                capturedError[0].getClass().getSimpleName(),
-                anyOf(equalTo("IllegalArgumentException"), containsString("Exception")));
-
-            // Check cause chain for PatternSyntaxException
-            if (capturedError[0].getCause() != null) {
-                assertThat("Root cause should be PatternSyntaxException",
-                    capturedError[0].getCause().getClass().getSimpleName(),
-                    equalTo("PatternSyntaxException"));
-            }
-
-            String errorMessage = capturedError[0].getMessage().toLowerCase();
-            assertThat("Error message should indicate regex validation failure",
-                errorMessage, anyOf(
-                    containsString("regex"),
-                    containsString("pattern"),
-                    containsString("invalid")
-                ));
-
-            System.out.println("\n✓ Security Test: Invalid Regex Exception Passed:");
-            System.out.println("  Invalid regex failed fast before resource creation");
-            System.out.println("  Error type: " + capturedError[0].getClass().getSimpleName());
-            System.out.println("  Error message: " + capturedError[0].getMessage());
-
         } finally {
-            Files.deleteIfExists(tempDir);
+            deleteRecursively(tempDir);
         }
     }
 }
