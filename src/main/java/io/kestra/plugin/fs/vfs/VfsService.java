@@ -11,7 +11,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.vfs2.*;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 import org.apache.commons.vfs2.provider.AbstractFileObject;
-import org.apache.commons.vfs2.util.URIUtils;
 
 import java.io.FileOutputStream;
 import java.io.OutputStream;
@@ -327,7 +326,7 @@ public abstract class VfsService {
     ) throws Exception {
         // user pass a destination without filename, we add it
         if (!isDirectory(from) && isDirectory(to)) {
-            to = to.resolve(URIUtils.encodePath(StringUtils.stripEnd(to.getPath(), "/") + "/" + FilenameUtils.getName(from.getPath())));
+            to = withPath(to, StringUtils.stripEnd(to.getPath(), "/") + "/" + FilenameUtils.getName(from.getPath()));
         }
 
         try (
@@ -348,7 +347,7 @@ public abstract class VfsService {
                     }
                 }
             } else {
-                URI pathToCreate = to.resolve("/" + URIUtils.encodePath(FilenameUtils.getPath(to.getPath())));
+                URI pathToCreate = withPath(to, "/" + FilenameUtils.getPath(to.getPath()));
 
                 try (FileObject directory = fsm.resolveFile(to.toString(), fileSystemOptions)) {
                     if (!directory.exists()) {
@@ -396,7 +395,7 @@ public abstract class VfsService {
             for (io.kestra.plugin.fs.vfs.models.File file : blobList) {
                 //Destination should be considered as a directory
                 if (!moveDirectory.getPath().endsWith("/")) {
-                    moveDirectory = moveDirectory.resolve(URIUtils.encodePath(StringUtils.stripEnd(moveDirectory.getPath(), "/") + "/"));
+                    moveDirectory = withPath(moveDirectory, StringUtils.stripEnd(moveDirectory.getPath(), "/") + "/");
                 }
                 VfsService.move(
                     runContext,
@@ -408,6 +407,11 @@ public abstract class VfsService {
                 );
             }
         }
+    }
+
+    // Not URIUtils.encodePath: Commons VFS decodes each %XX as one char, mangling UTF-8 names
+    private static URI withPath(URI uri, String path) throws URISyntaxException {
+        return new URI(uri.getScheme(), uri.getUserInfo(), uri.getHost(), uri.getPort(), path, null, null);
     }
 
     private static boolean isDirectory(URI uri) {

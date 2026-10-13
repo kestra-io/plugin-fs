@@ -115,4 +115,50 @@ class DownloadsTest {
         assertThat(files.size(), is(2));
         assertThat(files.stream().map(File::getName).toList().toArray(), arrayContainingInAnyOrder(fileName1, fileName2));
     }
+
+    @Test
+    void shouldKeepNonAsciiFileNameWhenActionIsMove() throws Exception {
+        String toUploadDir = "/upload/" + random;
+        String moveDirectory = "/upload/" + IdUtils.create() + "-moved/";
+        String fileName = IdUtils.create() + "-facturación-ñandú.txt";
+
+        sftpUtils.upload(toUploadDir + "/" + fileName);
+
+        Downloads task = createMoveDownloadsTask(toUploadDir + "/", moveDirectory);
+
+        Downloads.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(run.getFiles().size(), is(1));
+        assertThat(sftpUtils.list(toUploadDir).getFiles().isEmpty(), is(true));
+        assertThat(sftpUtils.list(moveDirectory).getFiles().stream().map(File::getName).toList(), contains(fileName));
+    }
+
+    @Test
+    void shouldKeepNonAsciiMoveDirectoryWhenItHasNoTrailingSlash() throws Exception {
+        String toUploadDir = "/upload/" + random;
+        String moveDirectory = "/upload/" + IdUtils.create() + "-déplacé-ñandú";
+        String fileName = IdUtils.create() + ".txt";
+
+        sftpUtils.upload(toUploadDir + "/" + fileName);
+
+        Downloads task = createMoveDownloadsTask(toUploadDir + "/", moveDirectory);
+
+        task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(sftpUtils.list(moveDirectory + "/").getFiles().stream().map(File::getName).toList(), contains(fileName));
+    }
+
+    private static Downloads createMoveDownloadsTask(String from, String moveDirectory) {
+        return Downloads.builder()
+            .id(DownloadsTest.class.getSimpleName() + "-" + IdUtils.create())
+            .type(DownloadsTest.class.getName())
+            .from(Property.ofValue(from))
+            .action(Property.ofValue(Downloads.Action.MOVE))
+            .moveDirectory(Property.ofValue(moveDirectory))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+    }
 }
