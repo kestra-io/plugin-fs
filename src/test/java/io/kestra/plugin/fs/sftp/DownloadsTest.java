@@ -85,6 +85,48 @@ class DownloadsTest {
     }
 
     @Test
+    void shouldDownloadFileWhenNameContainsPercent() throws Exception {
+        String toUploadDir = "/upload/" + random;
+        String fileName = IdUtils.create() + " report 100%.txt";
+
+        sftpUtils.upload(toUploadDir + "/" + fileName);
+
+        Downloads task = createPercentDownloadsTask(toUploadDir + "/", Downloads.Action.NONE);
+
+        Downloads.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(run.getFiles().stream().map(File::getName).toList(), contains(fileName));
+        assertThat(run.getOutputFiles().size(), is(1));
+    }
+
+    @Test
+    void shouldDeleteFileWhenNameContainsPercentAndActionIsDelete() throws Exception {
+        String toUploadDir = "/upload/" + random;
+        String fileName = IdUtils.create() + " report 100%.txt";
+
+        sftpUtils.upload(toUploadDir + "/" + fileName);
+
+        Downloads task = createPercentDownloadsTask(toUploadDir + "/", Downloads.Action.DELETE);
+
+        task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(sftpUtils.list(toUploadDir).getFiles().isEmpty(), is(true));
+    }
+
+    private static Downloads createPercentDownloadsTask(String from, Downloads.Action action) {
+        return Downloads.builder()
+            .id(DownloadsTest.class.getSimpleName() + "-" + IdUtils.create())
+            .type(DownloadsTest.class.getName())
+            .from(Property.ofValue(from))
+            .action(Property.ofValue(action))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+    }
+
+    @Test
     void run_shouldDownloadFileWithNameContainingDotsAndSpaces() throws Exception {
         String toUploadDir = "/upload/" + random;
 
