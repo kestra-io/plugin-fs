@@ -27,6 +27,9 @@ import org.slf4j.Logger;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 
+import com.google.re2j.Pattern;
+import com.google.re2j.PatternSyntaxException;
+
 import java.io.IOException;
 import java.nio.file.ClosedWatchServiceException;
 import java.nio.file.DirectoryStream;
@@ -40,13 +43,17 @@ import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.regex.Pattern;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -62,7 +69,26 @@ import java.util.stream.Collectors;
         Watches a local directory for filesystem events (create, modify, delete) using Java NIO WatchService.
         Emits executions when matching filesystem events are reported, without polling.
 
-        Note: On macOS, WatchService uses a polling-based fallback and may not detect events as quickly as on Linux or Windows.
+        **Configuration:** This trigger requires `allowed-paths` to be configured for
+        `io.kestra.plugin.fs.local.RealtimeTrigger` under `kestra.plugins.configurations`.
+
+        Example:
+        ```yaml
+        kestra:
+          plugins:
+            configurations:
+              - type: io.kestra.plugin.fs.local.RealtimeTrigger
+                values:
+                  allowed-paths:
+                    - /data/incoming
+        ```
+
+        **Event behavior:** WatchService may emit multiple MODIFY events for a single file write.
+        Events can arrive before a file is completely written. Downstream flows should account
+        for partial writes and implement idempotency where needed.
+
+        **Platform note:** On macOS, WatchService uses a polling-based fallback and may not
+        detect events as quickly as on Linux or Windows.
         """
 )
 @Plugin(
@@ -138,6 +164,7 @@ public class RealtimeTrigger extends AbstractTrigger
      * CREATE_OR_UPDATE → ENTRY_CREATE and ENTRY_MODIFY
      * DELETE          → ENTRY_DELETE
      */
+    private static final int MAX_REGEX_LENGTH = 1000;
     public enum EventType {
         CREATE,
         UPDATE,
@@ -179,56 +206,37 @@ public class RealtimeTrigger extends AbstractTrigger
     @Getter(AccessLevel.NONE)
     private transient final AtomicBoolean active = new AtomicBoolean(false);
 
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
-    @Getter(AccessLevel.NONE)
-    private transient final AtomicBoolean ready = new AtomicBoolean(false);
 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     @Getter(AccessLevel.NONE)
     private transient final AtomicReference<WatchService> watchService = new AtomicReference<>();
 
+    /**
+     * Tracks files discovered by directory scans to prevent duplicate CREATE events
+     * when both the scan and a queued WatchService event discover the same file.
+     * Maps normalized file path to discovery timestamp (nanos).
+     * Entries are removed after a bounded time window or when a DELETE event is processed.
+     */
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     @Getter(AccessLevel.NONE)
-    private transient Logger logger;
+    private transient final ConcurrentHashMap<Path, Long> scannedFiles = new ConcurrentHashMap<>();
 
     /**
-     * Package-private readiness check for testing.
-     * Returns true when the trigger is active and has successfully initialized the watcher.
+     * Time window (in nanoseconds) for deduplication between scan and watch events.
+     * Files scanned within this window will suppress duplicate CREATE events from WatchService.
      */
-    boolean isReady() {
-        return active.get() && ready.get();
-    }
+    private static final long SCAN_DEDUP_WINDOW_NANOS = 10_000_000_000L; // 10 seconds
 
-    /**
-     * Retrieves allowed paths from plugin configuration.
-     * Matches AbstractLocalTask.allowedPaths() for consistent security policy.
-     * Throws SecurityException if not configured (required for all environments).
-     */
-    private List<String> getAllowedPaths(RunContext runContext) {
-        Optional<List<String>> allowedPathConfig = runContext.pluginConfiguration(AbstractLocalTask.ALLOWED_PATHS);
 
-        if (allowedPathConfig.isEmpty() || allowedPathConfig.get().isEmpty()) {
-            throw new SecurityException(
-                "The 'allowed-paths' configuration is required to enable access to the local filesystem. " +
-                "You must define at least one allowed path in the plugin configuration, `kestra.plugins.configurations`. " +
-                "Refer to the example in the plugin documentation."
-            );
-        }
-
-        return allowedPathConfig.get();
-    }
 
     /**
      * Validates that a path is within the configured allowed-paths.
      * Matches AbstractLocalTask.validatePath() for consistent security policy.
      * Throws SecurityException if the path is not allowed or if allowed-paths is not configured.
      */
-    private void validatePath(Path path, RunContext runContext) {
-        List<String> renderedAllowedPaths = getAllowedPaths(runContext);
-
+    private void validatePath(Path path, List<Path> normalizedAllowedPaths) {
         Path realPath;
         try {
             if (path.toFile().exists()) {
@@ -251,16 +259,6 @@ public class RealtimeTrigger extends AbstractTrigger
             throw new IllegalArgumentException("Invalid path: " + path + ". Error: " + e.getMessage(), e);
         }
 
-        List<Path> normalizedAllowedPaths = renderedAllowedPaths.stream()
-            .map(allowed -> {
-                try {
-                    return Paths.get(allowed).toRealPath();
-                } catch (IOException e) {
-                    return Paths.get(allowed).toAbsolutePath().normalize();
-                }
-            })
-            .toList();
-
         boolean isAllowed = normalizedAllowedPaths.stream()
             .anyMatch(realPath::startsWith);
 
@@ -279,7 +277,7 @@ public class RealtimeTrigger extends AbstractTrigger
     @Override
     public Publisher<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
         final RunContext runContext = conditionContext.getRunContext();
-        this.logger = runContext.logger();
+        final Logger logger = runContext.logger();
 
         return Flux.<Execution>create(emitter -> {
             Map<WatchKey, Path> watchKeyMap = new ConcurrentHashMap<>();
@@ -298,25 +296,56 @@ public class RealtimeTrigger extends AbstractTrigger
                     return;
                 }
 
-                // Step 1: Render and validate the `from` property
-                String renderedFrom = runContext.render(this.from).as(String.class)
+                                String renderedFrom = runContext.render(this.from).as(String.class)
                     .orElseThrow(() -> new IllegalArgumentException("`from` is required"));
                 Path rootDirectory = Paths.get(renderedFrom).toAbsolutePath().normalize();
 
                 logger.info("RealtimeTrigger starting for directory: {}", rootDirectory);
+                // Resolve allowed-paths configuration once at startup
+                Optional<List<String>> allowedPathConfig = runContext.pluginConfiguration(AbstractLocalTask.ALLOWED_PATHS);
+                if (allowedPathConfig.isEmpty() || allowedPathConfig.get().isEmpty()) {
+                    throw new SecurityException(
+                        "The 'allowed-paths' configuration is required to enable access to the local filesystem. " +
+                        "You must define at least one allowed path in the plugin configuration, " +
+                        "`kestra.plugins.configurations.io.kestra.plugin.fs.local.RealtimeTrigger.allowed-paths`. " +
+                        "Refer to the example in the plugin documentation."
+                    );
+                }
 
-                // Step 2: Render and compile regex pattern BEFORE creating resources (fail-fast)
-                EventType renderedOn = runContext.render(this.on).as(EventType.class)
+                final List<Path> normalizedAllowedPaths = allowedPathConfig.get().stream()
+                    .map(allowed -> {
+                        try {
+                            return Paths.get(allowed).toRealPath();
+                        } catch (IOException e) {
+                            return Paths.get(allowed).toAbsolutePath().normalize();
+                        }
+                    })
+                    .toList();
+
+
+                                EventType renderedOn = runContext.render(this.on).as(EventType.class)
                     .orElse(EventType.CREATE_OR_UPDATE);
                 Pattern compiledPattern = null;
+
                 if (this.regExp != null) {
-                    String renderedRegExp = runContext.render(this.regExp).as(String.class).orElse(null);
+                    String renderedRegExp = runContext.render(this.regExp)
+                        .as(String.class)
+                        .orElse(null);
+
                     if (renderedRegExp != null) {
-                        try {
-                            compiledPattern = java.util.regex.Pattern.compile(renderedRegExp);
-                        } catch (java.util.regex.PatternSyntaxException e) {
+                        if (renderedRegExp.length() > MAX_REGEX_LENGTH) {
                             throw new IllegalArgumentException(
-                                "Invalid regex pattern in 'regExp': " + renderedRegExp + " - " + e.getMessage(), e
+                                "'regExp' must not exceed " + MAX_REGEX_LENGTH + " characters"
+                            );
+                        }
+
+                        try {
+                            compiledPattern = Pattern.compile(renderedRegExp);
+                        } catch (PatternSyntaxException e) {
+                            throw new IllegalArgumentException(
+                                "Invalid RE2-compatible regex pattern in 'regExp': "
+                                    + renderedRegExp + " - " + e.getMessage(),
+                                e
                             );
                         }
                     }
@@ -326,8 +355,7 @@ public class RealtimeTrigger extends AbstractTrigger
                     .as(Boolean.class)
                     .orElse(false);
 
-                // Step 3: Validate root directory against allowed-paths configuration
-                validatePath(rootDirectory, runContext);
+                                validatePath(rootDirectory, normalizedAllowedPaths);
 
                 if (!Files.exists(rootDirectory)) {
                     throw new IllegalArgumentException("Directory does not exist: " + rootDirectory);
@@ -336,16 +364,14 @@ public class RealtimeTrigger extends AbstractTrigger
                     throw new IllegalArgumentException("Path is not a directory: " + rootDirectory);
                 }
 
-                // Step 4: Check cancellation before creating resources
-                if (!active.get()) {
+                                if (!active.get()) {
                     emitter.complete();
                     return;
                 }
 
                 logger.info("Watching directory: {}", rootDirectory);
 
-                // Step 5: Create WatchService
-                createWatchService();
+                                createWatchService();
 
                 // Check cancellation after resource creation
                 if (!active.get()) {
@@ -353,8 +379,7 @@ public class RealtimeTrigger extends AbstractTrigger
                     return;
                 }
 
-                // Step 6: Register root directory
-                registerDirectory(rootDirectory, watchKeyMap, registeredDirectories);
+                                registerDirectory(rootDirectory, watchKeyMap, registeredDirectories);
                 knownDirectories.add(rootDirectory.toAbsolutePath().normalize());
 
                 if (rRecursive) {
@@ -363,7 +388,8 @@ public class RealtimeTrigger extends AbstractTrigger
                         watchKeyMap,
                         registeredDirectories,
                         knownDirectories,
-                        runContext
+                        normalizedAllowedPaths,
+                        logger
                     );
                 } else {
                     // For non-recursive mode, track immediate child directories (pre-existing)
@@ -386,7 +412,6 @@ public class RealtimeTrigger extends AbstractTrigger
                     return;
                 }
 
-                ready.set(true);
 
                 // Check cancellation before entering event loop
                 if (!active.get()) {
@@ -405,9 +430,11 @@ public class RealtimeTrigger extends AbstractTrigger
                 while (active.get()) {
                     WatchKey key;
                     try {
-                        key = service.take();
+                        // Poll with timeout to allow periodic cleanup of expired deduplication entries
+                        // even when no filesystem events occur
+                        key = service.poll(2, TimeUnit.SECONDS);
                     } catch (ClosedWatchServiceException e) {
-                        // Normal shutdown: stop() closed the WatchService, so take() unblocked.
+                        // Normal shutdown: stop() closed the WatchService, so poll() unblocked.
                         break;
                     } catch (InterruptedException e) {
                         // Thread interrupted, but check active flag before assuming shutdown.
@@ -415,6 +442,13 @@ public class RealtimeTrigger extends AbstractTrigger
                             break;
                         }
                         // If still active, it's an unexpected interrupt; continue watching.
+                        continue;
+                    }
+
+
+                    // If poll timed out (no events), perform cleanup and continue
+                    if (key == null) {
+                        cleanupExpiredScanEntries(System.nanoTime());
                         continue;
                     }
 
@@ -439,6 +473,11 @@ public class RealtimeTrigger extends AbstractTrigger
                             Path eventPath = directory.resolve((Path) event.context());
                             Path normalizedEventPath = eventPath.toAbsolutePath().normalize();
 
+                            // Clear scan deduplication state even when DELETE is filtered out.
+                            if (kind == StandardWatchEventKinds.ENTRY_DELETE) {
+                                scannedFiles.remove(normalizedEventPath);
+                            }
+
                             // Directory cleanup is internal bookkeeping and must not depend
                             // on the configured event type or regex filter.
                             if (kind == StandardWatchEventKinds.ENTRY_DELETE
@@ -457,7 +496,7 @@ public class RealtimeTrigger extends AbstractTrigger
                                 && Files.isDirectory(eventPath)
                                 && !Files.isSymbolicLink(eventPath)) {
                                 try {
-                                    validatePath(eventPath, runContext);
+                                    validatePath(eventPath, normalizedAllowedPaths);
 
                                     registerDirectory(eventPath, watchKeyMap, registeredDirectories);
                                     knownDirectories.add(eventPath.toAbsolutePath().normalize());
@@ -467,7 +506,19 @@ public class RealtimeTrigger extends AbstractTrigger
                                         watchKeyMap,
                                         registeredDirectories,
                                         knownDirectories,
-                                        runContext
+                                        normalizedAllowedPaths,
+                                        logger
+                                    );
+                                    // Scan and emit CREATE events for existing files in the newly registered tree
+                                    scanAndEmitExistingFiles(
+                                        eventPath,
+                                        renderedOn,
+                                        compiledPattern,
+                                        normalizedAllowedPaths,
+                                        conditionContext,
+                                        context,
+                                        emitter,
+                                        logger
                                     );
                                 } catch (SecurityException e) {
                                     logger.warn(
@@ -515,7 +566,7 @@ public class RealtimeTrigger extends AbstractTrigger
 
                             // Security: Validate event path against allowed-paths before emission
                             try {
-                                validatePath(eventPath, runContext);
+                                validatePath(eventPath, normalizedAllowedPaths);
                             } catch (SecurityException | IllegalArgumentException e) {
                                 logger.warn(
                                     "Security: Rejecting event for path outside allowed-paths: {} - {}",
@@ -525,6 +576,15 @@ public class RealtimeTrigger extends AbstractTrigger
                                 continue;
                             }
 
+                            // Deduplication: Check if this CREATE event is a duplicate of a recent scan
+                            Path normalizedEventPath2 = eventPath.toAbsolutePath().normalize();
+                            if (kind == StandardWatchEventKinds.ENTRY_CREATE) {
+                                long currentTime = System.nanoTime();
+                                if (isDuplicateOfRecentScan(normalizedEventPath2, currentTime)) {
+                                    logger.debug("Suppressing duplicate CREATE event for recently scanned file: {}", eventPath);
+                                    continue;
+                                }
+                            }
                             // Process event based on type
                             ChangeType changeType = null;
                             if (kind == StandardWatchEventKinds.ENTRY_CREATE) {
@@ -536,7 +596,14 @@ public class RealtimeTrigger extends AbstractTrigger
                             }
 
                             if (changeType != null) {
-                                emitEventExecution(eventPath, changeType, conditionContext, context, emitter);
+                                emitEventExecution(
+                                    eventPath,
+                                    changeType,
+                                    conditionContext,
+                                    context,
+                                    emitter,
+                                    logger
+                                );
                             }
 
                         } catch (Exception e) {
@@ -548,6 +615,8 @@ public class RealtimeTrigger extends AbstractTrigger
 
                     // Reset the key for future events
                     boolean valid = key.reset();
+                    // Cleanup after processing event batch (complements timeout-based cleanup)
+                    cleanupExpiredScanEntries(System.nanoTime());
                     if (!valid) {
                         // Key is no longer valid (directory deleted, etc.)
                         Path registeredDirectory = watchKeyMap.remove(key);
@@ -580,7 +649,7 @@ public class RealtimeTrigger extends AbstractTrigger
                     emitter.complete();
                 }
             } finally {
-                cleanup(watchKeyMap, registeredDirectories, knownDirectories);
+                cleanup(watchKeyMap, registeredDirectories, knownDirectories, logger);
             }
         });
     }
@@ -601,7 +670,8 @@ public class RealtimeTrigger extends AbstractTrigger
         ChangeType changeType,
         ConditionContext conditionContext,
         TriggerContext context,
-        FluxSink<Execution> emitter
+        FluxSink<Execution> emitter,
+        Logger logger
     ) {
         try {
             // For DELETE, the file no longer exists, so we can't read attributes
@@ -640,12 +710,12 @@ public class RealtimeTrigger extends AbstractTrigger
                 file = File.from(eventPath, attrs);
             }
 
-            Output output = Output.builder()
+            var output = Output.builder()
                 .file(file)
                 .changeType(changeType)
                 .build();
 
-            Execution execution = TriggerService.generateRealtimeExecution(
+            var execution = TriggerService.generateRealtimeExecution(
                 this,
                 conditionContext,
                 context,
@@ -680,14 +750,6 @@ public class RealtimeTrigger extends AbstractTrigger
         return false;
     }
 
-    /**
-     * Tests whether a file path matches the compiled regex pattern.
-     * The pattern is applied against the full absolute path of the file.
-     *
-     * @param path the file path to test
-     * @param pattern the compiled regex pattern (may be null)
-     * @return true if the pattern is null (no filter) or the path matches; false otherwise
-     */
     private boolean matchesRegExp(Path path, Pattern pattern) {
         if (pattern == null) {
             return true;
@@ -706,15 +768,14 @@ public class RealtimeTrigger extends AbstractTrigger
         watchService.set(FileSystems.getDefault().newWatchService());
     }
     /**
-    * Cancels watch registrations for a removed directory and its descendants,
-    * and removes the corresponding tracking paths.
-    *
-    * @param directory the removed directory
-    * @param watchKeyMap the map of watch keys to directories
-    * @param registeredDirectories the set of registered directories
-    * @param knownDirectories the set of known directories
-    */
-
+     * Cancels watch registrations for a removed directory and its descendants,
+     * and removes the corresponding tracking paths.
+     *
+     * @param directory the removed directory
+     * @param watchKeyMap the map of watch keys to directories
+     * @param registeredDirectories the set of registered directories
+     * @param knownDirectories the set of known directories
+     */
     private void unregisterDirectoryTree(
         Path directory,
         Map<WatchKey, Path> watchKeyMap,
@@ -729,7 +790,7 @@ public class RealtimeTrigger extends AbstractTrigger
                 Path registeredPath = entry.getValue().toAbsolutePath().normalize();
 
                 if (registeredPath.startsWith(normalizedDirectory)) {
-                    WatchKey key = entry.getKey();
+                    var key = entry.getKey();
                     key.cancel();
 
                     if (watchKeyMap.remove(key, entry.getValue())) {
@@ -769,7 +830,7 @@ public class RealtimeTrigger extends AbstractTrigger
                 throw new IllegalStateException("WatchService not initialized");
             }
 
-            WatchKey key = normalizedDirectory.register(
+            var key = normalizedDirectory.register(
                 svc,
                 StandardWatchEventKinds.ENTRY_CREATE,
                 StandardWatchEventKinds.ENTRY_MODIFY,
@@ -798,16 +859,17 @@ public class RealtimeTrigger extends AbstractTrigger
      * @param map the map to store WatchKey -> Path associations
      * @param dirs the set to track registered directories
      * @param knownDirs the set to track all known directories for DELETE suppression
-     * @param runContext the current run context used for path validation
-     * @throws Exception if the directory stream cannot be opened or an unrecoverable
-     *                    registration error occurs
+     * @param normalizedAllowedPaths the normalized paths permitted for access
+     * @param logger the logger used for registration warnings
+     * @throws Exception if an unrecoverable registration error occurs
      */
     private void registerDirectoryTree(
         Path root,
         Map<WatchKey, Path> map,
         Set<Path> dirs,
         Set<Path> knownDirs,
-        RunContext runContext
+        List<Path> normalizedAllowedPaths,
+        Logger logger
     ) throws Exception {
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(root)) {
             for (Path entry : stream) {
@@ -816,7 +878,7 @@ public class RealtimeTrigger extends AbstractTrigger
                 }
 
                 try {
-                    validatePath(entry, runContext);
+                    validatePath(entry, normalizedAllowedPaths);
 
                     registerDirectory(entry, map, dirs);
                     knownDirs.add(entry.toAbsolutePath().normalize());
@@ -826,7 +888,8 @@ public class RealtimeTrigger extends AbstractTrigger
                         map,
                         dirs,
                         knownDirs,
-                        runContext
+                        normalizedAllowedPaths,
+                        logger
                     );
                 } catch (SecurityException e) {
                     logger.warn(
@@ -848,25 +911,167 @@ public class RealtimeTrigger extends AbstractTrigger
                         entry,
                         e.getMessage()
                     );
+                }
             }
         }
     }
+
+    /**
+     * Scans a newly created directory tree and emits CREATE executions for eligible regular files.
+     * This handles the case where a populated directory is moved or created while the trigger is running.
+     *
+     * Files are tracked in scannedFiles to prevent duplicate events when both the scan
+     * and a queued WatchService event discover the same file.
+     *
+     * @param root the root directory to scan
+     * @param renderedOn the configured event type filter
+     * @param compiledPattern the compiled regex pattern for filename filtering (null if none)
+     * @param normalizedAllowedPaths the list of normalized allowed paths for security validation
+     * @param conditionContext the condition context for execution creation
+     * @param context the trigger context
+     * @param emitter the flux emitter
+     * @param logger the logger
+     */
+    private void scanAndEmitExistingFiles(
+        Path root,
+        EventType renderedOn,
+        Pattern compiledPattern,
+        List<Path> normalizedAllowedPaths,
+        ConditionContext conditionContext,
+        TriggerContext context,
+        FluxSink<Execution> emitter,
+        Logger logger
+    ) {
+        Deque<Path> dirsToScan = new ArrayDeque<>();
+        dirsToScan.add(root);
+
+        while (!dirsToScan.isEmpty() && active.get()) {
+            Path dir = dirsToScan.removeFirst();
+
+            try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
+                for (Path entry : stream) {
+                    if (!active.get()) {
+                        return;
+                    }
+
+                    Path normalizedPath = entry.toAbsolutePath().normalize();
+
+                    try {
+                        if (Files.isSymbolicLink(entry)) {
+                            logger.debug("Scan: Skipping symbolic link: {}", entry);
+                            continue;
+                        }
+
+                        validatePath(entry, normalizedAllowedPaths);
+
+                        if (Files.isDirectory(entry)) {
+                            dirsToScan.addLast(entry);
+                           continue;
+                        }
+
+                        if (!Files.isRegularFile(entry)
+                            || !shouldTrigger(StandardWatchEventKinds.ENTRY_CREATE, renderedOn)
+                            || (compiledPattern != null && !matchesRegExp(entry, compiledPattern))) {
+                            continue;
+                        }
+
+                        long scanTime = System.nanoTime();
+                        Long previousScanTime = scannedFiles.putIfAbsent(normalizedPath, scanTime);
+
+                        if (previousScanTime != null
+                            && scanTime - previousScanTime <= SCAN_DEDUP_WINDOW_NANOS) {
+                            continue;
+                        }
+
+                        if (previousScanTime != null) {
+                            scannedFiles.replace(normalizedPath, previousScanTime, scanTime);
+                        }
+
+                        try {
+                            emitEventExecution(
+                                entry,
+                                ChangeType.CREATE,
+                                conditionContext,
+                                context,
+                                emitter,
+                                logger
+                            );
+                        } catch (RuntimeException e) {
+                            scannedFiles.remove(normalizedPath, scanTime);
+                            throw e;
+                        }
+                    } catch (SecurityException | IllegalArgumentException e) {
+                        logger.warn(
+                            "Security: Rejecting scanned path {}: {}",
+                            entry,
+                            e.getMessage()
+                        );
+                    } catch (Exception e) {
+                        logger.warn("Error scanning entry {}: {}", entry, e.getMessage(), e);
+                    }
+                }
+            } catch (IOException e) {
+                logger.warn("Could not scan directory {}: {}", dir, e.getMessage());
+            }
+        }
+    }
+
+
+    /**
+     * Checks if a file event should be suppressed due to recent scan discovery.
+     * Returns true if the file was scanned recently (within SCAN_DEDUP_WINDOW_NANOS).
+     *
+     * Also performs cleanup of expired entries from scannedFiles map.
+     *
+     * @param filePath the normalized file path
+     * @param currentTime the current time in nanoseconds
+     * @return true if the event should be suppressed
+     */
+    private boolean isDuplicateOfRecentScan(Path filePath, long currentTime) {
+        Long scanTime = scannedFiles.get(filePath);
+        if (scanTime == null) {
+            return false;
+        }
+
+        long age = currentTime - scanTime;
+        if (age > SCAN_DEDUP_WINDOW_NANOS) {
+            // Expired, remove it
+            scannedFiles.remove(filePath, scanTime);
+            return false;
+        }
+
+        return true;
+
 }
+
+    /**
+     * Removes all expired entries from scannedFiles map.
+     * An entry is expired if its age exceeds SCAN_DEDUP_WINDOW_NANOS.
+     *
+     * This method should be called periodically during event processing to prevent
+     * unbounded memory growth when many unique files are scanned.
+     *
+     * @param currentTime the current time in nanoseconds
+     */
+    private void cleanupExpiredScanEntries(long currentTime) {
+        scannedFiles.entrySet().removeIf(entry -> {
+            long age = currentTime - entry.getValue();
+            return age > SCAN_DEDUP_WINDOW_NANOS;
+        });
+    }
+
 
     @Override
     public void stop() {
         if (active.compareAndSet(true, false)) {
             // Unblock the event loop by closing the WatchService.
             // The evaluate() thread will perform final cleanup in its finally block.
-            closeWatchService();
+            closeWatchService(null);
         }
     }
 
     @Override
     public void kill() {
-        if (logger != null) {
-            logger.debug("RealtimeTrigger kill signal received");
-        }
         stop();
     }
 
@@ -875,24 +1080,29 @@ public class RealtimeTrigger extends AbstractTrigger
      * Uses getAndSet(null) to atomically claim ownership.
      * Only the thread that successfully gets a non-null reference will close it.
      */
-    private void closeWatchService() {
-        WatchService svc = watchService.getAndSet(null);
-        if (svc == null) {
+    private void closeWatchService(Logger logger) {
+        WatchService service = watchService.getAndSet(null);
+        if (service == null) {
             return;
         }
 
         try {
-            svc.close();
-            logger.info("RealtimeTrigger WatchService closed");
+            service.close();
+            if (logger != null) {
+                logger.info("RealtimeTrigger WatchService closed");
+            }
         } catch (Exception e) {
-            logger.warn("Error closing WatchService: {}", e.getMessage());
+            if (logger != null) {
+                logger.warn("Error closing WatchService: {}", e.getMessage());
+            }
         }
     }
 
     private void cleanup(
         Map<WatchKey, Path> watchKeyMap,
         Set<Path> registeredDirectories,
-        Set<Path> knownDirectories
+        Set<Path> knownDirectories,
+        Logger logger
     ) {
         // Atomically claim ownership of the WatchService.
         // getAndSet(null) ensures only one thread gets a non-null reference.
@@ -908,7 +1118,6 @@ public class RealtimeTrigger extends AbstractTrigger
         } finally {
             // Establish invariant: trigger is fully inactive
             active.set(false);
-            ready.set(false);
 
             if (watchKeyMap != null) {
                 watchKeyMap.clear();

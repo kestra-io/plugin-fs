@@ -28,7 +28,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.regex.PatternSyntaxException;
+import com.google.re2j.PatternSyntaxException;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -42,15 +42,6 @@ class RealtimeTriggerSecurityTest {
     @Inject
     private RunContextFactory runContextFactory;
 
-    private static void waitForWatcherReady(RealtimeTrigger trigger) throws InterruptedException {
-        long deadline = System.nanoTime() + Duration.ofSeconds(5).toNanos();
-        while (!trigger.isReady()) {
-            if (System.nanoTime() >= deadline) {
-                throw new AssertionError("Watcher did not become ready within 5 seconds");
-            }
-            Thread.sleep(25);
-        }
-    }
 
     private static void deleteRecursively(Path root) throws IOException {
         if (!Files.exists(root)) {
@@ -130,10 +121,15 @@ class RealtimeTriggerSecurityTest {
             List<Execution> allowedExecutions = new CopyOnWriteArrayList<>();
             AtomicReference<Throwable> allowedError = new AtomicReference<>();
             CountDownLatch allowedEventLatch = new CountDownLatch(1);
+            CountDownLatch probeObserved = new CountDownLatch(1);
             Disposable allowedSubscription = Flux.from(allowedTrigger.evaluate(allowedContext.getKey(), allowedContext.getValue()))
                 .subscribeOn(Schedulers.boundedElastic())
                 .subscribe(
                     execution -> {
+                        if (RealtimeTriggerTestSupport.isProbeExecution(execution)) {
+                            probeObserved.countDown();
+                            return;
+                        }
                         allowedExecutions.add(execution);
                         allowedEventLatch.countDown();
                     },
@@ -141,7 +137,8 @@ class RealtimeTriggerSecurityTest {
                 );
 
             try {
-                waitForWatcherReady(allowedTrigger);
+                RealtimeTriggerTestSupport.awaitWatcherReady(allowedDir, RealtimeTrigger.EventType.CREATE, ".realtime-trigger-probe-allowed.txt", probeObserved);
+
                 Files.writeString(allowedFile, "allowed", StandardCharsets.UTF_8);
                 assertThat("Expected CREATE event inside configured allowed paths",
                     allowedEventLatch.await(5, TimeUnit.SECONDS), is(true));
@@ -218,12 +215,16 @@ class RealtimeTriggerSecurityTest {
             CountDownLatch barrierLatch = new CountDownLatch(1);
             CountDownLatch externalFileLatch = new CountDownLatch(1);
             CountDownLatch terminationLatch = new CountDownLatch(1);
-
+            CountDownLatch probeObserved = new CountDownLatch(1);
             Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
                 .subscribeOn(Schedulers.boundedElastic())
                 .doFinally(signalType -> terminationLatch.countDown())
                 .subscribe(
                     execution -> {
+                        if (RealtimeTriggerTestSupport.isProbeExecution(execution)) {
+                            probeObserved.countDown();
+                            return;
+                        }
                         receivedExecutions.add(execution);
                         @SuppressWarnings("unchecked")
                         Map<String, Object> fileVariables = (Map<String, Object>) execution.getTrigger()
@@ -239,7 +240,8 @@ class RealtimeTriggerSecurityTest {
                 );
 
             try {
-                waitForWatcherReady(trigger);
+                RealtimeTriggerTestSupport.awaitWatcherReady(tempDir, RealtimeTrigger.EventType.CREATE, ".realtime-trigger-probe-symlink.txt", probeObserved);
+
                 try {
                     Files.createSymbolicLink(symlinkInTempDir, externalDir);
                 } catch (UnsupportedOperationException | IOException | SecurityException e) {
@@ -283,6 +285,424 @@ class RealtimeTriggerSecurityTest {
 
     @Test
     @Timeout(15)
+    void testSecurityRegexLengthLimitThrowsException() throws Exception {
+        Path tempDir = Files.createTempDirectory("realtime-trigger-long-regex-");
+        try {
+            RealtimeTrigger trigger = RealtimeTrigger.builder()
+                .id("test-regex-length-limit")
+                .type(RealtimeTrigger.class.getName())
+                .from(Property.ofValue(tempDir.toString()))
+                .on(Property.ofValue(RealtimeTrigger.EventType.CREATE))
+                .regExp(Property.ofValue("a".repeat(1001)))
+                .build();
+
+            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            AtomicReference<Throwable> capturedError = new AtomicReference<>();
+            CountDownLatch errorLatch = new CountDownLatch(1);
+
+            Disposable subscription = Flux.from(
+                trigger.evaluate(context.getKey(), context.getValue())
+            )
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                    execution -> {},
+                    error -> {
+                        capturedError.set(error);
+                        errorLatch.countDown();
+                    }
+                );
+
+            try {
+                assertThat(
+                    "Overlong regex must fail before watcher startup",
+                    errorLatch.await(5, TimeUnit.SECONDS),
+                    is(true)
+                );
+
+                Throwable error = capturedError.get();
+
+                assertThat(
+                    "Expected an IllegalArgumentException for an overlong regex",
+                    causeChainContains(error, IllegalArgumentException.class),
+                    is(true)
+                );
+
+                assertThat(
+                    "Error should identify the regex length limit",
+                    causeChainMessages(error),
+                    containsString("must not exceed")
+                );
+            }finally {
+                trigger.stop();
+                subscription.dispose();
+            }
+        }finally {
+            deleteRecursively(tempDir);
+        }
+    }
+
+    @Test
+    @Timeout(15)
+    void testSecurityRejectsLookaheadSyntax() throws Exception {
+        Path tempDir = Files.createTempDirectory("realtime-trigger-nested-regex-");
+        try {
+            RealtimeTrigger trigger = RealtimeTrigger.builder()
+                .id("test-reject-lookahead")
+                .type(RealtimeTrigger.class.getName())
+                .from(Property.ofValue(tempDir.toString()))
+                .on(Property.ofValue(RealtimeTrigger.EventType.CREATE))
+                .regExp(Property.ofValue("(?=.)"))
+                .build();
+
+            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            AtomicReference<Throwable> capturedError = new AtomicReference<>();
+            CountDownLatch errorLatch = new CountDownLatch(1);
+
+            Disposable subscription = Flux.from(
+                trigger.evaluate(context.getKey(), context.getValue())
+            )
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                    execution -> {},
+                    error -> {
+                        capturedError.set(error);
+                        errorLatch.countDown();
+                    }
+                );
+
+            try {
+                assertThat(
+                    "Lookahead syntax must fail before watcher startup",
+                    errorLatch.await(5, TimeUnit.SECONDS),
+                    is(true)
+                );
+
+                Throwable error = capturedError.get();
+
+                assertThat(
+                    "Expected an IllegalArgumentException for unsupported regex syntax",
+                    causeChainContains(error, IllegalArgumentException.class),
+                    is(true)
+                );
+
+                assertThat(
+                    "Error should identify the RE2-compatible regex restriction",
+                    causeChainMessages(error),
+                    containsString("re2-compatible")
+                );
+            } finally {
+                trigger.stop();
+                subscription.dispose();
+            }
+        } finally {
+            deleteRecursively(tempDir);
+        }
+    }
+
+    @Test
+    @Timeout(15)
+    void testSecurityRejectsLookbehindSyntax() throws Exception {
+        Path tempDir = Files.createTempDirectory("realtime-trigger-overlapping-alternation-");
+        try {
+            RealtimeTrigger trigger = RealtimeTrigger.builder()
+                .id("test-reject-lookbehind")
+                .type(RealtimeTrigger.class.getName())
+                .from(Property.ofValue(tempDir.toString()))
+                .on(Property.ofValue(RealtimeTrigger.EventType.CREATE))
+                .regExp(Property.ofValue("(?<=a)b"))
+                .build();
+
+            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            var capturedError = new AtomicReference<Throwable>();
+            var errorLatch = new CountDownLatch(1);
+
+            Disposable subscription = Flux.from(
+                trigger.evaluate(context.getKey(), context.getValue())
+            )
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                    execution -> {},
+                    error -> {
+                        capturedError.set(error);
+                        errorLatch.countDown();
+                    }
+                );
+
+            try {
+                assertThat(
+                    "Lookbehind syntax must fail before watcher startup",
+                    errorLatch.await(5, TimeUnit.SECONDS),
+                    is(true)
+                );
+
+                assertThat(
+                    "Expected an IllegalArgumentException for unsupported regex syntax",
+                    causeChainContains(capturedError.get(), IllegalArgumentException.class),
+                    is(true)
+                );
+                assertThat(
+                    "Error should identify the RE2-compatible regex restriction",
+                    causeChainMessages(capturedError.get()),
+                    containsString("re2-compatible")
+                );
+            } finally {
+                trigger.stop();
+                subscription.dispose();
+            }
+        } finally {
+            deleteRecursively(tempDir);
+        }
+    }
+
+    @Test
+    @Timeout(15)
+    void testSecurityRejectsBackreferenceSyntax() throws Exception {
+        Path tempDir = Files.createTempDirectory("realtime-trigger-nested-subgroup-");
+        try {
+            RealtimeTrigger trigger = RealtimeTrigger.builder()
+                .id("test-reject-backreference")
+                .type(RealtimeTrigger.class.getName())
+                .from(Property.ofValue(tempDir.toString()))
+                .on(Property.ofValue(RealtimeTrigger.EventType.CREATE))
+                .regExp(Property.ofValue("(a)\\1"))
+                .build();
+
+            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            var capturedError = new AtomicReference<Throwable>();
+            var errorLatch = new CountDownLatch(1);
+
+            Disposable subscription = Flux.from(
+                trigger.evaluate(context.getKey(), context.getValue())
+            )
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                    execution -> {},
+                    error -> {
+                        capturedError.set(error);
+                        errorLatch.countDown();
+                    }
+                );
+
+            try {
+                assertThat(
+                    "Backreference syntax must fail before watcher startup",
+                    errorLatch.await(5, TimeUnit.SECONDS),
+                    is(true)
+                );
+
+                assertThat(
+                    "Expected an IllegalArgumentException",
+                    causeChainContains(capturedError.get(), IllegalArgumentException.class),
+                    is(true)
+                );
+
+                assertThat(
+                    "Error should identify the RE2-compatible regex restriction",
+                    causeChainMessages(capturedError.get()),
+                    containsString("re2-compatible")
+                );
+            } finally {
+                trigger.stop();
+                subscription.dispose();
+            }
+        } finally {
+            deleteRecursively(tempDir);
+        }
+    }
+
+
+    @Test
+    @Timeout(15)
+    void testSecurityValidGroupedQuantifiersAccepted() throws Exception {
+        Path tempDir = Files.createTempDirectory("realtime-trigger-valid-regex-");
+        try {
+            RealtimeTrigger trigger = RealtimeTrigger.builder()
+                .id("test-valid-grouped-quantifiers")
+                .type(RealtimeTrigger.class.getName())
+                .from(Property.ofValue(tempDir.toString()))
+                .on(Property.ofValue(RealtimeTrigger.EventType.CREATE))
+                .regExp(Property.ofValue(".*(?:[a-z]+|[0-9]+).*\\.txt"))
+                .build();
+
+            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            CountDownLatch probeObserved = new CountDownLatch(1);
+            AtomicReference<Throwable> watcherError = new AtomicReference<>();
+
+            Disposable subscription = Flux.from(
+                trigger.evaluate(context.getKey(), context.getValue())
+            )
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                    execution -> {
+                        if (RealtimeTriggerTestSupport.isProbeExecution(execution)) {
+                            probeObserved.countDown();
+                        }
+                    },
+                    watcherError::set
+                );
+
+            try {
+                RealtimeTriggerTestSupport.awaitWatcherReady(
+                    tempDir,
+                    RealtimeTrigger.EventType.CREATE,
+                    ".realtime-trigger-probe-valid-regex.txt",
+                    probeObserved
+                );
+
+                assertThat(
+                    "A valid grouped regex must allow the watcher to start",
+                    watcherError.get(),
+                    nullValue()
+                );
+            } finally {
+                trigger.stop();
+                subscription.dispose();
+            }
+        } finally {
+            deleteRecursively(tempDir);
+        }
+    }
+
+    @Test
+    @Timeout(15)
+    void testSecuritySimpleQuantifierAccepted() throws Exception {
+        Path tempDir = Files.createTempDirectory("realtime-trigger-simple-regex-");
+        try {
+            RealtimeTrigger trigger = RealtimeTrigger.builder()
+                .id("test-simple-quantifier")
+                .type(RealtimeTrigger.class.getName())
+                .from(Property.ofValue(tempDir.toString()))
+                .on(Property.ofValue(RealtimeTrigger.EventType.CREATE))
+                .regExp(Property.ofValue(".*a+.*"))
+                .build();
+
+            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            var executions = new CopyOnWriteArrayList<Execution>();
+            var probeObserved = new CountDownLatch(1);
+            var matchingFileObserved = new CountDownLatch(1);
+            var watcherError = new AtomicReference<Throwable>();
+
+            Disposable subscription = Flux.from(
+                trigger.evaluate(context.getKey(), context.getValue())
+            )
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                    execution -> {
+                        if (RealtimeTriggerTestSupport.isProbeExecution(execution)) {
+                            probeObserved.countDown();
+                            return;
+                        }
+
+                        executions.add(execution);
+                        matchingFileObserved.countDown();
+                    },
+                    watcherError::set
+                );
+
+            try {
+                RealtimeTriggerTestSupport.awaitWatcherReady(
+                    tempDir,
+                    RealtimeTrigger.EventType.CREATE,
+                    ".realtime-trigger-probe-simple-regex.txt",
+                    probeObserved
+                );
+
+                Path matchingFile = tempDir.resolve("alpha.txt");
+                Files.writeString(matchingFile, "test", StandardCharsets.UTF_8);
+
+                assertThat(
+                    "A file matching a valid simple quantifier should emit an execution",
+                    matchingFileObserved.await(5, TimeUnit.SECONDS),
+                    is(true)
+                );
+
+                assertThat("Watcher should not fail", watcherError.get(), nullValue());
+            } finally {
+                trigger.stop();
+                subscription.dispose();
+            }
+        } finally {
+            deleteRecursively(tempDir);
+        }
+    }
+
+    @Test
+    @Timeout(15)
+    void testSecurityBoundedGroupWithInnerQuantifierAccepted() throws Exception {
+        Path tempDir = Files.createTempDirectory("realtime-trigger-repeated-group-");
+        try {
+            RealtimeTrigger trigger = RealtimeTrigger.builder()
+                .id("test-bounded-group-with-inner-quantifier")
+                .type(RealtimeTrigger.class.getName())
+                .from(Property.ofValue(tempDir.toString()))
+                .on(Property.ofValue(RealtimeTrigger.EventType.CREATE))
+                .regExp(Property.ofValue("(.*){1}"))
+                .build();
+
+            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            var executions = new CopyOnWriteArrayList<Execution>();
+            var probeObserved = new CountDownLatch(1);
+            var matchingFileObserved = new CountDownLatch(1);
+            var watcherError = new AtomicReference<Throwable>();
+
+            Disposable subscription = Flux.from(
+                trigger.evaluate(context.getKey(), context.getValue())
+            )
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                    execution -> {
+                        if (RealtimeTriggerTestSupport.isProbeExecution(execution)) {
+                            probeObserved.countDown();
+                        return;
+                    }
+
+                    executions.add(execution);
+                    matchingFileObserved.countDown();
+                },
+                watcherError::set
+            );
+
+            try {
+                RealtimeTriggerTestSupport.awaitWatcherReady(
+                    tempDir,
+                    RealtimeTrigger.EventType.CREATE,
+                    ".realtime-trigger-probe-repeated-group.txt",
+                    probeObserved
+                );
+
+                Files.writeString(
+                    tempDir.resolve("abab.txt"),
+                    "test",
+                    StandardCharsets.UTF_8
+                );
+
+                assertThat(
+                    "A repeated group without inner quantifiers should match",
+                    matchingFileObserved.await(5, TimeUnit.SECONDS),
+                    is(true)
+                );
+
+                assertThat("Watcher should not fail", watcherError.get(), nullValue());
+
+                assertThat("Expected exactly one matching execution", executions.size(), is(1));
+
+                @SuppressWarnings("unchecked")
+                Map<String, Object> fileVariables = (Map<String, Object>) executions.get(0)
+                .getTrigger().getVariables().get("file");
+
+                assertThat(fileVariables.get("name"), equalTo("abab.txt"));
+            } finally {
+                trigger.stop();
+                subscription.dispose();
+            }
+        } finally {
+            deleteRecursively(tempDir);
+        }
+    }
+
+
+    @Test
+    @Timeout(15)
     void testSecurityInvalidRegexThrowsException() throws Exception {
         Path tempDir = Files.createTempDirectory("realtime-trigger-invalid-regex-");
         try {
@@ -316,8 +736,227 @@ class RealtimeTriggerSecurityTest {
                     causeChainContains(error, PatternSyntaxException.class), is(true));
                 assertThat("Error should mention regex validation",
                     causeChainMessages(error), anyOf(containsString("regex"), containsString("pattern")));
-                assertThat("Watcher should not have become ready after regex validation failed",
-                    trigger.isReady(), is(false));
+            } finally {
+                trigger.stop();
+                subscription.dispose();
+            }
+        } finally {
+            deleteRecursively(tempDir);
+        }
+    }
+
+    @Test
+    @Timeout(15)
+    void testSecurityBoundedQuantifierAccepted() throws Exception {
+        Path tempDir = Files.createTempDirectory("realtime-trigger-bounded-quantifier-");
+        try {
+            RealtimeTrigger trigger = RealtimeTrigger.builder()
+                .id("test-bounded-quantifier")
+                .type(RealtimeTrigger.class.getName())
+                .from(Property.ofValue(tempDir.toString()))
+                .on(Property.ofValue(RealtimeTrigger.EventType.CREATE))
+                .regExp(Property.ofValue(
+                    ".*a{2,4}.*|.*\\.realtime-trigger-probe-bounded-quantifier\\.txt"
+                ))
+                .build();
+
+            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            var executions = new CopyOnWriteArrayList<Execution>();
+            var probeObserved = new CountDownLatch(1);
+            var matchingFileObserved = new CountDownLatch(1);
+            var watcherError = new AtomicReference<Throwable>();
+
+            Disposable subscription = Flux.from(
+                trigger.evaluate(context.getKey(), context.getValue())
+            )
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                    execution -> {
+                        if (RealtimeTriggerTestSupport.isProbeExecution(execution)) {
+                            probeObserved.countDown();
+                            return;
+                        }
+
+                        executions.add(execution);
+                        matchingFileObserved.countDown();
+                    },
+                    watcherError::set
+                );
+
+            try {
+                RealtimeTriggerTestSupport.awaitWatcherReady(
+                    tempDir,
+                    RealtimeTrigger.EventType.CREATE,
+                    ".realtime-trigger-probe-bounded-quantifier.txt",
+                    probeObserved
+                );
+
+                Files.writeString(
+                    tempDir.resolve("aaa.txt"),
+                    "test",
+                    StandardCharsets.UTF_8
+                );
+
+                assertThat(
+                    "A bounded quantifier should match aaa.txt",
+                    matchingFileObserved.await(5, TimeUnit.SECONDS),
+                    is(true)
+                );
+
+                assertThat("Watcher should not fail", watcherError.get(), nullValue());
+                assertThat("Expected exactly one matching execution", executions.size(), is(1));
+
+                @SuppressWarnings("unchecked")
+                Map<String, Object> fileVariables = (Map<String, Object>) executions.get(0)
+                    .getTrigger().getVariables().get("file");
+
+                assertThat(fileVariables.get("name"), equalTo("aaa.txt"));
+            } finally {
+                trigger.stop();
+                subscription.dispose();
+            }
+        } finally {
+            deleteRecursively(tempDir);
+        }
+    }
+
+    @Test
+    @Timeout(15)
+    void testSecurityEscapedQuantifierCharactersAccepted() throws Exception {
+        Path tempDir = Files.createTempDirectory("realtime-trigger-escaped-quantifier-");
+        try {
+            RealtimeTrigger trigger = RealtimeTrigger.builder()
+                .id("test-escaped-quantifier-characters")
+                .type(RealtimeTrigger.class.getName())
+                .from(Property.ofValue(tempDir.toString()))
+                .on(Property.ofValue(RealtimeTrigger.EventType.CREATE))
+                .regExp(Property.ofValue(".*literal\\+star\\*\\.txt|.*\\.realtime-trigger-probe-escaped-quantifier\\.txt"))
+                .build();
+
+            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            var executions = new CopyOnWriteArrayList<Execution>();
+            var probeObserved = new CountDownLatch(1);
+            var matchingFileObserved = new CountDownLatch(1);
+            var watcherError = new AtomicReference<Throwable>();
+
+            Disposable subscription = Flux.from(
+                trigger.evaluate(context.getKey(), context.getValue())
+            )
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                    execution -> {
+                        if (RealtimeTriggerTestSupport.isProbeExecution(execution)) {
+                            probeObserved.countDown();
+                            return;
+                        }
+
+                        executions.add(execution);
+                        matchingFileObserved.countDown();
+                    },
+                    watcherError::set
+                );
+
+            try {
+                RealtimeTriggerTestSupport.awaitWatcherReady(
+                    tempDir,
+                    RealtimeTrigger.EventType.CREATE,
+                    ".realtime-trigger-probe-escaped-quantifier.txt",
+                    probeObserved
+                );
+
+                Files.writeString(
+                    tempDir.resolve("literal+star*.txt"),
+                    "test",
+                    StandardCharsets.UTF_8
+                );
+
+                assertThat(
+                    "Escaped quantifier characters should match as literals",
+                    matchingFileObserved.await(5, TimeUnit.SECONDS),
+                    is(true)
+                );
+                assertThat("Watcher should not fail", watcherError.get(), nullValue());
+                assertThat("Expected exactly one matching execution", executions.size(), is(1));
+
+                @SuppressWarnings("unchecked")
+                Map<String, Object> fileVariables = (Map<String, Object>) executions.get(0)
+                    .getTrigger().getVariables().get("file");
+
+                assertThat(fileVariables.get("name"), equalTo("literal+star*.txt"));
+            } finally {
+                trigger.stop();
+                subscription.dispose();
+            }
+        } finally {
+            deleteRecursively(tempDir);
+        }
+    }
+
+    @Test
+    @Timeout(15)
+    void testSecurityQuantifierCharactersInsideCharacterClassAccepted() throws Exception {
+        Path tempDir = Files.createTempDirectory("realtime-trigger-quantifier-character-class-");
+        try {
+            RealtimeTrigger trigger = RealtimeTrigger.builder()
+                .id("test-quantifiers-inside-character-class")
+                .type(RealtimeTrigger.class.getName())
+                .from(Property.ofValue(tempDir.toString()))
+                .on(Property.ofValue(RealtimeTrigger.EventType.CREATE))
+                .regExp(Property.ofValue(
+                    ".*[+*?]\\.txt|.*\\.realtime-trigger-probe-quantifier-class\\.txt"
+                ))
+                .build();
+
+            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            var executions = new CopyOnWriteArrayList<Execution>();
+            var probeObserved = new CountDownLatch(1);
+            var matchingFileObserved = new CountDownLatch(1);
+            var watcherError = new AtomicReference<Throwable>();
+
+            Disposable subscription = Flux.from(
+                trigger.evaluate(context.getKey(), context.getValue())
+            )
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                    execution -> {
+                        if (RealtimeTriggerTestSupport.isProbeExecution(execution)) {
+                            probeObserved.countDown();
+                            return;
+                        }
+
+                        executions.add(execution);
+                        matchingFileObserved.countDown();
+                    },
+                    watcherError::set
+                );
+
+            try {
+                RealtimeTriggerTestSupport.awaitWatcherReady(
+                tempDir,
+                    RealtimeTrigger.EventType.CREATE,
+                    ".realtime-trigger-probe-quantifier-class.txt",
+                    probeObserved
+                );
+
+                Files.writeString(
+                    tempDir.resolve("file+.txt"),
+                    "test",
+                    StandardCharsets.UTF_8
+                );
+
+                assertThat(
+                    "Quantifier symbols inside a character class should match literally",
+                    matchingFileObserved.await(5, TimeUnit.SECONDS),
+                    is(true)
+                );
+                assertThat("Watcher should not fail", watcherError.get(), nullValue());
+                assertThat("Expected exactly one matching execution", executions.size(), is(1));
+
+                @SuppressWarnings("unchecked")
+                Map<String, Object> fileVariables = (Map<String, Object>) executions.get(0)
+                    .getTrigger().getVariables().get("file");
+
+                assertThat(fileVariables.get("name"), equalTo("file+.txt"));
             } finally {
                 trigger.stop();
                 subscription.dispose();

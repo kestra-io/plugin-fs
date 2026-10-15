@@ -6,6 +6,7 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.TestsUtils;
 import jakarta.inject.Inject;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import reactor.core.Disposable;
@@ -21,11 +22,13 @@ import java.time.Duration;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
@@ -45,16 +48,6 @@ class RealtimeTriggerTest {
     /**
      * Wait for the trigger to become ready (watcher initialized and active).
      */
-    private static void waitForWatcherReady(RealtimeTrigger trigger) throws InterruptedException {
-        long deadline = System.nanoTime() + WATCHER_READY_TIMEOUT.toNanos();
-
-        while (!trigger.isReady()) {
-            if (System.nanoTime() >= deadline) {
-                throw new AssertionError("Watcher did not become ready within " + WATCHER_READY_TIMEOUT);
-            }
-            Thread.sleep(25);
-        }
-    }
 
     /**
      * Recursively delete a directory and all its contents.
@@ -98,10 +91,15 @@ class RealtimeTriggerTest {
             AtomicReference<Throwable> watcherError = new AtomicReference<>();
             CountDownLatch eventLatch = new CountDownLatch(1);
 
+            CountDownLatch probeObserved = new CountDownLatch(1);
             Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
                 .subscribeOn(Schedulers.boundedElastic())
                 .subscribe(
                     execution -> {
+                        if (RealtimeTriggerTestSupport.isProbeExecution(execution)) {
+                            probeObserved.countDown();
+                            return;
+                        }
                         receivedExecutions.add(execution);
                         eventLatch.countDown();
                     },
@@ -109,7 +107,8 @@ class RealtimeTriggerTest {
                 );
 
             try {
-                waitForWatcherReady(trigger);
+
+                RealtimeTriggerTestSupport.awaitWatcherReady(tempDir, RealtimeTrigger.EventType.CREATE, ".realtime-trigger-probe-create.txt", probeObserved);
 
                 Files.writeString(testFile, "test content", StandardCharsets.UTF_8);
 
@@ -155,10 +154,15 @@ class RealtimeTriggerTest {
             AtomicReference<Throwable> watcherError = new AtomicReference<>();
             CountDownLatch eventLatch = new CountDownLatch(1);
 
+            CountDownLatch probeObserved = new CountDownLatch(1);
             Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
                 .subscribeOn(Schedulers.boundedElastic())
                 .subscribe(
                     execution -> {
+                        if (RealtimeTriggerTestSupport.isProbeExecution(execution)) {
+                            probeObserved.countDown();
+                            return;
+                        }
                         receivedExecutions.add(execution);
                         eventLatch.countDown();
                     },
@@ -166,7 +170,8 @@ class RealtimeTriggerTest {
                 );
 
             try {
-                waitForWatcherReady(trigger);
+
+                RealtimeTriggerTestSupport.awaitWatcherReady(tempDir, RealtimeTrigger.EventType.CREATE, ".realtime-trigger-probe-output.txt", probeObserved);
 
                 Files.writeString(testFile, "test content", StandardCharsets.UTF_8);
 
@@ -227,10 +232,15 @@ class RealtimeTriggerTest {
             AtomicReference<Throwable> watcherError = new AtomicReference<>();
             CountDownLatch eventLatch = new CountDownLatch(1);
 
+            CountDownLatch probeObserved = new CountDownLatch(1);
             Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
                 .subscribeOn(Schedulers.boundedElastic())
                 .subscribe(
                     execution -> {
+                        if (RealtimeTriggerTestSupport.isProbeExecution(execution)) {
+                            probeObserved.countDown();
+                            return;
+                        }
                         receivedExecutions.add(execution);
                         eventLatch.countDown();
                     },
@@ -238,7 +248,7 @@ class RealtimeTriggerTest {
                 );
 
             try {
-                waitForWatcherReady(trigger);
+                RealtimeTriggerTestSupport.awaitWatcherReady(tempDir, RealtimeTrigger.EventType.UPDATE, ".realtime-trigger-probe-modify.txt", probeObserved);
 
                 Files.writeString(testFile, "modified content", StandardCharsets.UTF_8);
 
@@ -286,18 +296,23 @@ class RealtimeTriggerTest {
             AtomicReference<Throwable> watcherError = new AtomicReference<>();
             CountDownLatch eventLatch = new CountDownLatch(1);
 
+            CountDownLatch probeObserved = new CountDownLatch(1);
             Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
                 .subscribeOn(Schedulers.boundedElastic())
                 .subscribe(
                     execution -> {
+                        if (RealtimeTriggerTestSupport.isProbeExecution(execution)) {
+                            probeObserved.countDown();
+                            return;
+                        }
                         receivedExecutions.add(execution);
                         eventLatch.countDown();
                     },
                     watcherError::set
                 );
+                RealtimeTriggerTestSupport.awaitWatcherReady(tempDir, RealtimeTrigger.EventType.DELETE, ".realtime-trigger-probe-delete.txt", probeObserved);
 
             try {
-                waitForWatcherReady(trigger);
 
                 Files.deleteIfExists(testFile);
 
@@ -350,11 +365,17 @@ class RealtimeTriggerTest {
             CountDownLatch eventLatch = new CountDownLatch(1);
             CountDownLatch terminationLatch = new CountDownLatch(1);
 
+            CountDownLatch probeObserved = new CountDownLatch(1);
             Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
                 .subscribeOn(Schedulers.boundedElastic())
                 .doFinally(signalType -> terminationLatch.countDown())
                 .subscribe(
                     execution -> {
+                        if (RealtimeTriggerTestSupport.isProbeExecution(execution)) {
+                            probeObserved.countDown();
+                            return;
+                        }
+
                         receivedExecutions.add(execution);
                         eventLatch.countDown();
                     },
@@ -362,7 +383,13 @@ class RealtimeTriggerTest {
                 );
 
             try {
-                waitForWatcherReady(trigger);
+                RealtimeTriggerTestSupport.awaitWatcherReady(
+                    tempDir,
+                    RealtimeTrigger.EventType.DELETE,
+                    ".realtime-trigger-probe-delete-directory.txt",
+                    probeObserved
+                );
+
                 Files.delete(childDir);
 
                 boolean eventArrived = eventLatch.await(2, TimeUnit.SECONDS);
@@ -405,11 +432,17 @@ class RealtimeTriggerTest {
             CountDownLatch eventLatch = new CountDownLatch(1);
             CountDownLatch terminationLatch = new CountDownLatch(1);
 
+            CountDownLatch probeObserved = new CountDownLatch(1);
             Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
                 .subscribeOn(Schedulers.boundedElastic())
                 .doFinally(signalType -> terminationLatch.countDown())
                 .subscribe(
                     execution -> {
+                        if (RealtimeTriggerTestSupport.isProbeExecution(execution)) {
+                            probeObserved.countDown();
+                            return;
+                        }
+
                         receivedExecutions.add(execution);
                         eventLatch.countDown();
                     },
@@ -417,7 +450,13 @@ class RealtimeTriggerTest {
                 );
 
             try {
-                waitForWatcherReady(trigger);
+                RealtimeTriggerTestSupport.awaitWatcherReady(
+                    tempDir,
+                    RealtimeTrigger.EventType.DELETE,
+                    ".realtime-trigger-probe-delete-nested-directory.txt",
+                    probeObserved
+                );
+
                 Files.delete(nestedDir);
 
                 boolean eventArrived = eventLatch.await(2, TimeUnit.SECONDS);
@@ -457,10 +496,15 @@ class RealtimeTriggerTest {
             AtomicReference<Throwable> watcherError = new AtomicReference<>();
             CountDownLatch eventLatch = new CountDownLatch(1);
 
+            CountDownLatch probeObserved = new CountDownLatch(1);
             Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
                 .subscribeOn(Schedulers.boundedElastic())
                 .subscribe(
                     execution -> {
+                        if (RealtimeTriggerTestSupport.isProbeExecution(execution)) {
+                            probeObserved.countDown();
+                            return;
+                        }
                         receivedExecutions.add(execution);
                         eventLatch.countDown();
                     },
@@ -468,7 +512,8 @@ class RealtimeTriggerTest {
                 );
 
             try {
-                waitForWatcherReady(trigger);
+
+                RealtimeTriggerTestSupport.awaitWatcherReady(tempDir, RealtimeTrigger.EventType.CREATE, ".realtime-trigger-probe-filter.csv", probeObserved);
 
                 Files.writeString(txtFile, "readme", StandardCharsets.UTF_8);
                 Files.writeString(csvFile, "header1,header2", StandardCharsets.UTF_8);
@@ -513,21 +558,25 @@ class RealtimeTriggerTest {
             AtomicReference<Throwable> watcherError = new AtomicReference<>();
             CountDownLatch terminationLatch = new CountDownLatch(1);
 
+            CountDownLatch probeObserved = new CountDownLatch(1);
             Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
                 .subscribeOn(Schedulers.boundedElastic())
                 .doFinally(signalType -> terminationLatch.countDown())
-                .subscribe(ignored -> {}, watcherError::set);
+                .subscribe(execution -> {
+                    if (RealtimeTriggerTestSupport.isProbeExecution(execution)) {
+                        probeObserved.countDown();
+                    }
+                }, watcherError::set);
 
             try {
-                waitForWatcherReady(trigger);
-                assertThat("Watcher should be ready", trigger.isReady(), is(true));
+                RealtimeTriggerTestSupport.awaitWatcherReady(tempDir, RealtimeTrigger.EventType.CREATE, ".realtime-trigger-probe-stop.txt", probeObserved);
+
                 assertThat("Stream should not have terminated before stop()", terminationLatch.getCount(), is(1L));
                 assertThat("No error should have occurred before stop()", watcherError.get(), nullValue());
 
                 trigger.stop();
 
                 assertThat("Watcher should terminate after stop()", terminationLatch.await(3, TimeUnit.SECONDS), is(true));
-                assertThat("Watcher should not be ready after stop", trigger.isReady(), is(false));
 
                 Throwable error = watcherError.get();
                 if (error != null && !(error instanceof CancellationException)) {
@@ -565,10 +614,15 @@ class RealtimeTriggerTest {
             CountDownLatch registrationBarrierLatch = new CountDownLatch(1);
             CountDownLatch fileLatch = new CountDownLatch(1);
 
+            CountDownLatch probeObserved = new CountDownLatch(1);
             Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
                 .subscribeOn(Schedulers.boundedElastic())
                 .subscribe(
                     execution -> {
+                        if (RealtimeTriggerTestSupport.isProbeExecution(execution)) {
+                            probeObserved.countDown();
+                            return;
+                        }
                         receivedExecutions.add(execution);
                         @SuppressWarnings("unchecked")
                         Map<String, Object> fileVariables = (Map<String, Object>) execution.getTrigger()
@@ -582,9 +636,9 @@ class RealtimeTriggerTest {
                     },
                     watcherError::set
                 );
+                RealtimeTriggerTestSupport.awaitWatcherReady(tempDir, RealtimeTrigger.EventType.CREATE, ".realtime-trigger-probe-recursive-reg.txt", probeObserved);
 
             try {
-                waitForWatcherReady(trigger);
 
                 Files.createDirectory(subDir);
                 // ENTRY_CREATE events for the root are processed in order. Processing the directory
@@ -658,10 +712,15 @@ class RealtimeTriggerTest {
             CountDownLatch updateLatch = new CountDownLatch(1);
             AtomicBoolean acceptUpdates = new AtomicBoolean(false);
 
+            CountDownLatch probeObserved = new CountDownLatch(1);
             Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
                 .subscribeOn(Schedulers.boundedElastic())
                 .subscribe(
                     execution -> {
+                        if (RealtimeTriggerTestSupport.isProbeExecution(execution)) {
+                            probeObserved.countDown();
+                            return;
+                        }
                         Map<String, Object> variables = execution.getTrigger().getVariables();
                         @SuppressWarnings("unchecked")
                         Map<String, Object> fileVariables = (Map<String, Object>) variables.get("file");
@@ -687,7 +746,8 @@ class RealtimeTriggerTest {
                 );
 
             try {
-                waitForWatcherReady(trigger);
+                RealtimeTriggerTestSupport.awaitWatcherReady(tempDir, RealtimeTrigger.EventType.CREATE_OR_UPDATE, ".realtime-trigger-probe-both.txt", probeObserved);
+
                 Files.createFile(testFile);
                 assertThat("Expected CREATE event", createLatch.await(5, TimeUnit.SECONDS), is(true));
 
@@ -737,18 +797,23 @@ class RealtimeTriggerTest {
             AtomicReference<Throwable> watcherError = new AtomicReference<>();
             CountDownLatch eventLatch = new CountDownLatch(2);
 
+            CountDownLatch probeObserved = new CountDownLatch(1);
             Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
                 .subscribeOn(Schedulers.boundedElastic())
                 .subscribe(
                     execution -> {
+                        if (RealtimeTriggerTestSupport.isProbeExecution(execution)) {
+                            probeObserved.countDown();
+                            return;
+                        }
                         receivedExecutions.add(execution);
                         eventLatch.countDown();
                     },
                     watcherError::set
                 );
+                RealtimeTriggerTestSupport.awaitWatcherReady(tempDir, RealtimeTrigger.EventType.CREATE, ".realtime-trigger-probe-multi.txt", probeObserved);
 
             try {
-                waitForWatcherReady(trigger);
 
                 Files.writeString(file1, "file1", StandardCharsets.UTF_8);
                 Files.writeString(file2, "file2", StandardCharsets.UTF_8);
@@ -811,10 +876,15 @@ class RealtimeTriggerTest {
             CountDownLatch csvUpdateLatch = new CountDownLatch(1);
             AtomicBoolean acceptCsvUpdates = new AtomicBoolean(false);
 
+            CountDownLatch probeObserved = new CountDownLatch(1);
             Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
                 .subscribeOn(Schedulers.boundedElastic())
                 .subscribe(
                     execution -> {
+                        if (RealtimeTriggerTestSupport.isProbeExecution(execution)) {
+                            probeObserved.countDown();
+                            return;
+                        }
                         Map<String, Object> variables = execution.getTrigger().getVariables();
                         @SuppressWarnings("unchecked")
                         Map<String, Object> fileVariables = (Map<String, Object>) variables.get("file");
@@ -838,9 +908,9 @@ class RealtimeTriggerTest {
                     },
                     watcherError::set
                 );
+                RealtimeTriggerTestSupport.awaitWatcherReady(tempDir, RealtimeTrigger.EventType.CREATE_OR_UPDATE, ".realtime-trigger-probe-regex.csv", probeObserved);
 
             try {
-                waitForWatcherReady(trigger);
                 Files.writeString(txtFile, "readme", StandardCharsets.UTF_8);
                 Files.createFile(csvFile);
                 assertThat("Expected CSV CREATE event", csvCreateLatch.await(5, TimeUnit.SECONDS), is(true));
@@ -899,18 +969,23 @@ class RealtimeTriggerTest {
             AtomicReference<Throwable> watcherError = new AtomicReference<>();
             CountDownLatch eventLatch = new CountDownLatch(1);
 
+            CountDownLatch probeObserved = new CountDownLatch(1);
             Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
                 .subscribeOn(Schedulers.boundedElastic())
                 .subscribe(
                     execution -> {
+                        if (RealtimeTriggerTestSupport.isProbeExecution(execution)) {
+                            probeObserved.countDown();
+                            return;
+                        }
                         receivedExecutions.add(execution);
                         eventLatch.countDown();
                     },
                     watcherError::set
                 );
+                RealtimeTriggerTestSupport.awaitWatcherReady(tempDir, RealtimeTrigger.EventType.DELETE, ".realtime-trigger-probe-delete2.txt", probeObserved);
 
             try {
-                waitForWatcherReady(trigger);
                 Files.delete(testFile);
 
                 assertThat("Expected DELETE event", eventLatch.await(5, TimeUnit.SECONDS), is(true));
@@ -954,21 +1029,25 @@ class RealtimeTriggerTest {
             AtomicReference<Throwable> watcherError = new AtomicReference<>();
             CountDownLatch terminationLatch = new CountDownLatch(1);
 
+            CountDownLatch probeObserved = new CountDownLatch(1);
             Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
                 .subscribeOn(Schedulers.boundedElastic())
                 .doFinally(signalType -> terminationLatch.countDown())
-                .subscribe(ignored -> {}, watcherError::set);
+                .subscribe(execution -> {
+                    if (RealtimeTriggerTestSupport.isProbeExecution(execution)) {
+                        probeObserved.countDown();
+                    }
+                }, watcherError::set);
 
             try {
-                waitForWatcherReady(trigger);
-                assertThat("Watcher should be ready", trigger.isReady(), is(true));
+                RealtimeTriggerTestSupport.awaitWatcherReady(tempDir, RealtimeTrigger.EventType.CREATE, ".realtime-trigger-probe-kill.txt", probeObserved);
+
                 assertThat("Stream should not have terminated before kill()", terminationLatch.getCount(), is(1L));
                 assertThat("No error should have occurred before kill()", watcherError.get(), nullValue());
 
                 trigger.kill();
 
                 assertThat("Watcher should terminate after kill()", terminationLatch.await(3, TimeUnit.SECONDS), is(true));
-                assertThat("Watcher should not be ready after kill", trigger.isReady(), is(false));
 
                 Throwable error = watcherError.get();
                 if (error != null && !(error instanceof CancellationException)) {
@@ -1011,10 +1090,15 @@ class RealtimeTriggerTest {
             CountDownLatch barrier2Latch = new CountDownLatch(1);
             CountDownLatch fileBLatch = new CountDownLatch(1);
 
+            CountDownLatch probeObserved = new CountDownLatch(1);
             Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
                 .subscribeOn(Schedulers.boundedElastic())
                 .subscribe(
                     execution -> {
+                        if (RealtimeTriggerTestSupport.isProbeExecution(execution)) {
+                            probeObserved.countDown();
+                            return;
+                        }
                         receivedExecutions.add(execution);
                         @SuppressWarnings("unchecked")
                         Map<String, Object> fileVars = (Map<String, Object>)
@@ -1033,9 +1117,9 @@ class RealtimeTriggerTest {
                 );
 
             try {
-                waitForWatcherReady(trigger);
+                RealtimeTriggerTestSupport.awaitWatcherReady(tempDir, RealtimeTrigger.EventType.DELETE, ".realtime-trigger-probe-barrier1.txt", probeObserved);
 
-                // Step 1: Move 'a' directory outside watched root
+
                 Path movedDir = outsideDir.resolve("a");
                 try {
                     Files.move(subDir, movedDir);
@@ -1051,7 +1135,6 @@ class RealtimeTriggerTest {
                     throw e;
                 }
 
-                // Step 2: Create and delete barrier file #1 to prove directory DELETE processed
                 Path barrier1 = tempDir.resolve("barrier1.txt");
                 Files.createFile(barrier1);
                 Files.deleteIfExists(barrier1);
@@ -1062,10 +1145,8 @@ class RealtimeTriggerTest {
                     is(true)
                 );
 
-                // Step 3: Recreate 'a' as a directory
                 Files.createDirectory(subDir);
 
-                // Step 4: Create and delete barrier file #2 to prove directory CREATE processed
                 Path barrier2 = tempDir.resolve("barrier2.txt");
                 Files.createFile(barrier2);
                 Files.deleteIfExists(barrier2);
@@ -1076,7 +1157,6 @@ class RealtimeTriggerTest {
                     is(true)
                 );
 
-                // Step 5: Create 'b' as a FILE (not directory), then delete it
                 Path fileB = subDir.resolve("b");
                 Files.writeString(fileB, "content", StandardCharsets.UTF_8);
                 Files.deleteIfExists(fileB);
@@ -1120,4 +1200,567 @@ class RealtimeTriggerTest {
         }
     }
 
+
+    @Test
+    @Timeout(20)
+    void testPopulatedDirectoryMovedIntoWatchedRoot() throws Exception {
+        Path tempDir = Files.createTempDirectory("realtime-trigger-test");
+        Path outsideDir = Files.createTempDirectory("realtime-trigger-outside");
+        Path populatedDir = outsideDir.resolve("populated");
+        try {
+            // Create a populated directory outside the watched root
+            Files.createDirectories(populatedDir);
+            Path file1 = populatedDir.resolve("file1.txt");
+            Path file2 = populatedDir.resolve("file2.txt");
+            Path subdir = populatedDir.resolve("subdir");
+            Files.createDirectories(subdir);
+            Path file3 = subdir.resolve("file3.txt");
+
+            Files.writeString(file1, "content1", StandardCharsets.UTF_8);
+            Files.writeString(file2, "content2", StandardCharsets.UTF_8);
+            Files.writeString(file3, "content3", StandardCharsets.UTF_8);
+
+            Path externalTarget = outsideDir.resolve("external-target.txt");
+            Files.writeString(externalTarget, "must not be emitted through symlink");
+
+            try {
+                Files.createSymbolicLink(
+                    populatedDir.resolve("external-link.txt"),
+                    externalTarget
+                );
+            } catch (UnsupportedOperationException | IOException | SecurityException e) {
+                Assumptions.assumeTrue(
+                    false,
+                    "Symbolic links are unavailable in this environment: " + e.getMessage()
+                );
+            }
+
+            RealtimeTrigger trigger = RealtimeTrigger.builder()
+                .id("test-populated-dir-move")
+                .type(RealtimeTrigger.class.getName())
+                .from(Property.ofValue(tempDir.toString()))
+                .on(Property.ofValue(RealtimeTrigger.EventType.CREATE))
+                .recursive(Property.ofValue(true))
+                .build();
+            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            List<Execution> receivedExecutions = new CopyOnWriteArrayList<>();
+            AtomicReference<Throwable> watcherError = new AtomicReference<>();
+            CountDownLatch eventLatch = new CountDownLatch(3); // Expect 3 file CREATE events
+            CountDownLatch probeObserved = new CountDownLatch(1);
+
+            Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                    execution -> {
+                        if (RealtimeTriggerTestSupport.isProbeExecution(execution)) {
+                            probeObserved.countDown();
+                            return;
+                        }
+                        receivedExecutions.add(execution);
+                        eventLatch.countDown();
+                    },
+                    watcherError::set
+                );
+            try {
+                RealtimeTriggerTestSupport.awaitWatcherReady(tempDir, RealtimeTrigger.EventType.CREATE, ".realtime-trigger-probe-populated.txt", probeObserved);
+
+                // Move the populated directory into the watched root
+                Path movedDir = tempDir.resolve("populated");
+                Files.move(populatedDir, movedDir);
+
+                // Wait for all file events
+                assertThat(
+                    "Expected 3 CREATE events for files in populated directory",
+                    eventLatch.await(10, TimeUnit.SECONDS),
+                    is(true)
+                );
+
+                assertThat("Watcher must not fail", watcherError.get(), nullValue());
+                assertThat("Should have received 3 executions", receivedExecutions.size(), is(3));
+
+                // Verify all files were discovered
+                Set<String> fileNames = receivedExecutions.stream()
+                    .map(execution -> {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> fileVars = (Map<String, Object>) execution.getTrigger().getVariables().get("file");
+                        return (String) fileVars.get("name");
+                    })
+                    .collect(Collectors.toSet());
+
+                assertThat(
+                    fileNames,
+                    is(Set.of("file1.txt", "file2.txt", "file3.txt"))
+                );
+
+                // Verify all are CREATE events
+                for (Execution execution : receivedExecutions) {
+                    assertThat(execution.getTrigger().getVariables().get("changeType"), equalTo("CREATE"));
+                }
+            } finally {
+                trigger.stop();
+                subscription.dispose();
+            }
+        } finally {
+            deleteRecursively(tempDir);
+            deleteRecursively(outsideDir);
+        }
+    }
+
+    @Test
+    @Timeout(20)
+    void testRecreatedFileIsNotSuppressedByStaleScanMarker() throws Exception {
+        Path tempDir = Files.createTempDirectory("realtime-trigger-test");
+        Path outsideDir = Files.createTempDirectory("realtime-trigger-outside");
+        Path populatedDir = outsideDir.resolve("populated");
+        Path originalFile = populatedDir.resolve("existing.txt");
+
+        try {
+            Files.createDirectories(populatedDir);
+            Files.writeString(originalFile, "initial content", StandardCharsets.UTF_8);
+
+            RealtimeTrigger trigger = RealtimeTrigger.builder()
+                .id("test-recreated-file-after-scan")
+                .type(RealtimeTrigger.class.getName())
+                .from(Property.ofValue(tempDir.toString()))
+                .on(Property.ofValue(RealtimeTrigger.EventType.CREATE))
+                .recursive(Property.ofValue(true))
+                .build();
+
+            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            AtomicReference<Throwable> watcherError = new AtomicReference<>();
+            AtomicInteger targetCreateCount = new AtomicInteger();
+            CountDownLatch firstTargetCreate = new CountDownLatch(1);
+            CountDownLatch secondTargetCreate = new CountDownLatch(1);
+            CountDownLatch barrierCreate = new CountDownLatch(1);
+            CountDownLatch probeObserved = new CountDownLatch(1);
+
+            Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                    execution -> {
+                        if (RealtimeTriggerTestSupport.isProbeExecution(execution)) {
+                            probeObserved.countDown();
+                            return;
+                        }
+
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> fileVars = (Map<String, Object>)
+                            execution.getTrigger().getVariables().get("file");
+                        String fileName = (String) fileVars.get("name");
+
+                        if ("existing.txt".equals(fileName)) {
+                            int count = targetCreateCount.incrementAndGet();
+                            if (count == 1) {
+                                firstTargetCreate.countDown();
+                            } else if (count == 2) {
+                                secondTargetCreate.countDown();
+                            }
+                        } else if ("barrier.txt".equals(fileName)) {
+                            barrierCreate.countDown();
+                        }
+                    },
+                    watcherError::set
+                );
+
+            try {
+                RealtimeTriggerTestSupport.awaitWatcherReady(
+                    tempDir,
+                    RealtimeTrigger.EventType.CREATE,
+                    ".realtime-trigger-probe-recreated-file.txt",
+                    probeObserved
+                );
+
+                Path movedDir = tempDir.resolve("populated");
+                Files.move(populatedDir, movedDir);
+                Path watchedFile = movedDir.resolve("existing.txt");
+
+                assertThat(
+                    "Expected CREATE for the file discovered during directory scanning",
+                    firstTargetCreate.await(10, TimeUnit.SECONDS),
+                    is(true)
+                );
+
+                Files.delete(watchedFile);
+                Files.createFile(movedDir.resolve("barrier.txt"));
+
+                assertThat(
+                    "Expected the barrier CREATE after the file deletion",
+                    barrierCreate.await(10, TimeUnit.SECONDS),
+                    is(true)
+                );
+
+                Files.writeString(watchedFile, "recreated content", StandardCharsets.UTF_8);
+
+                assertThat(
+                    "Recreating the same path must produce another CREATE event",
+                    secondTargetCreate.await(10, TimeUnit.SECONDS),
+                    is(true)
+                );
+
+                assertThat("Watcher must not fail", watcherError.get(), nullValue());
+                assertThat("Expected exactly two CREATE events for existing.txt",
+                    targetCreateCount.get(), is(2));
+            } finally {
+                trigger.stop();
+                subscription.dispose();
+            }
+        } finally {
+            deleteRecursively(tempDir);
+            deleteRecursively(outsideDir);
+        }
+    }
+
+    @Test
+    @Timeout(20)
+    void testPopulatedDirectoryNoDuplicateEvents() throws Exception {
+        Path tempDir = Files.createTempDirectory("realtime-trigger-test");
+        Path outsideDir = Files.createTempDirectory("realtime-trigger-outside");
+        Path populatedDir = outsideDir.resolve("populated");
+        try {
+            // Create a directory with a file
+            Files.createDirectories(populatedDir);
+            Path existingFile = populatedDir.resolve("existing.txt");
+            Files.writeString(existingFile, "content", StandardCharsets.UTF_8);
+
+            RealtimeTrigger trigger = RealtimeTrigger.builder()
+                .id("test-no-duplicates")
+                .type(RealtimeTrigger.class.getName())
+                .from(Property.ofValue(tempDir.toString()))
+                .on(Property.ofValue(RealtimeTrigger.EventType.CREATE))
+                .recursive(Property.ofValue(true))
+                .build();
+            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            List<Execution> receivedExecutions = new CopyOnWriteArrayList<>();
+            AtomicReference<Throwable> watcherError = new AtomicReference<>();
+            CountDownLatch eventLatch = new CountDownLatch(1);
+            CountDownLatch probeObserved = new CountDownLatch(1);
+            AtomicInteger eventCount = new AtomicInteger(0);
+
+            Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                    execution -> {
+                        if (RealtimeTriggerTestSupport.isProbeExecution(execution)) {
+                            probeObserved.countDown();
+                            return;
+                        }
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> fileVars = (Map<String, Object>) execution.getTrigger().getVariables().get("file");
+                        String fileName = (String) fileVars.get("name");
+                        if ("existing.txt".equals(fileName)) {
+                            eventCount.incrementAndGet();
+                            receivedExecutions.add(execution);
+                            eventLatch.countDown();
+                        }
+                    },
+                    watcherError::set
+                );
+            try {
+                RealtimeTriggerTestSupport.awaitWatcherReady(tempDir, RealtimeTrigger.EventType.CREATE, ".realtime-trigger-probe-nodup.txt", probeObserved);
+
+                // Move the populated directory into the watched root
+                Path movedDir = tempDir.resolve("populated");
+                Files.move(populatedDir, movedDir);
+
+                // Wait for the file event
+                assertThat(
+                    "Expected 1 CREATE event for existing.txt",
+                    eventLatch.await(10, TimeUnit.SECONDS),
+                    is(true)
+                );
+
+                // Wait a bit longer to ensure no duplicate events arrive
+                Thread.sleep(2000);
+
+                assertThat("Watcher must not fail", watcherError.get(), nullValue());
+                assertThat("Should receive exactly 1 event (no duplicates)", eventCount.get(), is(1));
+                assertThat("Should have exactly 1 execution", receivedExecutions.size(), is(1));
+            } finally {
+                trigger.stop();
+                subscription.dispose();
+            }
+        } finally {
+            deleteRecursively(tempDir);
+            deleteRecursively(outsideDir);
+        }
+    }
+
+    @Test
+    @Timeout(20)
+    void testPopulatedDirectoryWithRegexFilter() throws Exception {
+        Path tempDir = Files.createTempDirectory("realtime-trigger-test");
+        Path outsideDir = Files.createTempDirectory("realtime-trigger-outside");
+        Path populatedDir = outsideDir.resolve("populated");
+        try {
+            // Create directory with various files
+            Files.createDirectories(populatedDir);
+            Files.writeString(populatedDir.resolve("data.csv"), "csv content", StandardCharsets.UTF_8);
+            Files.writeString(populatedDir.resolve("readme.txt"), "txt content", StandardCharsets.UTF_8);
+            Files.writeString(populatedDir.resolve("config.csv"), "csv config", StandardCharsets.UTF_8);
+
+            RealtimeTrigger trigger = RealtimeTrigger.builder()
+                .id("test-scan-regex-filter")
+                .type(RealtimeTrigger.class.getName())
+                .from(Property.ofValue(tempDir.toString()))
+                .on(Property.ofValue(RealtimeTrigger.EventType.CREATE))
+                .recursive(Property.ofValue(true))
+                .regExp(Property.ofValue(".*\\.csv$"))
+                .build();
+            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            List<Execution> receivedExecutions = new CopyOnWriteArrayList<>();
+            AtomicReference<Throwable> watcherError = new AtomicReference<>();
+            CountDownLatch eventLatch = new CountDownLatch(2); // Only CSV files
+            CountDownLatch probeObserved = new CountDownLatch(1);
+
+            Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                    execution -> {
+                        if (RealtimeTriggerTestSupport.isProbeExecution(execution)) {
+                            probeObserved.countDown();
+                            return;
+                        }
+                        receivedExecutions.add(execution);
+                        eventLatch.countDown();
+                    },
+                    watcherError::set
+                );
+            try {
+                RealtimeTriggerTestSupport.awaitWatcherReady(tempDir, RealtimeTrigger.EventType.CREATE, ".realtime-trigger-probe-regex.csv", probeObserved);
+
+                // Move populated directory
+                Files.move(populatedDir, tempDir.resolve("populated"));
+
+                assertThat(
+                    "Expected 2 CREATE events for CSV files only",
+                    eventLatch.await(10, TimeUnit.SECONDS),
+                    is(true)
+                );
+
+                assertThat("Watcher must not fail", watcherError.get(), nullValue());
+                assertThat("Should have 2 CSV file events", receivedExecutions.size(), is(2));
+
+                Set<String> fileNames = receivedExecutions.stream()
+                    .map(execution -> {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> fileVars = (Map<String, Object>) execution.getTrigger().getVariables().get("file");
+                        return (String) fileVars.get("name");
+                    })
+                    .collect(Collectors.toSet());
+
+                assertThat(fileNames, hasItems("data.csv", "config.csv"));
+                assertThat(fileNames, not(hasItem("readme.txt")));
+            } finally {
+                trigger.stop();
+                subscription.dispose();
+            }
+        } finally {
+            deleteRecursively(tempDir);
+            deleteRecursively(outsideDir);
+        }
+    }
+
+    @Test
+    @Timeout(20)
+    void testNonRecursiveDoesNotScanNestedFiles() throws Exception {
+        Path tempDir = Files.createTempDirectory("realtime-trigger-test");
+        try {
+            // In non-recursive mode, files in subdirectories should not trigger events
+            RealtimeTrigger trigger = RealtimeTrigger.builder()
+                .id("test-non-recursive-no-scan")
+                .type(RealtimeTrigger.class.getName())
+                .from(Property.ofValue(tempDir.toString()))
+                .on(Property.ofValue(RealtimeTrigger.EventType.CREATE))
+                .recursive(Property.ofValue(false))
+                .build();
+            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            List<Execution> receivedExecutions = new CopyOnWriteArrayList<>();
+            AtomicReference<Throwable> watcherError = new AtomicReference<>();
+            CountDownLatch rootFileLatch = new CountDownLatch(1);
+            CountDownLatch probeObserved = new CountDownLatch(1);
+
+            Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                    execution -> {
+                        if (RealtimeTriggerTestSupport.isProbeExecution(execution)) {
+                            probeObserved.countDown();
+                            return;
+                        }
+                        receivedExecutions.add(execution);
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> fileVars = (Map<String, Object>) execution.getTrigger().getVariables().get("file");
+                        String fileName = (String) fileVars.get("name");
+                        if ("root.txt".equals(fileName)) {
+                            rootFileLatch.countDown();
+                        }
+                    },
+                    watcherError::set
+                );
+            try {
+                RealtimeTriggerTestSupport.awaitWatcherReady(tempDir, RealtimeTrigger.EventType.CREATE, ".realtime-trigger-probe-nonrec.txt", probeObserved);
+
+                // Create a file at root level - should trigger event
+                Files.writeString(tempDir.resolve("root.txt"), "root", StandardCharsets.UTF_8);
+
+                assertThat(
+                    "Expected event for root-level file",
+                    rootFileLatch.await(5, TimeUnit.SECONDS),
+                    is(true)
+                );
+
+                // Create a subdirectory with a file - should NOT trigger event for the file
+                Path subdir = tempDir.resolve("subdir");
+                Files.createDirectories(subdir);
+                Files.writeString(subdir.resolve("nested.txt"), "nested", StandardCharsets.UTF_8);
+
+                // Wait to ensure no nested file events arrive
+                Thread.sleep(2000);
+
+                assertThat("Watcher must not fail", watcherError.get(), nullValue());
+                assertThat("Should have only 1 execution (root file only)", receivedExecutions.size(), is(1));
+
+                @SuppressWarnings("unchecked")
+                Map<String, Object> fileVars = (Map<String, Object>) receivedExecutions.get(0).getTrigger().getVariables().get("file");
+                assertThat(fileVars.get("name"), equalTo("root.txt"));
+            } finally {
+                trigger.stop();
+                subscription.dispose();
+            }
+        } finally {
+            deleteRecursively(tempDir);
+        }
+    }
+
+    @Test
+    @Timeout(20)
+    void testNoStartupScanForPreExistingFiles() throws Exception {
+        Path tempDir = Files.createTempDirectory("realtime-trigger-test");
+        try {
+            // Create files BEFORE starting the trigger
+            Path file1 = tempDir.resolve("preexisting1.txt");
+            Path file2 = tempDir.resolve("preexisting2.txt");
+            Files.writeString(file1, "content1", StandardCharsets.UTF_8);
+            Files.writeString(file2, "content2", StandardCharsets.UTF_8);
+
+            RealtimeTrigger trigger = RealtimeTrigger.builder()
+                .id("test-no-startup-scan")
+                .type(RealtimeTrigger.class.getName())
+                .from(Property.ofValue(tempDir.toString()))
+                .on(Property.ofValue(RealtimeTrigger.EventType.CREATE))
+                .build();
+            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            List<Execution> receivedExecutions = new CopyOnWriteArrayList<>();
+            AtomicReference<Throwable> watcherError = new AtomicReference<>();
+            CountDownLatch probeObserved = new CountDownLatch(1);
+
+            Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                    execution -> {
+                        if (RealtimeTriggerTestSupport.isProbeExecution(execution)) {
+                            probeObserved.countDown();
+                            return;
+                        }
+                        receivedExecutions.add(execution);
+                    },
+                    watcherError::set
+                );
+            try {
+                RealtimeTriggerTestSupport.awaitWatcherReady(tempDir, RealtimeTrigger.EventType.CREATE, ".realtime-trigger-probe-nostartup.txt", probeObserved);
+
+                // Wait a bit to ensure no startup scan events
+                Thread.sleep(2000);
+
+                assertThat("Watcher must not fail", watcherError.get(), nullValue());
+                assertThat("Should have 0 executions (no startup scan)", receivedExecutions.size(), is(0));
+
+                // Now create a new file - should get an event for this
+                Path newFile = tempDir.resolve("created-after-start.txt");
+                Files.writeString(newFile, "new content", StandardCharsets.UTF_8);
+
+                // Give time for the event
+                Thread.sleep(1000);
+
+                assertThat("Should have 1 execution for newly created file", receivedExecutions.size(), is(1));
+                @SuppressWarnings("unchecked")
+                Map<String, Object> fileVars = (Map<String, Object>) receivedExecutions.get(0).getTrigger().getVariables().get("file");
+                assertThat(fileVars.get("name"), equalTo("created-after-start.txt"));
+            } finally {
+                trigger.stop();
+                subscription.dispose();
+            }
+        } finally {
+            deleteRecursively(tempDir);
+        }
+    }
+
+    @Test
+    @Timeout(20)
+    void testNormalEventsAfterDynamicRegistration() throws Exception {
+        Path tempDir = Files.createTempDirectory("realtime-trigger-test");
+        Path outsideDir = Files.createTempDirectory("realtime-trigger-outside");
+        Path populatedDir = outsideDir.resolve("populated");
+        try {
+            Files.createDirectories(populatedDir);
+            Files.writeString(populatedDir.resolve("existing.txt"), "content", StandardCharsets.UTF_8);
+
+            RealtimeTrigger trigger = RealtimeTrigger.builder()
+                .id("test-events-after-registration")
+                .type(RealtimeTrigger.class.getName())
+                .from(Property.ofValue(tempDir.toString()))
+                .on(Property.ofValue(RealtimeTrigger.EventType.CREATE_OR_UPDATE))
+                .recursive(Property.ofValue(true))
+                .build();
+            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            List<Execution> receivedExecutions = new CopyOnWriteArrayList<>();
+            AtomicReference<Throwable> watcherError = new AtomicReference<>();
+            CountDownLatch scanEventLatch = new CountDownLatch(1);
+            CountDownLatch normalEventLatch = new CountDownLatch(1);
+            CountDownLatch probeObserved = new CountDownLatch(1);
+
+            Disposable subscription = Flux.from(trigger.evaluate(context.getKey(), context.getValue()))
+                .subscribeOn(Schedulers.boundedElastic())
+                .subscribe(
+                    execution -> {
+                        if (RealtimeTriggerTestSupport.isProbeExecution(execution)) {
+                            probeObserved.countDown();
+                            return;
+                        }
+                        receivedExecutions.add(execution);
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> fileVars = (Map<String, Object>) execution.getTrigger().getVariables().get("file");
+                        String fileName = (String) fileVars.get("name");
+                        if ("existing.txt".equals(fileName)) {
+                            scanEventLatch.countDown();
+                        } else if ("newfile.txt".equals(fileName)) {
+                            normalEventLatch.countDown();
+                        }
+                    },
+                    watcherError::set
+                );
+            try {
+                RealtimeTriggerTestSupport.awaitWatcherReady(tempDir, RealtimeTrigger.EventType.CREATE_OR_UPDATE, ".realtime-trigger-probe-normal.txt", probeObserved);
+
+                // Move populated directory - triggers scan
+                Path movedDir = tempDir.resolve("populated");
+                Files.move(populatedDir, movedDir);
+
+                assertThat("Expected scan event", scanEventLatch.await(10, TimeUnit.SECONDS), is(true));
+
+                // Now create a new file in the moved directory - should trigger normal watch event
+                Files.writeString(movedDir.resolve("newfile.txt"), "new", StandardCharsets.UTF_8);
+
+                assertThat("Expected normal watch event", normalEventLatch.await(5, TimeUnit.SECONDS), is(true));
+                assertThat("Watcher must not fail", watcherError.get(), nullValue());
+                assertThat("Should have 2 executions", receivedExecutions.size(), is(2));
+            } finally {
+                trigger.stop();
+                subscription.dispose();
+            }
+        } finally {
+            deleteRecursively(tempDir);
+            deleteRecursively(outsideDir);
+        }
+    }
 }
