@@ -37,9 +37,9 @@ public class File {
 
     public static File of(AbstractFileObject<?> fileObject) throws FileSystemException, URISyntaxException {
         FileBuilder builder = File.builder()
-            .path(new URI(null, fileObject.getName().getPath(), null))
+            .path(new URI(null, fileObject.getName().getPathDecoded(), null))
             .serverPath(serverPath(fileObject))
-            .name(FilenameUtils.getName(fileObject.getName().getPath()))
+            .name(FilenameUtils.getName(fileObject.getName().getPathDecoded()))
             .fileType(fileObject.getType())
             .symbolicLink(fileObject.isSymbolicLink());
 
@@ -77,14 +77,14 @@ public class File {
     }
 
     @SuppressWarnings("deprecation")
-    private static URI serverPath(AbstractFileObject<?> fileObject) throws URISyntaxException {
+    private static URI serverPath(AbstractFileObject<?> fileObject) throws URISyntaxException, org.apache.commons.vfs2.FileSystemException {
         return switch (fileObject.getName()) {
             case URLFileName urlFileName -> new URI(
                     urlFileName.getScheme(),
                     VfsService.basicAuth(urlFileName.getUserName(), urlFileName.getPassword()),
                     urlFileName.getHostName(),
                     urlFileName.getPort(),
-                    urlFileName.getPath(),
+                    urlFileName.getPathDecoded(),
                     urlFileName.getQueryString(),
                     null
                 );
@@ -93,7 +93,7 @@ public class File {
                     VfsService.basicAuth(genericFileName.getUserName(), genericFileName.getPassword()),
                     genericFileName.getHostName(),
                     genericFileName.getPort(),
-                    genericFileName.getPath(),
+                    genericFileName.getPathDecoded(),
                     null,
                     null
                 );
