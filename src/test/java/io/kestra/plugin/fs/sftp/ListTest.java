@@ -141,4 +141,25 @@ class ListTest {
         run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
         assertThat(run.getFiles().stream().map(File::getName).toList(), contains("newer.txt", "older.txt"));
     }
+
+    @Test
+    void listFilesWithPercentInName() throws Exception {
+        String dir = "/" + IdUtils.create();
+        sftpUtils.upload("upload" + dir + "/report 100%.txt");
+
+        List task = List.builder()
+            .id(ListTest.class.getSimpleName())
+            .type(ListTest.class.getName())
+            .from(Property.ofValue("/upload" + dir))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .rootDir(Property.ofValue(false))
+            .build();
+
+        List.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+        assertThat(run.getFiles().size(), is(1));
+        assertThat(run.getFiles().getFirst().getName(), is("report 100%.txt"));
+    }
 }
