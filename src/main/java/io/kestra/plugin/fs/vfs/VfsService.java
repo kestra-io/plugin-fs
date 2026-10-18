@@ -327,7 +327,15 @@ public abstract class VfsService {
     ) throws Exception {
         // user pass a destination without filename, we add it
         if (!isDirectory(from) && isDirectory(to)) {
-            to = to.resolve(URIUtils.encodePath(StringUtils.stripEnd(to.getPath(), "/") + "/" + FilenameUtils.getName(from.getPath())));
+            to = new URI(
+                to.getScheme(),
+                to.getUserInfo(),
+                to.getHost(),
+                to.getPort(),
+                StringUtils.stripEnd(to.getPath(), "/") + "/" + FilenameUtils.getName(from.getPath()),
+                null,
+                null
+            );
         }
 
         try (
@@ -348,7 +356,15 @@ public abstract class VfsService {
                     }
                 }
             } else {
-                URI pathToCreate = to.resolve("/" + URIUtils.encodePath(FilenameUtils.getPath(to.getPath())));
+                URI pathToCreate = new URI(
+                    to.getScheme(),
+                    to.getUserInfo(),
+                    to.getHost(),
+                    to.getPort(),
+                    "/" + FilenameUtils.getPath(to.getPath()),
+                    null,
+                    null
+                );
 
                 try (FileObject directory = fsm.resolveFile(to.toString(), fileSystemOptions)) {
                     if (!directory.exists()) {
@@ -396,7 +412,15 @@ public abstract class VfsService {
             for (io.kestra.plugin.fs.vfs.models.File file : blobList) {
                 //Destination should be considered as a directory
                 if (!moveDirectory.getPath().endsWith("/")) {
-                    moveDirectory = moveDirectory.resolve(URIUtils.encodePath(StringUtils.stripEnd(moveDirectory.getPath(), "/") + "/"));
+                    moveDirectory = new URI(
+                        moveDirectory.getScheme(),
+                        moveDirectory.getUserInfo(),
+                        moveDirectory.getHost(),
+                        moveDirectory.getPort(),
+                        StringUtils.stripEnd(moveDirectory.getPath(), "/") + "/",
+                        null,
+                        null
+                    );
                 }
                 VfsService.move(
                     runContext,
