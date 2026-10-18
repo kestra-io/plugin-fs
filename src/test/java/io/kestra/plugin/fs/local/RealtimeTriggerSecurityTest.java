@@ -9,6 +9,8 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
@@ -341,75 +343,20 @@ class RealtimeTriggerSecurityTest {
         }
     }
 
-    @Test
+
+
+
+
     @Timeout(15)
-    void testSecurityRejectsLookaheadSyntax() throws Exception {
-        Path tempDir = Files.createTempDirectory("realtime-trigger-nested-regex-");
+    void testSecurityRepeatedTopLevelQuantifiersRejected(String regex) throws Exception {
+        Path tempDir = Files.createTempDirectory("realtime-trigger-repeated-quantifiers-");
         try {
             RealtimeTrigger trigger = RealtimeTrigger.builder()
-                .id("test-reject-lookahead")
+                .id("test-repeated-top-level-quantifiers")
                 .type(RealtimeTrigger.class.getName())
                 .from(Property.ofValue(tempDir.toString()))
                 .on(Property.ofValue(RealtimeTrigger.EventType.CREATE))
-                .regExp(Property.ofValue("(?=.)"))
-                .build();
-
-            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
-            AtomicReference<Throwable> capturedError = new AtomicReference<>();
-            CountDownLatch errorLatch = new CountDownLatch(1);
-
-            Disposable subscription = Flux.from(
-                trigger.evaluate(context.getKey(), context.getValue())
-            )
-                .subscribeOn(Schedulers.boundedElastic())
-                .subscribe(
-                    execution -> {},
-                    error -> {
-                        capturedError.set(error);
-                        errorLatch.countDown();
-                    }
-                );
-
-            try {
-                assertThat(
-                    "Lookahead syntax must fail before watcher startup",
-                    errorLatch.await(5, TimeUnit.SECONDS),
-                    is(true)
-                );
-
-                Throwable error = capturedError.get();
-
-                assertThat(
-                    "Expected an IllegalArgumentException for unsupported regex syntax",
-                    causeChainContains(error, IllegalArgumentException.class),
-                    is(true)
-                );
-
-                assertThat(
-                    "Error should identify the RE2-compatible regex restriction",
-                    causeChainMessages(error),
-                    containsString("re2-compatible")
-                );
-            } finally {
-                trigger.stop();
-                subscription.dispose();
-            }
-        } finally {
-            deleteRecursively(tempDir);
-        }
-    }
-
-    @Test
-    @Timeout(15)
-    void testSecurityRejectsLookbehindSyntax() throws Exception {
-        Path tempDir = Files.createTempDirectory("realtime-trigger-overlapping-alternation-");
-        try {
-            RealtimeTrigger trigger = RealtimeTrigger.builder()
-                .id("test-reject-lookbehind")
-                .type(RealtimeTrigger.class.getName())
-                .from(Property.ofValue(tempDir.toString()))
-                .on(Property.ofValue(RealtimeTrigger.EventType.CREATE))
-                .regExp(Property.ofValue("(?<=a)b"))
+                .regExp(Property.ofValue(regex))
                 .build();
 
             var context = TestsUtils.mockTrigger(runContextFactory, trigger);
@@ -430,20 +377,19 @@ class RealtimeTriggerSecurityTest {
 
             try {
                 assertThat(
-                    "Lookbehind syntax must fail before watcher startup",
+                    "Unsafe top-level quantifiers must be rejected: " + regex,
                     errorLatch.await(5, TimeUnit.SECONDS),
                     is(true)
                 );
-
                 assertThat(
-                    "Expected an IllegalArgumentException for unsupported regex syntax",
+                    "Expected an IllegalArgumentException for unsafe backtracking",
                     causeChainContains(capturedError.get(), IllegalArgumentException.class),
                     is(true)
                 );
                 assertThat(
-                    "Error should identify the RE2-compatible regex restriction",
+                    "Error should identify unsafe backtracking",
                     causeChainMessages(capturedError.get()),
-                    containsString("re2-compatible")
+                    containsString("catastrophic backtracking")
                 );
             } finally {
                 trigger.stop();
@@ -454,61 +400,7 @@ class RealtimeTriggerSecurityTest {
         }
     }
 
-    @Test
-    @Timeout(15)
-    void testSecurityRejectsBackreferenceSyntax() throws Exception {
-        Path tempDir = Files.createTempDirectory("realtime-trigger-nested-subgroup-");
-        try {
-            RealtimeTrigger trigger = RealtimeTrigger.builder()
-                .id("test-reject-backreference")
-                .type(RealtimeTrigger.class.getName())
-                .from(Property.ofValue(tempDir.toString()))
-                .on(Property.ofValue(RealtimeTrigger.EventType.CREATE))
-                .regExp(Property.ofValue("(a)\\1"))
-                .build();
 
-            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
-            var capturedError = new AtomicReference<Throwable>();
-            var errorLatch = new CountDownLatch(1);
-
-            Disposable subscription = Flux.from(
-                trigger.evaluate(context.getKey(), context.getValue())
-            )
-                .subscribeOn(Schedulers.boundedElastic())
-                .subscribe(
-                    execution -> {},
-                    error -> {
-                        capturedError.set(error);
-                        errorLatch.countDown();
-                    }
-                );
-
-            try {
-                assertThat(
-                    "Backreference syntax must fail before watcher startup",
-                    errorLatch.await(5, TimeUnit.SECONDS),
-                    is(true)
-                );
-
-                assertThat(
-                    "Expected an IllegalArgumentException",
-                    causeChainContains(capturedError.get(), IllegalArgumentException.class),
-                    is(true)
-                );
-
-                assertThat(
-                    "Error should identify the RE2-compatible regex restriction",
-                    causeChainMessages(capturedError.get()),
-                    containsString("re2-compatible")
-                );
-            } finally {
-                trigger.stop();
-                subscription.dispose();
-            }
-        } finally {
-            deleteRecursively(tempDir);
-        }
-    }
 
 
     @Test

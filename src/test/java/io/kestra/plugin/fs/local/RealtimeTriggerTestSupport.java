@@ -63,7 +63,10 @@ final class RealtimeTriggerTestSupport {
                 }
             }
 
-            probeObserved.await(25, TimeUnit.MILLISECONDS);
+            // For UPDATE events, wait longer to account for 500ms coalescing delay
+            // For other events, use shorter polling interval
+            long waitMs = (eventType == RealtimeTrigger.EventType.UPDATE) ? 600 : 25;
+            probeObserved.await(waitMs, TimeUnit.MILLISECONDS);
         }
 
         if (probeObserved.getCount() != 0) {
