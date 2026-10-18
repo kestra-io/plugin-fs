@@ -133,4 +133,18 @@ class MoveTest {
             .password(PASSWORD)
             .build();
     }
+
+    @Test
+    void moveNonAsciiFileToDirectory() throws Exception {
+        String from = "upload/" + IdUtils.create() + "/facturación.txt";
+        String to = "upload/" + IdUtils.create() + "-move/";
+
+        sftpUtils.upload(from);
+
+        Move task = createMoveTask(from, to);
+
+        Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(run.getTo().getPath(), containsString("facturación.txt"));
+    }
 }
