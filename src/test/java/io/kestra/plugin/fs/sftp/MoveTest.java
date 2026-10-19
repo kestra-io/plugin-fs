@@ -19,6 +19,7 @@ import static io.kestra.plugin.fs.sftp.SftpUtils.PASSWORD;
 import static io.kestra.plugin.fs.sftp.SftpUtils.USERNAME;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @KestraTest
@@ -114,6 +115,26 @@ class MoveTest {
             KestraRuntimeException exception = assertThrows(KestraRuntimeException.class, () -> secondMoveTask.run(runContext));
             assertThat(exception.getMessage(), containsString(fileName));
         }
+    }
+
+    @Test
+    void moveFile_fileExistsInDestinationWithDifferentName() throws Exception {
+        String source = "upload/" + IdUtils.create() + "/incoming.txt";
+        String destination = "upload/" + IdUtils.create() + "/current.txt";
+
+        sftpUtils.update(source, "new incoming data");
+        sftpUtils.update(destination, "protected existing data");
+
+        Move task = createMoveTask(source, destination);
+
+        KestraRuntimeException exception = assertThrows(
+            KestraRuntimeException.class,
+            () -> task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()))
+        );
+        assertThat(exception.getMessage(), containsString("current.txt"));
+
+        assertThat(sftpUtils.list(FilenameUtils.getPath(source)).getFiles(), hasSize(1));
+        assertThat(sftpUtils.list(FilenameUtils.getPath(destination)).getFiles(), hasSize(1));
     }
 
     private static Move createMoveTask(String from, String to) {
