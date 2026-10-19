@@ -1,5 +1,6 @@
 package io.kestra.plugin.fs.local;
 
+import io.kestra.core.exceptions.KestraRuntimeException;
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.VoidOutput;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.nio.file.*;
+import java.util.Comparator;
 import java.util.Map;
 
 import static org.hamcrest.Matchers.is;
@@ -20,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @KestraTest
 class MoveTest {
+    private Path tempDir;
     private Path sourceFile;
     private Path targetFile;
 
@@ -28,7 +31,7 @@ class MoveTest {
 
     @BeforeEach
     void setUp() throws IOException {
-        Path tempDir = Files.createTempDirectory(Path.of(Paths.get("/tmp").toAbsolutePath().toUri()), "kestra-test-move-");
+        tempDir = Files.createTempDirectory(Path.of(Paths.get("/tmp").toAbsolutePath().toUri()), "kestra-test-move-");
         sourceFile = tempDir.resolve("file1.csv");
         targetFile = tempDir.resolve("file2.csv");
 
@@ -37,8 +40,15 @@ class MoveTest {
 
     @AfterEach
     void tearDown() throws IOException {
-        Files.deleteIfExists(targetFile);
-        Files.deleteIfExists(sourceFile);
+        try (var paths = Files.walk(tempDir)) {
+            paths.sorted(Comparator.reverseOrder()).forEach(path -> {
+                try {
+                    Files.deleteIfExists(path);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+        }
     }
 
     @Test
@@ -69,6 +79,33 @@ class MoveTest {
             .overwrite(Property.ofValue(false))
             .build();
 
-        assertThrows(io.kestra.core.exceptions.KestraRuntimeException.class, () -> task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of())));
+        assertThrows(KestraRuntimeException.class, () -> task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of())));
+    }
+
+    @Test
+    void moveDirectoryWhenTargetFileExistsAndOverwriteIsFalseFailsWithoutDeletingSource() throws Exception {
+        Path sourceDirectory = Files.createDirectories(tempDir.resolve("source"));
+        Path targetDirectory = Files.createDirectories(tempDir.resolve("target"));
+        Path sourceConflict = sourceDirectory.resolve("conflict.txt");
+        Path targetConflict = targetDirectory.resolve("conflict.txt");
+        Files.writeString(sourceConflict, "incoming source that must survive");
+        Files.writeString(targetConflict, "existing destination that must survive");
+
+        Move task = Move.builder()
+            .id(MoveTest.class.getSimpleName())
+            .type(Move.class.getName())
+            .from(Property.ofValue(sourceDirectory.toString()))
+            .to(Property.ofValue(targetDirectory.toString()))
+            .overwrite(Property.ofValue(false))
+            .build();
+
+        KestraRuntimeException exception = assertThrows(
+            KestraRuntimeException.class,
+            () -> task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()))
+        );
+
+        assertThat(exception.getMessage(), org.hamcrest.Matchers.containsString(targetConflict.toString()));
+        assertThat(Files.readString(sourceConflict), is("incoming source that must survive"));
+        assertThat(Files.readString(targetConflict), is("existing destination that must survive"));
     }
 }

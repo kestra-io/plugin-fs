@@ -152,6 +152,10 @@ public class Move extends AbstractLocalTask implements RunnableTask<VoidOutput> 
             }
         }
 
+        if (!overwrite) {
+            ensureNoConflictingFiles(sourceDir, targetDir);
+        }
+
         try (Stream<Path> paths = Files.walk(sourceDir)) {
             paths.forEach(source -> {
                 try {
@@ -164,7 +168,8 @@ public class Move extends AbstractLocalTask implements RunnableTask<VoidOutput> 
                         }
                     } else {
                         if (Files.exists(target) && !overwrite) {
-                            runContext.logger().warn("Target file already exists. Skipping existing file: {}", target);
+                            throw new KestraRuntimeException(String.format(
+                                "Target file already exists : %s.\nSet 'overwrite: true' to replace the existing file.", target));
                         } else {
                             if (!Files.exists(target.getParent())) {
                                 Files.createDirectories(target.getParent());
@@ -191,5 +196,21 @@ public class Move extends AbstractLocalTask implements RunnableTask<VoidOutput> 
         }
 
         runContext.logger().info("Moved directory from '{}' to '{}'", sourceDir, targetDir);
+    }
+
+    private void ensureNoConflictingFiles(Path sourceDir, Path targetDir) throws IOException {
+        try (Stream<Path> paths = Files.walk(sourceDir)) {
+            Path conflict = paths
+                .filter(path -> !Files.isDirectory(path))
+                .map(source -> targetDir.resolve(sourceDir.relativize(source)))
+                .filter(Files::exists)
+                .findFirst()
+                .orElse(null);
+
+            if (conflict != null) {
+                throw new KestraRuntimeException(String.format(
+                    "Target file already exists : %s.\nSet 'overwrite: true' to replace the existing file.", conflict));
+            }
+        }
     }
 }
