@@ -176,6 +176,66 @@ class CommandTest {
         assertThat(run.getVars().get("k"), is("v"));
     }
 
+    // Both streams carry well over the 64 KB pipe buffer, so the readers must keep draining for the task to complete.
+    @Test
+    void run_largeOutputOnStdoutAndStderr() throws Exception {
+        var logs = new CopyOnWriteArrayList<LogEntry>();
+        var receive = TestsUtils.receive(logQueue, l -> logs.add(l.getLeft()));
+
+        var command = Command.builder()
+            .id(IdUtils.create())
+            .type(Command.class.getName())
+            .host(Property.ofValue("localhost"))
+            .username(USERNAME)
+            .authMethod(Property.ofValue(AuthMethod.PASSWORD))
+            .password(PASSWORD)
+            .port(Property.ofValue("2222"))
+            .commands(new String[] {"seq 1 20000 >&2 & seq 1 20000; wait"})
+            .build();
+
+        var run = command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));
+
+        TestsUtils.awaitLog(logs, log -> "20000".equals(log.getMessage()) && log.getLevel() == Level.ERROR);
+        TestsUtils.awaitLog(logs, log -> "20000".equals(log.getMessage()) && log.getLevel() == Level.INFO);
+        receive.blockLast();
+
+        assertThat(run.getExitCode(), is(0));
+        assertThat(run.getStdOutLineCount(), is(20000));
+        assertThat(run.getStdErrLineCount(), is(20000));
+    }
+
+    @Test
+    void run_outputsCapturedAfterLargeBurst() throws Exception {
+        var logs = new CopyOnWriteArrayList<LogEntry>();
+        var receive = TestsUtils.receive(logQueue, l -> logs.add(l.getLeft()));
+
+        var command = Command.builder()
+            .id(IdUtils.create())
+            .type(Command.class.getName())
+            .host(Property.ofValue("localhost"))
+            .username(USERNAME)
+            .authMethod(Property.ofValue(AuthMethod.PASSWORD))
+            .password(PASSWORD)
+            .port(Property.ofValue("2222"))
+            .commands(new String[] {
+                "seq 1 20000 >&2 & seq 1 20000; wait",
+                "echo '::{\"outputs\":{\"out\":\"after-burst\"}}::'",
+                ">&2 echo '::{\"outputs\":{\"err\":\"after-burst\"}}::'"
+            })
+            .build();
+
+        var run = command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));
+
+        // Let the log queue drain so the burst doesn't slow down the log assertions of other tests.
+        TestsUtils.awaitLog(logs, log -> "20000".equals(log.getMessage()) && log.getLevel() == Level.ERROR);
+        TestsUtils.awaitLog(logs, log -> "20000".equals(log.getMessage()) && log.getLevel() == Level.INFO);
+        receive.blockLast();
+
+        assertThat(run.getExitCode(), is(0));
+        assertThat(run.getVars().get("out"), is("after-burst"));
+        assertThat(run.getVars().get("err"), is("after-burst"));
+    }
+
     @Test
     void run_passwordMethod() throws Exception {
         Command command = Command.builder()

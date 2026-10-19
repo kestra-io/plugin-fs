@@ -162,6 +162,8 @@ import java.util.regex.Pattern;
 public class Command extends Task implements SshInterface, RunnableTask<Command.Output>, WorkerJobLifecycle {
     private static final long SLEEP_DELAY_MS = 25L;
     private static final Duration READER_JOIN_TIMEOUT = Duration.ofSeconds(5);
+    // PipedInputStream defaults to 1 KB, which stalls the JSch session thread as soon as a reader is busy logging a line
+    private static final int PIPE_BUFFER_SIZE = 64 * 1024;
 
     /**
      * Tracks whether {@link #kill()}/{@link #stop()} has terminated the SSH channel/session, so the
@@ -355,9 +357,9 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
 
         try (
             var outStream = new PipedOutputStream();
-            var inStream = new PipedInputStream(outStream);
+            var inStream = new PipedInputStream(outStream, PIPE_BUFFER_SIZE);
             var errStream = new PipedOutputStream();
-            var inErrStream = new PipedInputStream(errStream)
+            var inErrStream = new PipedInputStream(errStream, PIPE_BUFFER_SIZE)
         ) {
             var renderedHost = runContext.render(host).as(String.class).orElseThrow();
             var renderedPort = runContext.render(port).as(String.class).orElse("22");
@@ -446,8 +448,8 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
                 channel.setErrStream(errStream);
                 stdOutRunnable = new LogRunnable(inStream, false, false, runContext);
                 stdErrRunnable = new LogRunnable(inErrStream, true, rParseLogLevel, runContext);
-                stdOut = Thread.ofVirtual().name("ssh-log-out").start(stdOutRunnable);
-                stdErr = Thread.ofVirtual().name("ssh-log-err").start(stdErrRunnable);
+                stdOut = Thread.ofPlatform().daemon().name("ssh-log-out").start(stdOutRunnable);
+                stdErr = Thread.ofPlatform().daemon().name("ssh-log-err").start(stdErrRunnable);
 
                 final Map<String, String> renderedEnv = runContext.render(this.env).asMap(String.class, String.class);
                 for (var entry : renderedEnv.entrySet()) {
