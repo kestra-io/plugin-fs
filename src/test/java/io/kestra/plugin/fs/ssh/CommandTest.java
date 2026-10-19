@@ -264,11 +264,12 @@ class CommandTest {
             .commands(new String[] {"echo started; sleep 3"})
             .build();
 
+        var thrown = new AtomicReference<Exception>();
         var runner = new Thread(() -> {
             try {
                 command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));
-            } catch (Exception ignored) {
-                // asserted through the thread lookup below
+            } catch (Exception e) {
+                thrown.set(e);
             }
         }, "ssh-command-platform-readers-test");
         runner.start();
@@ -276,13 +277,15 @@ class CommandTest {
         try {
             Await.until(
                 () -> Thread.getAllStackTraces().keySet().stream()
-                    .anyMatch(t -> t.getName().equals("ssh-log-out") && t.isDaemon() && !t.isVirtual()),
+                    .anyMatch(t -> (t.getName().equals("ssh-log-out") || t.getName().equals("ssh-log-err")) && t.isDaemon() && !t.isVirtual()),
                 Duration.ofMillis(50),
                 Duration.ofSeconds(20)
             );
         } finally {
             runner.join(Duration.ofSeconds(15).toMillis());
         }
+
+        assertThat(thrown.get(), is(nullValue()));
     }
 
     @Test
