@@ -16,6 +16,7 @@ import java.nio.file.*;
 import java.util.Comparator;
 import java.util.Map;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
@@ -88,8 +89,12 @@ class MoveTest {
         Path targetDirectory = Files.createDirectories(tempDir.resolve("target"));
         Path sourceConflict = sourceDirectory.resolve("conflict.txt");
         Path targetConflict = targetDirectory.resolve("conflict.txt");
+        Path sourceOk = sourceDirectory.resolve("ok.txt");
+        Path sourceNested = Files.createDirectories(sourceDirectory.resolve("sub")).resolve("a.txt");
         Files.writeString(sourceConflict, "incoming source that must survive");
         Files.writeString(targetConflict, "existing destination that must survive");
+        Files.writeString(sourceOk, "non conflicting file");
+        Files.writeString(sourceNested, "non conflicting nested file");
 
         Move task = Move.builder()
             .id(MoveTest.class.getSimpleName())
@@ -104,8 +109,13 @@ class MoveTest {
             () -> task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()))
         );
 
-        assertThat(exception.getMessage(), org.hamcrest.Matchers.containsString(targetConflict.toString()));
+        assertThat(exception.getMessage(), containsString(targetConflict.toString()));
         assertThat(Files.readString(sourceConflict), is("incoming source that must survive"));
         assertThat(Files.readString(targetConflict), is("existing destination that must survive"));
+        // nothing moved: the non conflicting files stay in the source and were not copied to the target
+        assertThat(Files.readString(sourceOk), is("non conflicting file"));
+        assertThat(Files.readString(sourceNested), is("non conflicting nested file"));
+        assertThat(Files.exists(targetDirectory.resolve("ok.txt")), is(false));
+        assertThat(Files.exists(targetDirectory.resolve("sub")), is(false));
     }
 }

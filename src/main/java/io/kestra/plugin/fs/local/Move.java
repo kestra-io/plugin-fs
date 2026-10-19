@@ -167,17 +167,18 @@ public class Move extends AbstractLocalTask implements RunnableTask<VoidOutput> 
                             Files.createDirectories(target);
                         }
                     } else {
-                        if (Files.exists(target) && !overwrite) {
-                            throw new KestraRuntimeException(String.format(
-                                "Target file already exists : %s.\nSet 'overwrite: true' to replace the existing file.", target));
-                        } else {
-                            if (!Files.exists(target.getParent())) {
-                                Files.createDirectories(target.getParent());
-                            }
-                            Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
-                            Files.delete(source);
-                            runContext.logger().debug("Moved '{}' to '{}'", source, target);
+                        if (!Files.exists(target.getParent())) {
+                            Files.createDirectories(target.getParent());
                         }
+                        // The pre-check above already rejected conflicts when overwrite is false, so only
+                        // replace an existing file when the user asked for it.
+                        if (overwrite) {
+                            Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
+                        } else {
+                            Files.copy(source, target);
+                        }
+                        Files.delete(source);
+                        runContext.logger().debug("Moved '{}' to '{}'", source, target);
                     }
                 } catch (IOException e) {
                     throw new RuntimeException("Error moving " + source + ": " + e.getMessage(), e);
