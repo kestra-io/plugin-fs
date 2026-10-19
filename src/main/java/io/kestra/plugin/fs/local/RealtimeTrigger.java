@@ -1,5 +1,7 @@
 package io.kestra.plugin.fs.local;
 
+import com.google.re2j.Pattern;
+import com.google.re2j.PatternSyntaxException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -26,8 +28,6 @@ import org.reactivestreams.Publisher;
 import org.slf4j.Logger;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
-import com.google.re2j.Pattern;
-import com.google.re2j.PatternSyntaxException;
 
 import java.io.IOException;
 import java.nio.file.ClosedWatchServiceException;
@@ -47,7 +47,6 @@ import java.util.Deque;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -83,9 +82,9 @@ import java.util.stream.Collectors;
                     - /data/incoming
         ```
 
-        **Event behavior:** WatchService may emit multiple MODIFY events for a single file write.
-        Events can arrive before a file is completely written. Downstream flows should account
-        for partial writes and implement idempotency where needed.
+        **Event behavior:** UPDATE events are coalesced per path after a 500 ms quiet period.
+        CREATE events are emitted immediately and can observe a partial file; with
+        CREATE_OR_UPDATE, a newly written file commonly emits CREATE followed by UPDATE.
 
         **Platform note:** On macOS, WatchService uses a polling-based fallback and may not
         detect events as quickly as on Linux or Windows.
@@ -158,14 +157,6 @@ public class RealtimeTrigger extends AbstractTrigger
 
     private static final int MAX_REGEX_LENGTH = 1000;
 
-    /**
-     * Event filters supported by the trigger.
-     * Each filter is mapped to one or more WatchService event kinds:
-     * CREATE          → ENTRY_CREATE
-     * UPDATE          → ENTRY_MODIFY
-     * CREATE_OR_UPDATE → ENTRY_CREATE and ENTRY_MODIFY
-     * DELETE          → ENTRY_DELETE
-     */
     public enum EventType {
         CREATE,
         UPDATE,
@@ -173,9 +164,6 @@ public class RealtimeTrigger extends AbstractTrigger
         DELETE
     }
 
-    /**
-     * Represents the type of filesystem change that occurred.
-     */
     public enum ChangeType {
         CREATE,
         UPDATE,
@@ -201,7 +189,6 @@ public class RealtimeTrigger extends AbstractTrigger
     @PluginProperty(group = "advanced")
     private Property<EventType> on = Property.ofValue(EventType.CREATE_OR_UPDATE);
 
-    // Runtime state fields
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     @Getter(AccessLevel.NONE)
@@ -213,68 +200,8 @@ public class RealtimeTrigger extends AbstractTrigger
     @Getter(AccessLevel.NONE)
     private transient final AtomicReference<WatchService> watchService = new AtomicReference<>();
 
-    /**
-     * Tracks files discovered by directory scans to prevent duplicate CREATE events
-     * when both the scan and a queued WatchService event discover the same file.
-     * Maps normalized file path to discovery timestamp (nanos).
-     * Entries are removed after a bounded time window or when a DELETE event is processed.
-     */
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
-    @Getter(AccessLevel.NONE)
-    private transient final ConcurrentHashMap<Path, Long> scannedFiles = new ConcurrentHashMap<>();
-
-    /**
-     * Executor service for scheduling coalesced MODIFY event emissions.
-     * Each pending MODIFY event schedules a task to emit an execution after COALESCE_DELAY_MS.
-     * When a new MODIFY event arrives for the same path, the previous task is cancelled
-     * and a new task is scheduled, implementing the quiet period.
-     */
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
-    @Getter(AccessLevel.NONE)
-    private transient final ScheduledExecutorService coalesceExecutor =
-        Executors.newScheduledThreadPool(1, r -> {
-            Thread t = new Thread(r, "realtime-trigger-coalesce");
-            t.setDaemon(true);
-            return t;
-        });
-
-    /**
-     * Tracks pending coalesced MODIFY events.
-     * Maps normalized file path to the scheduled emission task.
-     * When a new MODIFY event arrives for a path:
-     *   - Cancel the existing ScheduledFuture (if any)
-     *   - Schedule a new task to emit after COALESCE_DELAY_MS
-     *   - Store the new ScheduledFuture in this map
-     *
-     * On emission or cancellation, the entry is removed from the map.
-     */
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
-    @Getter(AccessLevel.NONE)
-    private transient final ConcurrentHashMap<Path, ScheduledFuture<?>> pendingModifyEvents =
-        new ConcurrentHashMap<>();
-
-    /**
-     * Time window (in nanoseconds) for deduplication between scan and watch events.
-     * Files scanned within this window will suppress duplicate CREATE events from WatchService.
-     */
     private static final long SCAN_DEDUP_WINDOW_NANOS = 10_000_000_000L; // 10 seconds
-
-    /**
-     * Quiet period in milliseconds. After the last ENTRY_MODIFY event for a path,
-     * wait this duration before emitting the UPDATE execution.
-     */
     private static final long COALESCE_DELAY_MS = 500L;
-
-
-
-    /**
-     * Validates that a path is within the configured allowed-paths.
-     * Matches AbstractLocalTask.validatePath() for consistent security policy.
-     * Throws SecurityException if the path is not allowed or if allowed-paths is not configured.
-     */
     private void validatePath(Path path, List<Path> normalizedAllowedPaths) {
         Path realPath;
         try {
@@ -319,9 +246,16 @@ public class RealtimeTrigger extends AbstractTrigger
         final Logger logger = runContext.logger();
 
         return Flux.<Execution>create(emitter -> {
-            Map<WatchKey, Path> watchKeyMap = new ConcurrentHashMap<>();
-            Set<Path> registeredDirectories = Collections.newSetFromMap(new ConcurrentHashMap<>());
-            Set<Path> knownDirectories = Collections.newSetFromMap(new ConcurrentHashMap<>());
+            var watchKeyMap = new ConcurrentHashMap<WatchKey, Path>();
+            var registeredDirectories = Collections.newSetFromMap(new ConcurrentHashMap<Path, Boolean>());
+            var knownDirectories = Collections.newSetFromMap(new ConcurrentHashMap<Path, Boolean>());
+            var scannedFiles = new ConcurrentHashMap<Path, Long>();
+            var pendingEvents = new ConcurrentHashMap<Path, ScheduledFuture<?>>();
+            var coalesceExecutor = Executors.newSingleThreadScheduledExecutor(runnable -> {
+                var thread = new Thread(runnable, "realtime-trigger-coalesce");
+                thread.setDaemon(true);
+                return thread;
+            });
             emitter.onDispose(() -> {
                 logger.info("RealtimeTrigger disposed");
                 stop();
@@ -335,13 +269,12 @@ public class RealtimeTrigger extends AbstractTrigger
                     return;
                 }
 
-                                String renderedFrom = runContext.render(this.from).as(String.class)
+                var renderedFrom = runContext.render(this.from).as(String.class)
                     .orElseThrow(() -> new IllegalArgumentException("`from` is required"));
-                Path rootDirectory = Paths.get(renderedFrom).toAbsolutePath().normalize();
+                var rootDirectory = Paths.get(renderedFrom).toAbsolutePath().normalize();
 
                 logger.info("RealtimeTrigger starting for directory: {}", rootDirectory);
-                // Resolve allowed-paths configuration once at startup
-                Optional<List<String>> allowedPathConfig = runContext.pluginConfiguration(AbstractLocalTask.ALLOWED_PATHS);
+                var allowedPathConfig = runContext.<List<String>>pluginConfiguration(AbstractLocalTask.ALLOWED_PATHS);
                 if (allowedPathConfig.isEmpty() || allowedPathConfig.get().isEmpty()) {
                     throw new SecurityException(
                         "The 'allowed-paths' configuration is required to enable access to the local filesystem. " +
@@ -351,7 +284,7 @@ public class RealtimeTrigger extends AbstractTrigger
                     );
                 }
 
-                final List<Path> normalizedAllowedPaths = allowedPathConfig.get().stream()
+                var normalizedAllowedPaths = allowedPathConfig.get().stream()
                     .map(allowed -> {
                         try {
                             return Paths.get(allowed).toRealPath();
@@ -362,12 +295,12 @@ public class RealtimeTrigger extends AbstractTrigger
                     .toList();
 
 
-                EventType renderedOn = runContext.render(this.on).as(EventType.class)
-                .orElse(EventType.CREATE_OR_UPDATE);
+                var renderedOn = runContext.render(this.on).as(EventType.class)
+                    .orElse(EventType.CREATE_OR_UPDATE);
                 Pattern compiledPattern = null;
 
                 if (this.regExp != null) {
-                    String renderedRegExp = runContext.render(this.regExp)
+                    var renderedRegExp = runContext.render(this.regExp)
                         .as(String.class)
                         .orElse(null);
 
@@ -391,7 +324,7 @@ public class RealtimeTrigger extends AbstractTrigger
                     }
                 }
 
-                boolean rRecursive = runContext.render(this.recursive)
+                var rRecursive = runContext.render(this.recursive)
                     .as(Boolean.class)
                     .orElse(false);
 
@@ -404,14 +337,14 @@ public class RealtimeTrigger extends AbstractTrigger
                     throw new IllegalArgumentException("Path is not a directory: " + rootDirectory);
                 }
 
-                                if (!active.get()) {
+                if (!active.get()) {
                     emitter.complete();
                     return;
                 }
 
                 logger.info("Watching directory: {}", rootDirectory);
 
-                                createWatchService();
+                createWatchService();
 
                 // Check cancellation after resource creation
                 if (!active.get()) {
@@ -419,7 +352,7 @@ public class RealtimeTrigger extends AbstractTrigger
                     return;
                 }
 
-                                registerDirectory(rootDirectory, watchKeyMap, registeredDirectories);
+                registerDirectory(rootDirectory, watchKeyMap, registeredDirectories);
                 knownDirectories.add(rootDirectory.toAbsolutePath().normalize());
 
                 if (rRecursive) {
@@ -486,14 +419,12 @@ public class RealtimeTrigger extends AbstractTrigger
                     }
 
 
-                    // If poll timed out (no events), perform cleanup and continue
                     if (key == null) {
-                        cleanupExpiredScanEntries(System.nanoTime());
+                        cleanupExpiredScanEntries(scannedFiles, System.nanoTime());
                         continue;
                     }
 
-                    // Get the directory associated with this WatchKey
-                    Path directory = watchKeyMap.get(key);
+                    var directory = watchKeyMap.get(key);
                     if (directory == null) {
                         // Race condition: the key was removed or map was cleared during shutdown.
                         // Safely discard this key without trying to reset it.
@@ -503,15 +434,15 @@ public class RealtimeTrigger extends AbstractTrigger
                     // Process all events for this key
                     for (WatchEvent<?> event : key.pollEvents()) {
                         try {
-                            WatchEvent.Kind<?> kind = event.kind();
+                            var kind = event.kind();
 
                             if (kind == StandardWatchEventKinds.OVERFLOW) {
                                 logger.warn("WatchService overflow event; some filesystem events may have been missed");
                                 continue;
                             }
 
-                            Path eventPath = directory.resolve((Path) event.context());
-                            Path normalizedEventPath = eventPath.toAbsolutePath().normalize();
+                            var eventPath = directory.resolve((Path) event.context());
+                            var normalizedEventPath = eventPath.toAbsolutePath().normalize();
 
                             // Clear scan deduplication state even when DELETE is filtered out.
                             if (kind == StandardWatchEventKinds.ENTRY_DELETE) {
@@ -558,7 +489,8 @@ public class RealtimeTrigger extends AbstractTrigger
                                         conditionContext,
                                         context,
                                         emitter,
-                                        logger
+                                        logger,
+                                        scannedFiles
                                     );
                                 } catch (SecurityException e) {
                                     logger.warn(
@@ -608,11 +540,11 @@ public class RealtimeTrigger extends AbstractTrigger
                                 continue;
                             }
 
-                            Path normalizedEventPath2 = eventPath.toAbsolutePath().normalize();
+                            var normalizedEventPath2 = eventPath.toAbsolutePath().normalize();
 
                             // A DELETE must cancel a pending MODIFY even when output filters exclude DELETE.
                             if (kind == StandardWatchEventKinds.ENTRY_DELETE) {
-                                cancelPendingModifyEvent(normalizedEventPath2, logger);
+                                cancelPendingEvent(normalizedEventPath2, pendingEvents, logger);
                             }
 
                             if (!shouldTrigger(kind, renderedOn)) {
@@ -625,8 +557,8 @@ public class RealtimeTrigger extends AbstractTrigger
 
                             // Deduplication: Check if this CREATE event is a duplicate of a recent scan
                             if (kind == StandardWatchEventKinds.ENTRY_CREATE) {
-                                long currentTime = System.nanoTime();
-                                if (isDuplicateOfRecentScan(normalizedEventPath2, currentTime)) {
+                                var currentTime = System.nanoTime();
+                                if (isDuplicateOfRecentScan(normalizedEventPath2, currentTime, scannedFiles)) {
                                     logger.debug("Suppressing duplicate CREATE event for recently scanned file: {}", eventPath);
                                     continue;
                                 }
@@ -642,13 +574,16 @@ public class RealtimeTrigger extends AbstractTrigger
                                     logger
                                 );
                             } else if (kind == StandardWatchEventKinds.ENTRY_MODIFY) {
-                                scheduleCoalescedModifyEvent(
+                                scheduleCoalescedEvent(
                                     normalizedEventPath2,
                                     eventPath,
+                                    ChangeType.UPDATE,
                                     conditionContext,
                                     context,
                                     emitter,
-                                    logger
+                                    logger,
+                                    coalesceExecutor,
+                                    pendingEvents
                                 );
                             } else if (kind == StandardWatchEventKinds.ENTRY_DELETE) {
                                 emitEventExecution(
@@ -668,15 +603,13 @@ public class RealtimeTrigger extends AbstractTrigger
                         }
                     }
 
-                    // Reset the key for future events
-                    boolean valid = key.reset();
-                    // Cleanup after processing event batch (complements timeout-based cleanup)
-                    cleanupExpiredScanEntries(System.nanoTime());
+                    var valid = key.reset();
+                    cleanupExpiredScanEntries(scannedFiles, System.nanoTime());
                     if (!valid) {
                         // Key is no longer valid (directory deleted, etc.)
-                        Path registeredDirectory = watchKeyMap.remove(key);
+                        var registeredDirectory = watchKeyMap.remove(key);
                         if (registeredDirectory != null) {
-                            Path normalizedDirectory = registeredDirectory.toAbsolutePath().normalize();
+                            var normalizedDirectory = registeredDirectory.toAbsolutePath().normalize();
 
                             registeredDirectories.remove(normalizedDirectory);
 
@@ -704,7 +637,7 @@ public class RealtimeTrigger extends AbstractTrigger
                     emitter.complete();
                 }
             } finally {
-                cleanup(watchKeyMap, registeredDirectories, knownDirectories, logger);
+                cleanup(watchKeyMap, registeredDirectories, knownDirectories, pendingEvents, coalesceExecutor, logger);
             }
         });
     }
@@ -784,49 +717,38 @@ public class RealtimeTrigger extends AbstractTrigger
         }
     }
 
-    /**
-     * Schedules a coalesced MODIFY event emission for a file path.
-     * If a pending emission already exists for this path, cancels it and schedules a new one.
-     * This implements the quiet period: wait COALESCE_DELAY_MS after the last MODIFY event
-     * before emitting an UPDATE execution.
-     *
-     * @param normalizedPath the normalized absolute path (used as map key)
-     * @param originalPath the original path for emission
-     * @param conditionContext the condition context
-     * @param context the trigger context
-     * @param emitter the flux emitter
-     * @param logger the logger
-     */
-
-    private void scheduleCoalescedModifyEvent(
+    private void scheduleCoalescedEvent(
         Path normalizedPath,
         Path originalPath,
+        ChangeType changeType,
         ConditionContext conditionContext,
         TriggerContext context,
         FluxSink<Execution> emitter,
-        Logger logger
+        Logger logger,
+        ScheduledExecutorService coalesceExecutor,
+        Map<Path, ScheduledFuture<?>> pendingEvents
     ) {
-        synchronized (pendingModifyEvents) {
-            ScheduledFuture<?> existingFuture = pendingModifyEvents.remove(normalizedPath);
+        synchronized (pendingEvents) {
+            var existingFuture = pendingEvents.remove(normalizedPath);
             if (existingFuture != null && !existingFuture.isDone()) {
                 existingFuture.cancel(false);
             }
 
-            AtomicReference<ScheduledFuture<?>> futureRef = new AtomicReference<>();
+            var futureRef = new AtomicReference<ScheduledFuture<?>>();
 
-            ScheduledFuture<?> newFuture = coalesceExecutor.schedule(() -> {
-                synchronized (pendingModifyEvents) {
-                    ScheduledFuture<?> expectedFuture = futureRef.get();
+            var newFuture = coalesceExecutor.schedule(() -> {
+                synchronized (pendingEvents) {
+                    var expectedFuture = futureRef.get();
 
-                    // Only the currently registered task may emit.
                     if (expectedFuture == null
-                        || !pendingModifyEvents.remove(normalizedPath, expectedFuture)) {
+                        || !pendingEvents.remove(normalizedPath, expectedFuture)) {
                         return;
                     }
 
                     if (!active.get()) {
                         logger.debug(
-                            "Skipping coalesced MODIFY emission for {} (trigger stopped)",
+                            "Skipping coalesced {} emission for {} (trigger stopped)",
+                            changeType,
                             normalizedPath
                         );
                         return;
@@ -835,7 +757,7 @@ public class RealtimeTrigger extends AbstractTrigger
                     try {
                         emitEventExecution(
                             originalPath,
-                            ChangeType.UPDATE,
+                            changeType,
                             conditionContext,
                             context,
                             emitter,
@@ -843,7 +765,8 @@ public class RealtimeTrigger extends AbstractTrigger
                         );
                     } catch (Exception e) {
                         logger.warn(
-                            "Error emitting coalesced MODIFY event for {}: {}",
+                            "Error emitting coalesced {} event for {}: {}",
+                            changeType,
                             normalizedPath,
                             e.getMessage(),
                             e
@@ -853,18 +776,18 @@ public class RealtimeTrigger extends AbstractTrigger
             }, COALESCE_DELAY_MS, TimeUnit.MILLISECONDS);
 
             futureRef.set(newFuture);
-            pendingModifyEvents.put(normalizedPath, newFuture);
+            pendingEvents.put(normalizedPath, newFuture);
         }
     }
 
-    private void cancelPendingModifyEvent(Path normalizedPath, Logger logger) {
-        synchronized (pendingModifyEvents) {
-            ScheduledFuture<?> future = pendingModifyEvents.remove(normalizedPath);
+    private void cancelPendingEvent(Path normalizedPath, Map<Path, ScheduledFuture<?>> pendingEvents, Logger logger) {
+        synchronized (pendingEvents) {
+            var future = pendingEvents.remove(normalizedPath);
 
             if (future != null && !future.isDone()) {
                 future.cancel(false);
                 logger.debug(
-                    "Cancelled pending MODIFY emission due to DELETE: {}",
+                    "Cancelled pending event due to DELETE: {}",
                     normalizedPath
                 );
             }
@@ -1082,7 +1005,8 @@ public class RealtimeTrigger extends AbstractTrigger
         ConditionContext conditionContext,
         TriggerContext context,
         FluxSink<Execution> emitter,
-        Logger logger
+        Logger logger,
+        Map<Path, Long> scannedFiles
     ) {
         Deque<Path> dirsToScan = new ArrayDeque<>();
         dirsToScan.add(root);
@@ -1170,8 +1094,8 @@ public class RealtimeTrigger extends AbstractTrigger
      * @return true if the event should be suppressed
      */
 
-    private boolean isDuplicateOfRecentScan(Path filePath, long currentTime) {
-        Long scanTime = scannedFiles.get(filePath);
+    private boolean isDuplicateOfRecentScan(Path filePath, long currentTime, Map<Path, Long> scannedFiles) {
+        var scanTime = scannedFiles.get(filePath);
         if (scanTime == null) {
             return false;
         }
@@ -1194,7 +1118,7 @@ public class RealtimeTrigger extends AbstractTrigger
      *
      * @param currentTime the current time in nanoseconds
      */
-    private void cleanupExpiredScanEntries(long currentTime) {
+    private void cleanupExpiredScanEntries(Map<Path, Long> scannedFiles, long currentTime) {
         scannedFiles.entrySet().removeIf(entry -> {
             long age = currentTime - entry.getValue();
             return age > SCAN_DEDUP_WINDOW_NANOS;
@@ -1243,6 +1167,8 @@ public class RealtimeTrigger extends AbstractTrigger
         Map<WatchKey, Path> watchKeyMap,
         Set<Path> registeredDirectories,
         Set<Path> knownDirectories,
+        Map<Path, ScheduledFuture<?>> pendingEvents,
+        ScheduledExecutorService coalesceExecutor,
         Logger logger
     ) {
         // Atomically claim ownership of the WatchService.
@@ -1260,20 +1186,19 @@ public class RealtimeTrigger extends AbstractTrigger
             // Establish invariant: trigger is fully inactive
             active.set(false);
 
-            // Cancel all pending coalesced MODIFY events
-            int cancelledCount = 0;
-            synchronized (pendingModifyEvents) {
-                for (Map.Entry<Path, ScheduledFuture<?>> entry : pendingModifyEvents.entrySet()) {
-                    ScheduledFuture<?> future = entry.getValue();
+            var cancelledCount = 0;
+            synchronized (pendingEvents) {
+                for (var entry : pendingEvents.entrySet()) {
+                    var future = entry.getValue();
                     if (future != null && !future.isDone()) {
                         future.cancel(false);
                         cancelledCount++;
                     }
                 }
-                pendingModifyEvents.clear();
+                pendingEvents.clear();
             }
             if (cancelledCount > 0) {
-                logger.info("Cancelled {} pending coalesced MODIFY events during cleanup", cancelledCount);
+                logger.info("Cancelled {} pending coalesced events during cleanup", cancelledCount);
             }
 
             // Shutdown the coalesce executor

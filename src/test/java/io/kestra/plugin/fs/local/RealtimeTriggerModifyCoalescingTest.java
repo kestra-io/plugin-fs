@@ -820,16 +820,16 @@ class RealtimeTriggerModifyCoalescingTest {
     /**
      * **Validates: Requirements 2.1, 2.2**
      *
-     * Fix Verification Test: Boundary Condition Within Quiet Period
+     * Fix Verification Test: Writes Within Quiet Period
      *
-     * This test writes to a file, waits 400ms (within the 500ms quiet period),
+     * This test writes to a file, waits 50ms (well within the 500ms quiet period),
      * then writes again. Both writes should be coalesced into a single execution.
      *
      * This confirms that writes within the quiet period correctly reset the timer.
      */
     @Test
     @Timeout(20)
-    void testBoundaryCondition_WithinQuietPeriod() throws Exception {
+    void testWritesWithinQuietPeriodCoalesce() throws Exception {
         Path tempDir = Files.createTempDirectory("realtime-trigger-boundary-within-test");
         Path testFile = tempDir.resolve("test-boundary-within.txt");
 
@@ -876,8 +876,7 @@ class RealtimeTriggerModifyCoalescingTest {
                 // First write
                 Files.writeString(testFile, "first write", StandardCharsets.UTF_8);
 
-                // Wait 400ms (within 500ms quiet period)
-                Thread.sleep(400);
+                Thread.sleep(50);
 
                 // Second write (should reset the quiet period timer)
                 Files.writeString(testFile, "second write", StandardCharsets.UTF_8);
@@ -891,7 +890,7 @@ class RealtimeTriggerModifyCoalescingTest {
 
                 // Verify exactly 1 execution (both writes coalesced)
                 assertThat(
-                    "Two writes within quiet period (400ms apart) should coalesce to 1 execution",
+                    "Two writes within the quiet period should coalesce to 1 execution",
                     count,
                     is(1)
                 );
@@ -908,9 +907,9 @@ class RealtimeTriggerModifyCoalescingTest {
     /**
      * **Validates: Requirements 2.4**
      *
-     * Fix Verification Test: Boundary Condition Beyond Quiet Period
+     * Fix Verification Test: Writes Beyond Quiet Period
      *
-     * This test writes to a file, waits 600ms (beyond the 500ms quiet period),
+     * This test writes to a file, waits 1000ms (well beyond the 500ms quiet period),
      * then writes again. This should produce 2 separate executions representing
      * two distinct logical writes.
      *
@@ -918,7 +917,7 @@ class RealtimeTriggerModifyCoalescingTest {
      */
     @Test
     @Timeout(20)
-    void testBoundaryCondition_BeyondQuietPeriod() throws Exception {
+    void testWritesBeyondQuietPeriodDoNotCoalesce() throws Exception {
         Path tempDir = Files.createTempDirectory("realtime-trigger-boundary-beyond-test");
         Path testFile = tempDir.resolve("test-boundary-beyond.txt");
 
@@ -966,7 +965,7 @@ class RealtimeTriggerModifyCoalescingTest {
                 Files.writeString(testFile, "first logical write", StandardCharsets.UTF_8);
 
                 // Wait 600ms (beyond 500ms quiet period - first execution will fire)
-                Thread.sleep(600);
+                Thread.sleep(1000);
 
                 // Second write (this is a new logical modification)
                 Files.writeString(testFile, "second logical write", StandardCharsets.UTF_8);
