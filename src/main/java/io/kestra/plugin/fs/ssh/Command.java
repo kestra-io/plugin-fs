@@ -484,6 +484,10 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
             stdOut.join(READER_JOIN_TIMEOUT);
             stdErr.join(READER_JOIN_TIMEOUT);
 
+            if (stdOut.isAlive() || stdErr.isAlive()) {
+                runContext.logger().warn("SSH output readers did not finish within {}, command output may be truncated", READER_JOIN_TIMEOUT);
+            }
+
             if (channel.getExitStatus() != 0) {
                 throw new Exception("SSH command fails with exit status " + channel.getExitStatus());
             }

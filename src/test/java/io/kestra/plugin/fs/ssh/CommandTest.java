@@ -6,6 +6,7 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.queues.QueueFactoryInterface;
 import io.kestra.core.queues.QueueInterface;
 import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.utils.Await;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.ssh.SshInterface.AuthMethod;
@@ -13,6 +14,7 @@ import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.slf4j.event.Level;
 
 import java.io.ByteArrayOutputStream;
@@ -25,6 +27,7 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -176,8 +179,19 @@ class CommandTest {
         assertThat(run.getVars().get("k"), is("v"));
     }
 
+    // `TestsUtils.awaitLog` returns null on timeout instead of failing, so poll explicitly (the queue is slow for 40k lines).
+    private static void assertLastLinesLogged(CopyOnWriteArrayList<LogEntry> logs) throws TimeoutException {
+        Await.until(
+            () -> logs.stream().anyMatch(log -> "20000".equals(log.getMessage()) && log.getLevel() == Level.ERROR)
+                && logs.stream().anyMatch(log -> "20000".equals(log.getMessage()) && log.getLevel() == Level.INFO),
+            Duration.ofMillis(100),
+            Duration.ofSeconds(30)
+        );
+    }
+
     // Both streams carry well over the 64 KB pipe buffer, so the readers must keep draining for the task to complete.
     @Test
+    @Timeout(60)
     void run_largeOutputOnStdoutAndStderr() throws Exception {
         var logs = new CopyOnWriteArrayList<LogEntry>();
         var receive = TestsUtils.receive(logQueue, l -> logs.add(l.getLeft()));
@@ -195,8 +209,7 @@ class CommandTest {
 
         var run = command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));
 
-        TestsUtils.awaitLog(logs, log -> "20000".equals(log.getMessage()) && log.getLevel() == Level.ERROR);
-        TestsUtils.awaitLog(logs, log -> "20000".equals(log.getMessage()) && log.getLevel() == Level.INFO);
+        assertLastLinesLogged(logs);
         receive.blockLast();
 
         assertThat(run.getExitCode(), is(0));
@@ -205,6 +218,7 @@ class CommandTest {
     }
 
     @Test
+    @Timeout(60)
     void run_outputsCapturedAfterLargeBurst() throws Exception {
         var logs = new CopyOnWriteArrayList<LogEntry>();
         var receive = TestsUtils.receive(logQueue, l -> logs.add(l.getLeft()));
@@ -227,13 +241,48 @@ class CommandTest {
         var run = command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));
 
         // Let the log queue drain so the burst doesn't slow down the log assertions of other tests.
-        TestsUtils.awaitLog(logs, log -> "20000".equals(log.getMessage()) && log.getLevel() == Level.ERROR);
-        TestsUtils.awaitLog(logs, log -> "20000".equals(log.getMessage()) && log.getLevel() == Level.INFO);
+        assertLastLinesLogged(logs);
         receive.blockLast();
 
         assertThat(run.getExitCode(), is(0));
         assertThat(run.getVars().get("out"), is("after-burst"));
         assertThat(run.getVars().get("err"), is("after-burst"));
+    }
+
+    // Virtual threads are not listed by Thread.getAllStackTraces(), so this fails if the readers go back to virtual threads.
+    @Test
+    @Timeout(60)
+    void run_readersRunOnPlatformThreads() throws Exception {
+        var command = Command.builder()
+            .id(IdUtils.create())
+            .type(Command.class.getName())
+            .host(Property.ofValue("localhost"))
+            .username(USERNAME)
+            .authMethod(Property.ofValue(AuthMethod.PASSWORD))
+            .password(PASSWORD)
+            .port(Property.ofValue("2222"))
+            .commands(new String[] {"echo started; sleep 3"})
+            .build();
+
+        var runner = new Thread(() -> {
+            try {
+                command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));
+            } catch (Exception ignored) {
+                // asserted through the thread lookup below
+            }
+        }, "ssh-command-platform-readers-test");
+        runner.start();
+
+        try {
+            Await.until(
+                () -> Thread.getAllStackTraces().keySet().stream()
+                    .anyMatch(t -> t.getName().equals("ssh-log-out") && t.isDaemon() && !t.isVirtual()),
+                Duration.ofMillis(50),
+                Duration.ofSeconds(20)
+            );
+        } finally {
+            runner.join(Duration.ofSeconds(15).toMillis());
+        }
     }
 
     @Test
