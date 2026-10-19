@@ -78,7 +78,7 @@ public class Move extends AbstractLocalTask implements RunnableTask<VoidOutput> 
 
     @Schema(
         title = "Overwrite existing files",
-        description = "If false, the task fails when the destination already exists."
+        description = "If false, the task fails when the destination already exists. For directories, it fails before moving anything if any file already exists in the destination."
     )
     @Builder.Default
     @PluginProperty(group = "destination")
