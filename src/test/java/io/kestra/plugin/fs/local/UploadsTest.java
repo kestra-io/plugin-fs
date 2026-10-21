@@ -90,6 +90,54 @@ class UploadsTest {
     }
 
     @Test
+    void shouldDecodeFileNameFromUri() throws Exception {
+        String fileName = FriendlyId.createFriendlyId() + " report #1.csv";
+        URI uri = storageInterface.put(
+            TenantService.MAIN_TENANT,
+            null,
+            new URI(null, null, "/" + fileName, null),
+            new ByteArrayInputStream("test".getBytes(StandardCharsets.UTF_8))
+        );
+
+        Uploads task = Uploads.builder()
+            .id(UploadsTest.class.getSimpleName())
+            .type(Uploads.class.getName())
+            .from(List.of(uri.toString()))
+            .to(Property.ofValue(destDir.toString()))
+            .build();
+
+        Uploads.Output output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(output.getFiles().size(), is(1));
+        assertThat(Path.of(output.getFiles().getFirst()).getFileName().toString(), is(fileName));
+        assertThat(Files.exists(destDir.resolve(fileName)), is(true));
+    }
+
+    @Test
+    void shouldStillUseExplicitMapKeyAsGiven() throws Exception {
+        URI uri = storageInterface.put(
+            TenantService.MAIN_TENANT,
+            null,
+            new URI(null, null, "/" + FriendlyId.createFriendlyId() + " source file.csv", null),
+            new ByteArrayInputStream("test".getBytes(StandardCharsets.UTF_8))
+        );
+        String name = "my%20name.csv";
+
+        Uploads task = Uploads.builder()
+            .id(UploadsTest.class.getSimpleName())
+            .type(Uploads.class.getName())
+            .from(Map.of(name, uri.toString()))
+            .to(Property.ofValue(destDir.toString()))
+            .build();
+
+        Uploads.Output output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(output.getFiles().size(), is(1));
+        assertThat(Path.of(output.getFiles().getFirst()).getFileName().toString(), is(name));
+        assertThat(Files.exists(destDir.resolve(name)), is(true));
+    }
+
+    @Test
     void shouldUploadMapWithCustomNames() throws Exception {
         URI uri1 = uploadWithSuffix(".bin");
         URI uri2 = uploadWithSuffix(".bin");

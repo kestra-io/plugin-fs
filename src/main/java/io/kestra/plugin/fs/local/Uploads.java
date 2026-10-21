@@ -10,6 +10,7 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
+import io.kestra.core.utils.FileUtils;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -196,7 +197,7 @@ public class Uploads extends AbstractLocalTask implements RunnableTask<Uploads.O
             String fromURI = entry.getValue();
             String fileName = entry.getKey() != null
                 ? entry.getKey()
-                : fromURI.substring(fromURI.lastIndexOf('/') + 1);
+                : FileUtils.getFileName(URI.create(fromURI));
 
             Path target = destinationDir.resolve(fileName).normalize();
             // re-validate the resolved target to prevent escapes via "../" in filename
