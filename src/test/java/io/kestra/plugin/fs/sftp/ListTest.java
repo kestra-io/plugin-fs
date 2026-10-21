@@ -90,6 +90,28 @@ class ListTest {
     }
 
     @Test
+    void shouldReturnDecodedNameWhenFileNameContainsPercent() throws Exception {
+        String dir = "/" + IdUtils.create();
+        String fileName = IdUtils.create() + " report 100%.txt";
+        sftpUtils.upload("upload" + dir + "/" + fileName);
+
+        List task = List.builder()
+            .id(ListTest.class.getSimpleName() + "-" + IdUtils.create())
+            .type(ListTest.class.getName())
+            .from(Property.ofValue("/upload" + dir))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+
+        List.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(run.getFiles().stream().map(File::getName).toList(), contains(fileName));
+        assertThat(run.getFiles().getFirst().getPath().getPath(), is("/upload" + dir + "/" + fileName));
+    }
+
+    @Test
     void sortAppliesBeforeMaxFilesTruncation() throws Exception {
         String dir = "/" + IdUtils.create();
         sftpUtils.upload("upload" + dir + "/b.txt");
