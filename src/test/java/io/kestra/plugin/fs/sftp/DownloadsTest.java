@@ -113,6 +113,23 @@ class DownloadsTest {
         assertThat(sftpUtils.list(toUploadDir).getFiles().isEmpty(), is(true));
     }
 
+    @Test
+    void shouldMoveFileWhenNameContainsPercentAndActionIsMove() throws Exception {
+        String toUploadDir = "/upload/" + random;
+        String moveDirectory = "/upload/" + IdUtils.create() + "-moved/";
+        String fileName = IdUtils.create() + " a%41b 100%.txt";
+
+        sftpUtils.upload(toUploadDir + "/" + fileName);
+
+        Downloads task = createMoveDownloadsTask(toUploadDir + "/", moveDirectory);
+
+        Downloads.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(run.getFiles().stream().map(File::getName).toList(), contains(fileName));
+        assertThat(sftpUtils.list(toUploadDir).getFiles().isEmpty(), is(true));
+        assertThat(sftpUtils.list(moveDirectory).getFiles().stream().map(File::getName).toList(), contains(fileName));
+    }
+
     private static Downloads createPercentDownloadsTask(String from, Downloads.Action action) {
         return Downloads.builder()
             .id(DownloadsTest.class.getSimpleName() + "-" + IdUtils.create())
