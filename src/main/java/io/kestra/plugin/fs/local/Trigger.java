@@ -219,7 +219,8 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
                 triggeredFiles.stream().map(TriggeredFile::getFile).toList(),
                 selectedAction,
                 this.moveDirectory,
-                runContext
+                runContext,
+                rFrom
             );
 
             limitedToFire = IntStream.range(0, triggeredFiles.size())

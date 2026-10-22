@@ -133,7 +133,8 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
         java.util.List<File> files,
         Action action,
         Property<String> moveDirectory,
-        RunContext runContext) throws Exception {
+        RunContext runContext,
+        String sourceDirectory) throws Exception {
         if (action == Action.DELETE) {
             for (File file : files) {
                 if (!file.isDirectory()) {
@@ -164,8 +165,19 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
                     continue;
                 }
 
-                String fileName = file.getLocalPath().getFileName().toString();
-                String destinationPath = rMoveDirectory + fileName;
+                Path sourceBase = Path.of(sourceDirectory).toAbsolutePath().normalize();
+                Path sourceFile = file.getLocalPath().toAbsolutePath().normalize();
+
+                if (!sourceFile.startsWith(sourceBase) || sourceFile.equals(sourceBase)) {
+                    throw new IllegalArgumentException(
+                        "File path must be inside the source directory: " + sourceFile
+                    );
+                }
+
+                Path relativePath = sourceBase.relativize(sourceFile);
+                Path destination = Path.of(rMoveDirectory).resolve(relativePath).normalize();
+
+                String destinationPath = destination.toString();
 
                 Move move = Move.builder()
                     .id(Move.class.getSimpleName())
@@ -231,7 +243,7 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
             Action.NONE;
 
         List<File> resultFiles = selectedAction != Action.NONE ?
-            performAction(downloadedFiles, selectedAction, this.moveDirectory, runContext) :
+            performAction(downloadedFiles, selectedAction, this.moveDirectory, runContext, renderedFrom) :
             downloadedFiles;
 
         Map<String, URI> outputFiles = resultFiles.stream()

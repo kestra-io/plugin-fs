@@ -11,6 +11,7 @@ import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
 
@@ -26,12 +27,27 @@ public abstract class AbstractTriggerTest {
 
     abstract protected LocalUtils utils();
 
+    private void cleanDirectory(String directory) throws Exception {
+        Path path = Paths.get(directory);
+
+        if (Files.exists(path)) {
+            try (var paths = Files.walk(path)) {
+                for (Path entry : paths.sorted(java.util.Comparator.reverseOrder()).toList()) {
+                    Files.delete(entry);
+                }
+            }
+        }
+
+        Files.createDirectories(path);
+    }
+
     @Test
     void moveAction() throws Exception {
         String toUploadDir = "/tmp/local-listen";
         String moveDir = toUploadDir + "-move";
 
-        Files.createDirectories(Paths.get(toUploadDir));
+        cleanDirectory(toUploadDir);
+        cleanDirectory(moveDir);
 
         String out1 = FriendlyId.createFriendlyId();
         utils().upload(toUploadDir + "/" + out1);
@@ -66,7 +82,7 @@ public abstract class AbstractTriggerTest {
     void noneAction() throws Exception {
         String toUploadDir = "/tmp/local-listen-none-action";
 
-        Files.createDirectories(Paths.get(toUploadDir));
+        cleanDirectory(toUploadDir);
 
         String out1 = FriendlyId.createFriendlyId();
         utils().upload(toUploadDir + "/" + out1);

@@ -228,7 +228,7 @@ class TriggerTest extends AbstractTriggerTest {
                 .map(map -> {
                     Object localPath = map.get("localPath");
                     if (localPath != null) {
-                        return Paths.get(localPath.toString()).getFileName().toString();
+                        return Path.of(URI.create(localPath.toString())).getFileName().toString();
                     }
                     return null;
                 })
@@ -259,10 +259,11 @@ class TriggerTest extends AbstractTriggerTest {
             java.util.Set<String> movedFiles = new java.util.HashSet<>();
 
             if (Files.exists(targetDir)) {
-                Files.list(targetDir).forEach(path -> {
-                    String fileName = path.getFileName().toString();
-                    movedFiles.add(fileName);
-                });
+                try (var paths = Files.walk(targetDir)) {
+                    paths.filter(Files::isRegularFile)
+                        .map(path -> path.getFileName().toString())
+                        .forEach(movedFiles::add);
+                }
             }
 
             assertThat("moved files should match processed files", movedFiles, is(processedSet));
@@ -335,7 +336,11 @@ class TriggerTest extends AbstractTriggerTest {
 
             java.util.Set<String> movedFiles = new java.util.HashSet<>();
             if (Files.exists(targetDir)) {
-                Files.list(targetDir).forEach(path -> movedFiles.add(path.getFileName().toString()));
+                try (var paths = Files.walk(targetDir)) {
+                    paths.filter(Files::isRegularFile)
+                        .map(path -> path.getFileName().toString())
+                        .forEach(movedFiles::add);
+                }
             }
 
             java.util.Set<String> expectedFiles = java.util.Set.of("settings.xml");
@@ -494,9 +499,17 @@ class TriggerTest extends AbstractTriggerTest {
 
             Path reportedPath = pathOf(files.getFirst().get("localPath"));
 
-            assertThat("localPath must point to the move destination", reportedPath, is(targetDir.resolve("f2.txt")));
+            assertThat(
+                "localPath must point to the move destination",
+                reportedPath.toAbsolutePath().normalize(),
+                is(targetDir.resolve("f2.txt").toAbsolutePath().normalize())
+            );
             assertThat("the file reported in localPath must exist", Files.exists(reportedPath), is(true));
-            assertThat("parent must point to the move destination", files.getFirst().get("parent"), is(targetDir.toString()));
+            assertThat(
+                "parent must point to the move destination",
+                Paths.get(files.getFirst().get("parent").toString()).toAbsolutePath().normalize(),
+                is(targetDir.toAbsolutePath().normalize())
+            );
         } finally {
             cleanup(sourceDir);
             cleanup(targetDir);
@@ -527,9 +540,16 @@ class TriggerTest extends AbstractTriggerTest {
             assertThat(output.getFiles(), hasSize(1));
 
             Path reportedPath = output.getFiles().getFirst().getLocalPath();
-            assertThat("localPath must point to the move destination", reportedPath, is(targetDir.resolve("f2.txt")));
+            assertThat(
+                "localPath must point to the move destination",
+                reportedPath.toAbsolutePath().normalize(),
+                is(targetDir.resolve("f2.txt").toAbsolutePath().normalize())
+            );
             assertThat("the file reported in localPath must exist", Files.exists(reportedPath), is(true));
-            assertThat(output.getOutputFiles().keySet(), contains(targetDir.resolve("f2.txt").toString()));
+            assertThat(
+                output.getOutputFiles().keySet(),
+                contains(targetDir.resolve("f2.txt").toAbsolutePath().normalize().toString())
+            );
         } finally {
             cleanup(sourceDir);
             cleanup(targetDir);
