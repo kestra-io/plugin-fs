@@ -43,8 +43,8 @@ import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayDeque;
-import java.util.Deque;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -175,7 +175,10 @@ public class RealtimeTrigger extends AbstractTrigger
     @PluginProperty(group = "main")
     private Property<String> from;
 
-    @Schema(title = "Include files in subdirectories")
+    @Schema(
+        title = "Include files in subdirectories",
+        description = "Whether to watch subdirectories. Defaults to false. When enabled, newly created subdirectories are also watched."
+    )
     @Builder.Default
     @PluginProperty(group = "advanced")
     private Property<Boolean> recursive = Property.ofValue(false);
@@ -184,7 +187,10 @@ public class RealtimeTrigger extends AbstractTrigger
     @PluginProperty(group = "advanced")
     private Property<String> regExp;
 
-    @Schema(title = "Event types to trigger on")
+    @Schema(
+        title = "Event types to trigger on",
+        description = "Event types to trigger on. Defaults to CREATE_OR_UPDATE. CREATE emits for newly created files; UPDATE emits after a 500 ms quiet period following modifications; CREATE_OR_UPDATE enables both; DELETE emits for deleted files."
+    )
     @Builder.Default
     @PluginProperty(group = "advanced")
     private Property<EventType> on = Property.ofValue(EventType.CREATE_OR_UPDATE);
@@ -208,9 +214,9 @@ public class RealtimeTrigger extends AbstractTrigger
             if (path.toFile().exists()) {
                 realPath = path.toRealPath();
             } else {
-                Path absolute = path.toAbsolutePath().normalize();
-                Path ancestor = absolute;
-                Path suffix = Path.of("");
+                var absolute = path.toAbsolutePath().normalize();
+                var ancestor = absolute;
+                var suffix = Path.of("");
                 while (ancestor != null && !ancestor.toFile().exists()) {
                     suffix = ancestor.getFileName() == null ? suffix : ancestor.getFileName().resolve(suffix);
                     ancestor = ancestor.getParent();
@@ -269,9 +275,9 @@ public class RealtimeTrigger extends AbstractTrigger
                     return;
                 }
 
-                var renderedFrom = runContext.render(this.from).as(String.class)
+                var rFrom = runContext.render(this.from).as(String.class)
                     .orElseThrow(() -> new IllegalArgumentException("`from` is required"));
-                var rootDirectory = Paths.get(renderedFrom).toAbsolutePath().normalize();
+                var rootDirectory = Paths.get(rFrom).toAbsolutePath().normalize();
 
                 logger.info("RealtimeTrigger starting for directory: {}", rootDirectory);
                 var allowedPathConfig = runContext.<List<String>>pluginConfiguration(AbstractLocalTask.ALLOWED_PATHS);
@@ -295,17 +301,17 @@ public class RealtimeTrigger extends AbstractTrigger
                     .toList();
 
 
-                var renderedOn = runContext.render(this.on).as(EventType.class)
+                var rOn = runContext.render(this.on).as(EventType.class)
                     .orElse(EventType.CREATE_OR_UPDATE);
                 Pattern compiledPattern = null;
 
                 if (this.regExp != null) {
-                    var renderedRegExp = runContext.render(this.regExp)
+                    var rRegExp = runContext.render(this.regExp)
                         .as(String.class)
                         .orElse(null);
 
-                    if (renderedRegExp != null) {
-                        if (renderedRegExp.length() > MAX_REGEX_LENGTH) {
+                    if (rRegExp != null) {
+                        if (rRegExp.length() > MAX_REGEX_LENGTH) {
                             throw new IllegalArgumentException(
                                 "'regExp' must not exceed " + MAX_REGEX_LENGTH + " characters"
                             );
@@ -313,11 +319,11 @@ public class RealtimeTrigger extends AbstractTrigger
 
 
                         try {
-                            compiledPattern = Pattern.compile(renderedRegExp);
+                            compiledPattern = Pattern.compile(rRegExp);
                         } catch (PatternSyntaxException e) {
                             throw new IllegalArgumentException(
                                 "Invalid regex pattern in 'regExp': "
-                                    + renderedRegExp + " - " + e.getMessage(),
+                                    + rRegExp + " - " + e.getMessage(),
                                 e
                             );
                         }
@@ -483,7 +489,7 @@ public class RealtimeTrigger extends AbstractTrigger
                                     // Scan and emit CREATE events for existing files in the newly registered tree
                                     scanAndEmitExistingFiles(
                                         eventPath,
-                                        renderedOn,
+                                        rOn,
                                         compiledPattern,
                                         normalizedAllowedPaths,
                                         conditionContext,
@@ -547,7 +553,7 @@ public class RealtimeTrigger extends AbstractTrigger
                                 cancelPendingEvent(normalizedEventPath2, pendingEvents, logger);
                             }
 
-                            if (!shouldTrigger(kind, renderedOn)) {
+                            if (!shouldTrigger(kind, rOn)) {
                                 continue;
                             }
 
@@ -670,7 +676,7 @@ public class RealtimeTrigger extends AbstractTrigger
                 try {
                     attrs = Files.readAttributes(eventPath, BasicFileAttributes.class);
                 } catch (NoSuchFileException e) {
-                    logger.debug("File disappeared during {} event processing: {}",             changeType, eventPath);
+                    logger.debug("File disappeared during {} event processing: {}", changeType, eventPath);
                     return;
                 }
 
@@ -777,6 +783,7 @@ public class RealtimeTrigger extends AbstractTrigger
 
             futureRef.set(newFuture);
             pendingEvents.put(normalizedPath, newFuture);
+            logger.debug("Scheduled UPDATE coalesce for {}: {}ms quiet period", normalizedPath, COALESCE_DELAY_MS);
         }
     }
 
@@ -794,14 +801,6 @@ public class RealtimeTrigger extends AbstractTrigger
         }
     }
 
-    /**
-     * Determines whether a WatchEvent.Kind matches the configured EventType filter.
-     * Maps WatchService StandardWatchEventKinds to EventType values.
-     *
-     * @param kind the WatchEvent.Kind from the WatchService
-     * @param eventType the configured EventType filter
-     * @return true if the event should be processed, false otherwise
-     */
     private boolean shouldTrigger(WatchEvent.Kind<?> kind, EventType eventType) {
         if (eventType == EventType.CREATE) {
             return kind == StandardWatchEventKinds.ENTRY_CREATE;
@@ -819,13 +818,10 @@ public class RealtimeTrigger extends AbstractTrigger
         if (pattern == null) {
             return true;
         }
-        String pathStr = path.toString();
+        var pathStr = path.toString();
         return pattern.matcher(pathStr).matches();
     }
 
-    /**
-     * Creates the WatchService for filesystem monitoring.
-     */
     private void createWatchService() throws Exception {
         if (watchService.get() != null) {
             throw new IllegalStateException("WatchService already created");
@@ -989,7 +985,7 @@ public class RealtimeTrigger extends AbstractTrigger
      * and a queued WatchService event discover the same file.
      *
      * @param root the root directory to scan
-     * @param renderedOn the configured event type filter
+     * @param rOn the configured event type filter
      * @param compiledPattern the compiled regex pattern for filename filtering (null if none)
      * @param normalizedAllowedPaths the list of normalized allowed paths for security validation
      * @param conditionContext the condition context for execution creation
@@ -999,7 +995,7 @@ public class RealtimeTrigger extends AbstractTrigger
      */
     private void scanAndEmitExistingFiles(
         Path root,
-        EventType renderedOn,
+        EventType rOn,
         Pattern compiledPattern,
         List<Path> normalizedAllowedPaths,
         ConditionContext conditionContext,
@@ -1008,7 +1004,7 @@ public class RealtimeTrigger extends AbstractTrigger
         Logger logger,
         Map<Path, Long> scannedFiles
     ) {
-        Deque<Path> dirsToScan = new ArrayDeque<>();
+        var dirsToScan = new ArrayDeque<Path>();
         dirsToScan.add(root);
 
         while (!dirsToScan.isEmpty() && active.get()) {
@@ -1036,7 +1032,7 @@ public class RealtimeTrigger extends AbstractTrigger
                         }
 
                         if (!Files.isRegularFile(entry)
-                            || !shouldTrigger(StandardWatchEventKinds.ENTRY_CREATE, renderedOn)
+                            || !shouldTrigger(StandardWatchEventKinds.ENTRY_CREATE, rOn)
                             || (compiledPattern != null && !matchesRegExp(entry, compiledPattern))) {
                             continue;
                         }
@@ -1081,18 +1077,6 @@ public class RealtimeTrigger extends AbstractTrigger
             }
         }
     }
-
-
-    /**
-     * Checks if a file event should be suppressed due to recent scan discovery.
-     * Returns true if the file was scanned recently (within SCAN_DEDUP_WINDOW_NANOS).
-     *
-     * Also performs cleanup of expired entries from scannedFiles map.
-     *
-     * @param filePath the normalized file path
-     * @param currentTime the current time in nanoseconds
-     * @return true if the event should be suppressed
-     */
 
     private boolean isDuplicateOfRecentScan(Path filePath, long currentTime, Map<Path, Long> scannedFiles) {
         var scanTime = scannedFiles.get(filePath);

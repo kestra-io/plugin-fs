@@ -17,16 +17,20 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.lang.reflect.Field;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
+import org.slf4j.LoggerFactory;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -66,6 +70,52 @@ class RealtimeTriggerModifyCoalescingTest {
         } catch (UncheckedIOException e) {
             throw e.getCause();
         }
+    }
+
+    /**
+     * Waits for a log message matching the given predicate with a bounded timeout.
+     */
+    private static boolean awaitLogCondition(
+        ListAppender<ILoggingEvent> appender,
+        java.util.function.Predicate<ILoggingEvent> predicate,
+        long timeoutSeconds
+    ) throws InterruptedException {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
+
+        while (System.nanoTime() < deadline) {
+            List<ILoggingEvent> events;
+            synchronized (appender.list) {
+                events = new java.util.ArrayList<>(appender.list);
+            }
+
+            for (ILoggingEvent event : events) {
+                if (predicate.test(event)) {
+                    return true;
+                }
+            }
+
+            Thread.sleep(10);
+        }
+
+        return false;
+    }
+
+    private static boolean awaitExecutionCount(
+        AtomicInteger executionCount,
+        int expectedCount,
+        long timeoutSeconds
+    ) throws InterruptedException {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
+
+        while (System.nanoTime() < deadline) {
+            if (executionCount.get() >= expectedCount) {
+                return true;
+            }
+
+            Thread.sleep(10);
+        }
+
+        return executionCount.get() >= expectedCount;
     }
 
     /**
@@ -136,10 +186,10 @@ class RealtimeTriggerModifyCoalescingTest {
                 Thread.sleep(100);  // Short delay within expected quiet period
                 Files.writeString(testFile, "second write", StandardCharsets.UTF_8);
 
-                // Wait for potential executions (2 seconds observation window)
-                // On unfixed code: multiple executions arrive quickly
-                // On fixed code: single execution arrives ~500ms after last write
-                Thread.sleep(2000);
+                // Wait for the expected execution, then allow time for duplicate emissions.
+                boolean executionObserved = awaitExecutionCount(executionCount, 1, 3);
+                assertThat("Coalesced UPDATE execution must arrive within the timeout", executionObserved, is(true));
+                Thread.sleep(1000);
 
                 assertThat("Watcher must not fail", watcherError.get(), nullValue());
 
@@ -238,8 +288,10 @@ class RealtimeTriggerModifyCoalescingTest {
                     Thread.sleep(50);  // All within quiet period
                 }
 
-                // Wait for potential executions (2 seconds observation window)
-                Thread.sleep(2000);
+                // Wait for the coalesced execution, then allow time for duplicate emissions.
+                boolean executionObserved = awaitExecutionCount(executionCount, 1, 3);
+                assertThat("Coalesced UPDATE execution must arrive within the timeout", executionObserved, is(true));
+                Thread.sleep(1000);
 
                 assertThat("Watcher must not fail", watcherError.get(), nullValue());
 
@@ -335,14 +387,18 @@ class RealtimeTriggerModifyCoalescingTest {
                 // First write
                 Files.writeString(testFile, "first logical write", StandardCharsets.UTF_8);
 
-                // Wait beyond quiet period (700ms > 500ms)
-                Thread.sleep(700);
+                // Wait beyond quiet period (1000ms > 500ms)
+                Thread.sleep(1000);
 
                 // Second write (this is a new logical modification)
                 Files.writeString(testFile, "second logical write", StandardCharsets.UTF_8);
 
-                // Wait for both executions to arrive
-                Thread.sleep(1500);
+                // Wait for both distinct UPDATE executions.
+                boolean bothExecutionsObserved = awaitExecutionCount(executionCount, 2, 3);
+                assertThat("Both UPDATE executions must arrive within the timeout", bothExecutionsObserved, is(true));
+
+                // Allow time for any unexpected duplicate execution.
+                Thread.sleep(1000);
 
                 assertThat("Watcher must not fail", watcherError.get(), nullValue());
 
@@ -964,7 +1020,7 @@ class RealtimeTriggerModifyCoalescingTest {
                 // First write
                 Files.writeString(testFile, "first logical write", StandardCharsets.UTF_8);
 
-                // Wait 600ms (beyond 500ms quiet period - first execution will fire)
+                // Wait 1000ms (beyond 500ms quiet period)
                 Thread.sleep(1000);
 
                 // Second write (this is a new logical modification)
@@ -994,19 +1050,24 @@ class RealtimeTriggerModifyCoalescingTest {
     }
 
     /**
-     * **Validates: Requirements 2.3**
-     *
-     * Fix Verification Test: DELETE Cancels Pending MODIFY
-     *
      * This test writes to a file to start the quiet period, then deletes the file
-     * before the quiet period expires. It verifies that only a DELETE execution is
-     * emitted (no UPDATE), confirming DELETE events properly cancel pending MODIFY emissions.
+     * before the quiet period expires. It verifies that no stale UPDATE execution
+     * is emitted after DELETE cancels the pending MODIFY.
+     *
+     * **Validates: Requirements 2.3, 2.5**
+     *
+     * Uses bounded log-based synchronization to verify that the UPDATE is scheduled
+     * and subsequently cancelled by DELETE.
      */
     @Test
     @Timeout(20)
     void testDeleteCancelsPendingModify() throws Exception {
         Path tempDir = Files.createTempDirectory("realtime-trigger-delete-cancel-test");
         Path testFile = tempDir.resolve("test-delete-cancel.txt");
+
+        Logger triggerLogger = null;
+        ListAppender<ILoggingEvent> logAppender = null;
+        Level originalLevel = null;
 
         try {
             Files.writeString(testFile, "initial content", StandardCharsets.UTF_8);
@@ -1020,6 +1081,13 @@ class RealtimeTriggerModifyCoalescingTest {
                 .build();
 
             var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            triggerLogger = (Logger) context.getKey().getRunContext().logger();
+
+            logAppender = new ListAppender<>();
+            logAppender.start();
+            triggerLogger.addAppender(logAppender);
+            originalLevel = triggerLogger.getLevel();
+            triggerLogger.setLevel(Level.DEBUG);
             List<Execution> receivedExecutions = new CopyOnWriteArrayList<>();
             AtomicReference<Throwable> watcherError = new AtomicReference<>();
 
@@ -1045,44 +1113,43 @@ class RealtimeTriggerModifyCoalescingTest {
                     probeObserved
                 );
 
-                // Start a pending MODIFY quiet period, then delete the file.
+                Path normalizedTestFile = testFile.toAbsolutePath().normalize();
+
                 Files.writeString(testFile, "pending modify", StandardCharsets.UTF_8);
 
-                // Wait until the watcher has actually scheduled the MODIFY emission.
-                Field pendingField = RealtimeTrigger.class.getDeclaredField("pendingModifyEvents");
-                pendingField.setAccessible(true);
-                ConcurrentHashMap<?, ?> pending = (ConcurrentHashMap<?, ?>) pendingField.get(trigger);
-                Path normalizedTestFile = testFile.toAbsolutePath().normalize();
-                long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(3);
-                while (!pending.containsKey(normalizedTestFile) && System.nanoTime() < deadline) {
-                    Thread.sleep(10);
-                }
+                boolean schedulingObserved = awaitLogCondition(
+                    logAppender,
+                    event -> event.getFormattedMessage().contains("Scheduled UPDATE coalesce for")
+                             && event.getFormattedMessage().contains(normalizedTestFile.toString()),
+                    3
+                );
+
                 assertThat(
-                    "Watcher must register a pending MODIFY before deletion",
-                    pending.containsKey(normalizedTestFile),
+                    "Watcher must schedule UPDATE coalesce before DELETE",
+                    schedulingObserved,
                     is(true)
                 );
 
                 Files.delete(testFile);
 
-                // Wait for the watcher to process DELETE and cancel the pending MODIFY.
-                long cancellationDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(3);
-                while (pending.containsKey(normalizedTestFile) && System.nanoTime() < cancellationDeadline) {
-                    Thread.sleep(10);
-                }
-
-                assertThat(
-                    "DELETE must remove the pending MODIFY task",
-                    pending.containsKey(normalizedTestFile),
-                    is(false)
+                boolean cancellationObserved = awaitLogCondition(
+                    logAppender,
+                    event -> event.getFormattedMessage().contains("Cancelled pending event due to DELETE")
+                             && event.getFormattedMessage().contains(normalizedTestFile.toString()),
+                    3
                 );
 
-                // Allow the original quiet period to expire without recreating the file.
+                assertThat(
+                    "DELETE must cancel the pending UPDATE",
+                    cancellationObserved,
+                    is(true)
+                );
+
                 Thread.sleep(1000);
 
                 assertThat("Watcher must not fail", watcherError.get(), nullValue());
                 assertThat(
-                    "Deleting a file must cancel its pending UPDATE execution",
+                    "Deleting a file must cancel its pending UPDATE execution (no UPDATE emitted)",
                     receivedExecutions,
                     empty()
                 );
@@ -1091,6 +1158,27 @@ class RealtimeTriggerModifyCoalescingTest {
                 subscription.dispose();
             }
         } finally {
+            if (triggerLogger != null && logAppender != null) {
+                try {
+                    triggerLogger.detachAppender(logAppender);
+                } catch (Exception e) {
+                    // Ignore cleanup errors.
+                }
+
+                try {
+                    logAppender.stop();
+                } catch (Exception e) {
+                    // Ignore cleanup errors.
+                }
+
+                if (originalLevel != null) {
+                    try {
+                        triggerLogger.setLevel(originalLevel);
+                    } catch (Exception e) {
+                        // Ignore cleanup errors.
+                    }
+                }
+            }
             deleteRecursively(tempDir);
         }
     }
