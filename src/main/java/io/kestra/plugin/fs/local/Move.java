@@ -78,7 +78,7 @@ public class Move extends AbstractLocalTask implements RunnableTask<VoidOutput> 
 
     @Schema(
         title = "Overwrite existing files",
-        description = "If false, the task fails when the destination already exists."
+        description = "If false, the task fails when the destination already exists. For directories, it fails before moving anything if any file already exists in the destination."
     )
     @Builder.Default
     @PluginProperty(group = "destination")
@@ -152,6 +152,10 @@ public class Move extends AbstractLocalTask implements RunnableTask<VoidOutput> 
             }
         }
 
+        if (!overwrite) {
+            ensureNoConflictingFiles(sourceDir, targetDir);
+        }
+
         try (Stream<Path> paths = Files.walk(sourceDir)) {
             paths.forEach(source -> {
                 try {
@@ -163,16 +167,18 @@ public class Move extends AbstractLocalTask implements RunnableTask<VoidOutput> 
                             Files.createDirectories(target);
                         }
                     } else {
-                        if (Files.exists(target) && !overwrite) {
-                            runContext.logger().warn("Target file already exists. Skipping existing file: {}", target);
-                        } else {
-                            if (!Files.exists(target.getParent())) {
-                                Files.createDirectories(target.getParent());
-                            }
-                            Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
-                            Files.delete(source);
-                            runContext.logger().debug("Moved '{}' to '{}'", source, target);
+                        if (!Files.exists(target.getParent())) {
+                            Files.createDirectories(target.getParent());
                         }
+                        // The pre-check above already rejected conflicts when overwrite is false, so only
+                        // replace an existing file when the user asked for it.
+                        if (overwrite) {
+                            Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
+                        } else {
+                            Files.copy(source, target);
+                        }
+                        Files.delete(source);
+                        runContext.logger().debug("Moved '{}' to '{}'", source, target);
                     }
                 } catch (IOException e) {
                     throw new RuntimeException("Error moving " + source + ": " + e.getMessage(), e);
@@ -191,5 +197,21 @@ public class Move extends AbstractLocalTask implements RunnableTask<VoidOutput> 
         }
 
         runContext.logger().info("Moved directory from '{}' to '{}'", sourceDir, targetDir);
+    }
+
+    private void ensureNoConflictingFiles(Path sourceDir, Path targetDir) throws IOException {
+        try (Stream<Path> paths = Files.walk(sourceDir)) {
+            Path conflict = paths
+                .filter(path -> !Files.isDirectory(path))
+                .map(source -> targetDir.resolve(sourceDir.relativize(source)))
+                .filter(Files::exists)
+                .findFirst()
+                .orElse(null);
+
+            if (conflict != null) {
+                throw new KestraRuntimeException(String.format(
+                    "Target file already exists : %s.\nSet 'overwrite: true' to replace the existing file.", conflict));
+            }
+        }
     }
 }

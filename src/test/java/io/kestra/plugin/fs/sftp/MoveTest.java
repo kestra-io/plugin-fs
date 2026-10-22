@@ -7,6 +7,7 @@ import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
+import io.kestra.plugin.fs.vfs.models.File;
 import jakarta.inject.Inject;
 import org.apache.commons.io.FilenameUtils;
 import org.junit.jupiter.api.Test;
@@ -18,7 +19,9 @@ import java.util.Map;
 import static io.kestra.plugin.fs.sftp.SftpUtils.PASSWORD;
 import static io.kestra.plugin.fs.sftp.SftpUtils.USERNAME;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.endsWith;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @KestraTest
@@ -85,6 +88,22 @@ class MoveTest {
         Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(run.getTo().getPath(), containsString(to));
+    }
+
+    @Test
+    void shouldKeepNonAsciiFileNameWhenMovingToDirectory() throws Exception {
+        String fileName = IdUtils.create() + "-facturación-ñandú.txt";
+        String from = "upload/" + IdUtils.create() + "/" + fileName;
+        String to = "upload/" + IdUtils.create() + "-move/";
+
+        sftpUtils.upload(from);
+
+        Move task = createMoveTask(from, to);
+
+        Move.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(run.getTo().getPath(), endsWith("/" + fileName));
+        assertThat(sftpUtils.list("/" + to).getFiles().stream().map(File::getName).toList(), contains(fileName));
     }
 
     @ParameterizedTest

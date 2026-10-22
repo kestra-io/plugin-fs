@@ -6,6 +6,7 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
+import io.kestra.plugin.fs.vfs.models.File;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
@@ -14,6 +15,7 @@ import java.util.Map;
 import static io.kestra.plugin.fs.ftp.FtpUtils.PASSWORD;
 import static io.kestra.plugin.fs.ftp.FtpUtils.USERNAME;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.is;
 
@@ -109,5 +111,28 @@ class DownloadsTest {
         assertThat(run.getFiles().size(), is(1));
         assertThat(run.getOutputFiles().size(), is(1));
         assertThat(ftpUtils.list(toUploadDir).getFiles().size(), is(2));
+    }
+
+    @Test
+    void shouldDownloadFileWhenNameContainsPercent() throws Exception {
+        String toUploadDir = "/upload/" + random;
+        String fileName = IdUtils.create() + " report 100%.txt";
+        ftpUtils.upload(toUploadDir + "/" + fileName);
+
+        Downloads task = Downloads.builder()
+            .id(DownloadsTest.class.getSimpleName() + "-" + IdUtils.create())
+            .type(DownloadsTest.class.getName())
+            .from(Property.ofValue(toUploadDir + "/"))
+            .action(Property.ofValue(Downloads.Action.NONE))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6621"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+
+        Downloads.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(run.getFiles().stream().map(File::getName).toList(), contains(fileName));
+        assertThat(run.getOutputFiles().size(), is(1));
     }
 }

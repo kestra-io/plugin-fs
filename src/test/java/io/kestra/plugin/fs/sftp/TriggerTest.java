@@ -110,6 +110,23 @@ public class TriggerTest extends AbstractFileTriggerTest {
     }
 
     @Test
+    void shouldTriggerWhenFileNameContainsPercent() throws Exception {
+        String dir = "/upload/" + IdUtils.create() + "/";
+        String fileName = IdUtils.create() + " report 100%.txt";
+        utils().upload(dir + fileName);
+
+        Trigger trigger = (Trigger) createTrigger(dir, Downloads.Action.NONE, null);
+
+        var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+        Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
+
+        assertThat(execution.isPresent(), is(true));
+        @SuppressWarnings("unchecked")
+        java.util.List<Map<String, Object>> files = (java.util.List<Map<String, Object>>) execution.get().getTrigger().getVariables().get("files");
+        assertThat(files.stream().map(file -> file.get("name")).toList(), contains(fileName));
+    }
+
+    @Test
     void shouldTriggerOnCreate() throws Exception {
         var trigger = Trigger.builder()
             .id("sftp-create")

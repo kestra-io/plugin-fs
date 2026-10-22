@@ -85,6 +85,65 @@ class DownloadsTest {
     }
 
     @Test
+    void shouldDownloadFileWhenNameContainsPercent() throws Exception {
+        String toUploadDir = "/upload/" + random;
+        String fileName = IdUtils.create() + " report 100%.txt";
+
+        sftpUtils.upload(toUploadDir + "/" + fileName);
+
+        Downloads task = createPercentDownloadsTask(toUploadDir + "/", Downloads.Action.NONE);
+
+        Downloads.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(run.getFiles().stream().map(File::getName).toList(), contains(fileName));
+        assertThat(run.getOutputFiles().size(), is(1));
+    }
+
+    @Test
+    void shouldDeleteFileWhenNameContainsPercentAndActionIsDelete() throws Exception {
+        String toUploadDir = "/upload/" + random;
+        String fileName = IdUtils.create() + " report 100%.txt";
+
+        sftpUtils.upload(toUploadDir + "/" + fileName);
+
+        Downloads task = createPercentDownloadsTask(toUploadDir + "/", Downloads.Action.DELETE);
+
+        task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(sftpUtils.list(toUploadDir).getFiles().isEmpty(), is(true));
+    }
+
+    @Test
+    void shouldMoveFileWhenNameContainsPercentAndActionIsMove() throws Exception {
+        String toUploadDir = "/upload/" + random;
+        String moveDirectory = "/upload/" + IdUtils.create() + "-moved/";
+        String fileName = IdUtils.create() + " a%41b 100%.txt";
+
+        sftpUtils.upload(toUploadDir + "/" + fileName);
+
+        Downloads task = createMoveDownloadsTask(toUploadDir + "/", moveDirectory);
+
+        Downloads.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(run.getFiles().stream().map(File::getName).toList(), contains(fileName));
+        assertThat(sftpUtils.list(toUploadDir).getFiles().isEmpty(), is(true));
+        assertThat(sftpUtils.list(moveDirectory).getFiles().stream().map(File::getName).toList(), contains(fileName));
+    }
+
+    private static Downloads createPercentDownloadsTask(String from, Downloads.Action action) {
+        return Downloads.builder()
+            .id(DownloadsTest.class.getSimpleName() + "-" + IdUtils.create())
+            .type(DownloadsTest.class.getName())
+            .from(Property.ofValue(from))
+            .action(Property.ofValue(action))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+    }
+
+    @Test
     void run_shouldDownloadFileWithNameContainingDotsAndSpaces() throws Exception {
         String toUploadDir = "/upload/" + random;
 
@@ -114,5 +173,51 @@ class DownloadsTest {
         List<File> files = sftpUtils.list(toUploadDir).getFiles();
         assertThat(files.size(), is(2));
         assertThat(files.stream().map(File::getName).toList().toArray(), arrayContainingInAnyOrder(fileName1, fileName2));
+    }
+
+    @Test
+    void shouldKeepNonAsciiFileNameWhenActionIsMove() throws Exception {
+        String toUploadDir = "/upload/" + random;
+        String moveDirectory = "/upload/" + IdUtils.create() + "-moved/";
+        String fileName = IdUtils.create() + "-facturación-ñandú.txt";
+
+        sftpUtils.upload(toUploadDir + "/" + fileName);
+
+        Downloads task = createMoveDownloadsTask(toUploadDir + "/", moveDirectory);
+
+        Downloads.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(run.getFiles().size(), is(1));
+        assertThat(sftpUtils.list(toUploadDir).getFiles().isEmpty(), is(true));
+        assertThat(sftpUtils.list(moveDirectory).getFiles().stream().map(File::getName).toList(), contains(fileName));
+    }
+
+    @Test
+    void shouldKeepNonAsciiMoveDirectoryWhenItHasNoTrailingSlash() throws Exception {
+        String toUploadDir = "/upload/" + random;
+        String moveDirectory = "/upload/" + IdUtils.create() + "-déplacé-ñandú";
+        String fileName = IdUtils.create() + ".txt";
+
+        sftpUtils.upload(toUploadDir + "/" + fileName);
+
+        Downloads task = createMoveDownloadsTask(toUploadDir + "/", moveDirectory);
+
+        task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(sftpUtils.list(moveDirectory + "/").getFiles().stream().map(File::getName).toList(), contains(fileName));
+    }
+
+    private static Downloads createMoveDownloadsTask(String from, String moveDirectory) {
+        return Downloads.builder()
+            .id(DownloadsTest.class.getSimpleName() + "-" + IdUtils.create())
+            .type(DownloadsTest.class.getName())
+            .from(Property.ofValue(from))
+            .action(Property.ofValue(Downloads.Action.MOVE))
+            .moveDirectory(Property.ofValue(moveDirectory))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
     }
 }
