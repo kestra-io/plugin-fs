@@ -10,8 +10,11 @@ import io.kestra.plugin.fs.vfs.models.File;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Comparator;
 import java.util.Optional;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -26,10 +29,25 @@ public abstract class AbstractTriggerTest {
 
     abstract protected LocalUtils utils();
 
+    private static void cleanTestDirectory(Path directory) throws IOException {
+        if (!Files.exists(directory)) {
+            return;
+        }
+
+        try (var paths = Files.walk(directory)) {
+            for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
+                Files.deleteIfExists(path);
+            }
+        }
+    }
+
     @Test
     void moveAction() throws Exception {
         String toUploadDir = "/tmp/local-listen";
         String moveDir = toUploadDir + "-move";
+
+        cleanTestDirectory(Paths.get(toUploadDir));
+        cleanTestDirectory(Paths.get(moveDir));
 
         Files.createDirectories(Paths.get(toUploadDir));
 
@@ -65,6 +83,8 @@ public abstract class AbstractTriggerTest {
     @Test
     void noneAction() throws Exception {
         String toUploadDir = "/tmp/local-listen-none-action";
+
+        cleanTestDirectory(Paths.get(toUploadDir));
 
         Files.createDirectories(Paths.get(toUploadDir));
 

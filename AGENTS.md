@@ -29,6 +29,13 @@ Infrastructure dependencies (Docker Compose services):
 - `sftp`
 - `ssh`
 
+### Local Filesystem Triggers
+
+- `io.kestra.plugin.fs.local.Trigger` polls a local directory for matching files.
+- `io.kestra.plugin.fs.local.RealtimeTrigger` watches a local directory for create, modify, and delete events using Java NIO `WatchService`, with optional recursive watching and regex filtering.
+- `RealtimeTrigger` requires `allowed-paths` under `kestra.plugins.configurations.io.kestra.plugin.fs.local.RealtimeTrigger`.
+- On macOS, `WatchService` uses a polling-based fallback, so event detection may be delayed compared with Linux or Windows.
+
 ### Key Plugin Classes
 
 - `io.kestra.plugin.fs.ftp.Delete`
@@ -55,6 +62,7 @@ Infrastructure dependencies (Docker Compose services):
 - `io.kestra.plugin.fs.local.Move`
 - `io.kestra.plugin.fs.local.Trigger`
 - `io.kestra.plugin.fs.local.Upload`
+- `io.kestra.plugin.fs.local.RealtimeTrigger`
 - `io.kestra.plugin.fs.nfs.CheckMount`
 - `io.kestra.plugin.fs.nfs.Copy`
 - `io.kestra.plugin.fs.nfs.Delete`

@@ -37,6 +37,7 @@ tasks.withType(JavaCompile) {
 }
 
 dependencies {
+    implementation 'com.google.re2j:re2j:1.8'
     // Platform
     annotationProcessor enforcedPlatform("io.kestra:platform:$kestraVersion")
     implementation enforcedPlatform("io.kestra:platform:$kestraVersion")
@@ -95,6 +96,7 @@ dependencies {
     testImplementation "org.junit.jupiter:junit-jupiter-params"
     testImplementation "org.hamcrest:hamcrest"
     testImplementation "org.hamcrest:hamcrest-library"
+    testImplementation "ch.qos.logback:logback-classic"
 
     // libs
     testImplementation group: 'com.devskiller.friendly-id', name: 'friendly-id'

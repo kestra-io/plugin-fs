@@ -40,6 +40,10 @@ Store secrets in [secrets](https://kestra.io/docs/concepts/secret) and set conne
 
 **UDP** — `udp.Send` sends a `payload` to a `host` and `port`.
 
-**Local** — `local.Download`, `local.Upload`, `local.Copy`, `local.Move`, `local.Delete`, `local.List`, and `local.Trigger` mirror the remote operations but operate on the local filesystem. Access is restricted to paths configured in `allowed-paths`. `local.List` supports `sort` like the remote `List` tasks.
+**Local** — `local.Download`, `local.Upload`, `local.Copy`, `local.Move`, `local.Delete`, `local.List`, `local.Trigger`, and `local.RealtimeTrigger` operate on the local filesystem. Access is restricted to paths configured in `allowed-paths`. `local.List` supports `sort` like the remote `List` tasks.
 
 **NFS** — `nfs.List`, `nfs.Copy`, `nfs.Move`, `nfs.Delete`, `nfs.Trigger`, and `nfs.CheckMount` operate on NFS-mounted paths. Use `nfs.CheckMount` to validate the mount before running file operations. `nfs.List` supports `sort` like the remote `List` tasks.
+
+`local.RealtimeTrigger` watches a local directory for filesystem events (create, modify, delete) using Java NIO WatchService and triggers immediately when matching events occur, without polling. Access is restricted to paths configured in `allowed-paths` under `kestra.plugins.configurations.io.kestra.plugin.fs.local.RealtimeTrigger`. Set `from` to the directory path, optionally `recursive: true` to watch subdirectories, `regExp` to filter by pattern, and `on` to specify event types (`CREATE`, `UPDATE`, `CREATE_OR_UPDATE`, or `DELETE`).
+
+**Important:** UPDATE events are coalesced for each path after 500 ms without a further MODIFY event. CREATE events are emitted immediately and may observe a partial file; with `CREATE_OR_UPDATE`, a newly written file commonly produces a `CREATE` followed by an `UPDATE`. On macOS, WatchService uses a polling-based fallback and may have delayed event detection compared to Linux or Windows.
