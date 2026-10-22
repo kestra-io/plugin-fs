@@ -144,11 +144,11 @@ class ListTest {
 
     @Test
     void shouldMatchRegExpWhenNameContainsPercent() throws Exception {
-        String dir = "/" + IdUtils.create();
+        var dir = "/" + IdUtils.create();
         ftpUtils.upload("upload" + dir + "/report 100%.txt");
         ftpUtils.upload("upload" + dir + "/other.txt");
 
-        List task = List.builder()
+        var task = List.builder()
             .id("ftp-list-" + UUID.randomUUID())
             .type(List.class.getName())
             .from(Property.ofValue("/upload" + dir))
@@ -159,7 +159,7 @@ class ListTest {
             .regExp(Property.ofValue(".*/report 100%\\.txt"))
             .build();
 
-        List.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+        var run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(run.getFiles().size(), is(1));
     }

@@ -43,7 +43,8 @@ public abstract class Delete extends AbstractVfsTask implements RunnableTask<Del
         title = "A regular expression to filter files for deletion",
         description = """
             When set, `uri` must point to a directory. The pattern is matched against the path component of \
-            the remote URI (for example, `/remote/dir/file.csv`). Only regular files are deleted; directories \
+            the remote URI (for example, `/remote/dir/file.csv`), decoded: a file named `report 100%.txt` is \
+            matched as `report 100%.txt`, not as `report 100%25.txt`. Only regular files are deleted; directories \
             are skipped.
             """
     )
