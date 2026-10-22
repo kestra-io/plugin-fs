@@ -10,9 +10,11 @@ import io.kestra.plugin.fs.vfs.models.File;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Comparator;
 import java.util.Optional;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -27,18 +29,19 @@ public abstract class AbstractTriggerTest {
 
     abstract protected LocalUtils utils();
 
-    private void cleanDirectory(String directory) throws Exception {
-        Path path = Paths.get(directory);
+    private static void cleanTestDirectory(Path directory) throws IOException {
+        if (!Files.exists(directory)) {
+            Files.createDirectories(directory);
+            return;
+        }
 
-        if (Files.exists(path)) {
-            try (var paths = Files.walk(path)) {
-                for (Path entry : paths.sorted(java.util.Comparator.reverseOrder()).toList()) {
-                    Files.delete(entry);
-                }
+        try (var paths = Files.walk(directory)) {
+            for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
+                Files.deleteIfExists(path);
             }
         }
 
-        Files.createDirectories(path);
+        Files.createDirectories(directory);
     }
 
     @Test
@@ -46,8 +49,8 @@ public abstract class AbstractTriggerTest {
         String toUploadDir = "/tmp/local-listen";
         String moveDir = toUploadDir + "-move";
 
-        cleanDirectory(toUploadDir);
-        cleanDirectory(moveDir);
+        cleanTestDirectory(Paths.get(toUploadDir));
+        cleanTestDirectory(Paths.get(moveDir));
 
         String out1 = FriendlyId.createFriendlyId();
         utils().upload(toUploadDir + "/" + out1);
@@ -82,7 +85,7 @@ public abstract class AbstractTriggerTest {
     void noneAction() throws Exception {
         String toUploadDir = "/tmp/local-listen-none-action";
 
-        cleanDirectory(toUploadDir);
+        cleanTestDirectory(Paths.get(toUploadDir));
 
         String out1 = FriendlyId.createFriendlyId();
         utils().upload(toUploadDir + "/" + out1);
