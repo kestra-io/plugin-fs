@@ -130,4 +130,31 @@ class DeleteTest {
         var remaining = sftpUtils.list(directory);
         assertThat(remaining.getFiles(), hasSize(1));
     }
+
+    @Test
+    void shouldDeleteByRegExpWhenNameContainsPercent() throws Exception {
+        var directory = "upload/" + IdUtils.create();
+        sftpUtils.upload(directory + "/report 100%.csv");
+        sftpUtils.upload(directory + "/" + IdUtils.create() + ".yaml");
+
+        var task = Delete.builder()
+            .id(DeleteTest.class.getSimpleName() + "-" + IdUtils.create())
+            .type(DeleteTest.class.getName())
+            .uri(Property.ofValue(directory))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .regExp(Property.ofValue(".*/report 100%\\.csv"))
+            .build();
+
+        var run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(run.isDeleted(), is(true));
+        assertThat(run.getUris(), hasSize(1));
+
+        var remaining = sftpUtils.list(directory);
+        assertThat(remaining.getFiles(), hasSize(1));
+        assertThat(remaining.getFiles().getFirst().getName(), endsWith(".yaml"));
+    }
 }

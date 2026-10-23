@@ -103,7 +103,7 @@ public abstract class VfsService {
                 public boolean includeFile(FileSelectInfo file) throws Exception {
                     // Do not include directories in the result and apply user's filter
                     return file.getFile().isFile()
-                        && (regExp == null || file.getFile().getName().getPath().matches(regExp));
+                        && (regExp == null || file.getFile().getName().getPathDecoded().matches(regExp));
                 }
             });
 
@@ -259,7 +259,7 @@ public abstract class VfsService {
 
                     @Override
                     public boolean includeFile(FileSelectInfo file) throws Exception {
-                        return file.getFile().isFile() && pattern.matcher(file.getFile().getName().getPath()).matches();
+                        return file.getFile().isFile() && pattern.matcher(file.getFile().getName().getPathDecoded()).matches();
                     }
                 });
 
