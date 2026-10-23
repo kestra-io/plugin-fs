@@ -67,10 +67,7 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
     @PluginProperty(group = "advanced")
     private Property<String> moveDirectory;
 
-    @Schema(
-        title = "Regexp filter on full path",
-        description = "Matched against the decoded path, the same value as the `path` output: a file named `report 100%.txt` is matched as `report 100%.txt`, not as `report 100%25.txt`."
-    )
+    @Schema(title = "Regexp filter on full path")
     @PluginProperty(group = "advanced")
     private Property<String> regExp;
 
