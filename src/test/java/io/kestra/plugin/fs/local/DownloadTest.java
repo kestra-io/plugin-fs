@@ -188,6 +188,63 @@ class DownloadTest {
                 });
         }
     }
+
+    @Test
+    void downloadsMoveSingleFile() throws Exception {
+        Path allowedRoot = Path.of("/tmp");
+        Files.createDirectories(allowedRoot);
+
+        Path sourceRoot = Files.createTempDirectory(allowedRoot, "kestra-test-move-single-src-");
+        Path sourceFile = sourceRoot.resolve("report.csv");
+        Path archiveRoot = Files.createTempDirectory(allowedRoot, "kestra-test-move-single-dst-");
+
+        try {
+            Files.writeString(sourceFile, "single file data");
+
+            Downloads task = Downloads.builder()
+                .id(DownloadTest.class.getSimpleName())
+                .type(Downloads.class.getName())
+                .from(Property.ofValue(sourceFile.toString()))
+                .action(Property.ofValue(Downloads.Action.MOVE))
+                .moveDirectory(Property.ofValue(archiveRoot.toString()))
+                .build();
+
+            Downloads.Output output = task.run(
+                TestsUtils.mockRunContext(runContextFactory, task, Map.of())
+            );
+
+            Path destination = archiveRoot.resolve("report.csv");
+
+            assertTrue(Files.exists(destination), "The moved file must exist in moveDirectory");
+            assertThat(Files.readString(destination), is("single file data"));
+            assertFalse(Files.exists(sourceFile), "The original file must be removed after MOVE");
+            assertThat(
+                output.getFiles().stream().filter(file -> !file.isDirectory()).count(),
+                is(1L)
+            );
+        } finally {
+            try (var paths = Files.walk(sourceRoot)) {
+                paths.sorted(Comparator.reverseOrder()).forEach(path -> {
+                    try {
+                        Files.deleteIfExists(path);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+            }
+
+            try (var paths = Files.walk(archiveRoot)) {
+                paths.sorted(Comparator.reverseOrder()).forEach(path -> {
+                    try {
+                        Files.deleteIfExists(path);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+            }
+        }
+    }
+
     @Test
     void downloadsMovePrefixNested() throws Exception {
         // Build source tree:

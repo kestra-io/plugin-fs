@@ -93,7 +93,13 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     private Property<String> from;
 
     @Schema(
-        title = "Destination directory when action is MOVE"
+        title = "Destination directory when action is MOVE",
+        description = """
+            During a MOVE, each file is placed beneath this directory at the same relative path it had
+            inside the source directory. This means a recursive move can create nested destination
+            directories that mirror the source layout (e.g., a file at `source/dept/report.csv` is
+            moved to `moveDirectory/dept/report.csv`).
+            """
     )
     @PluginProperty(group = "advanced")
     private Property<String> moveDirectory;

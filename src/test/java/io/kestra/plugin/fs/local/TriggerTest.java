@@ -556,6 +556,58 @@ class TriggerTest extends AbstractTriggerTest {
         }
     }
 
+    @Test
+    void triggerMoveNestedDirectoriesShouldPreserveRelativePaths() throws Exception {
+        Path sourceRoot = Paths.get("/tmp/trigger-nested-move-src-" + FriendlyId.createFriendlyId());
+        Path dept1 = sourceRoot.resolve("dept1");
+        Path dept2 = sourceRoot.resolve("dept2");
+        Path archiveRoot = Paths.get("/tmp/trigger-nested-move-dst-" + FriendlyId.createFriendlyId());
+
+        Files.createDirectories(dept1);
+        Files.createDirectories(dept2);
+        Files.createDirectories(archiveRoot);
+
+        try {
+            Files.writeString(dept1.resolve("report.csv"), "dept1 data");
+            Files.writeString(dept2.resolve("report.csv"), "dept2 data");
+
+            io.kestra.plugin.fs.local.Trigger trigger = io.kestra.plugin.fs.local.Trigger.builder()
+                .id(TriggerTest.class.getSimpleName())
+                .type(io.kestra.plugin.fs.local.Trigger.class.getName())
+                .from(Property.ofValue(sourceRoot.toString()))
+                .action(Property.ofValue(Downloads.Action.MOVE))
+                .moveDirectory(Property.ofValue(archiveRoot.toString()))
+                .recursive(Property.ofValue(true))
+                .build();
+
+            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
+
+            assertThat(execution.isPresent(), is(true));
+
+            Path expectedDest1 = archiveRoot.resolve("dept1").resolve("report.csv");
+            Path expectedDest2 = archiveRoot.resolve("dept2").resolve("report.csv");
+
+            assertThat("dept1/report.csv must exist at its relative path under moveDirectory",
+                Files.exists(expectedDest1), is(true));
+            assertThat("dept2/report.csv must exist at its relative path under moveDirectory",
+                Files.exists(expectedDest2), is(true));
+
+            assertThat("dept1/report.csv content must be preserved",
+                Files.readString(expectedDest1), is("dept1 data"));
+            assertThat("dept2/report.csv content must be preserved",
+                Files.readString(expectedDest2), is("dept2 data"));
+
+            assertThat("source dept1/report.csv must be removed after MOVE",
+                Files.exists(dept1.resolve("report.csv")), is(false));
+            assertThat("source dept2/report.csv must be removed after MOVE",
+                Files.exists(dept2.resolve("report.csv")), is(false));
+        } finally {
+            cleanup(sourceRoot);
+            cleanup(archiveRoot);
+        }
+    }
+
     private static Path pathOf(Object serializedPath) {
         String value = Objects.requireNonNull(serializedPath).toString();
 
