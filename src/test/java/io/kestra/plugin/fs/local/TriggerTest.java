@@ -228,7 +228,7 @@ class TriggerTest extends AbstractTriggerTest {
                 .map(map -> {
                     Object localPath = map.get("localPath");
                     if (localPath != null) {
-                        return Paths.get(localPath.toString()).getFileName().toString();
+                        return Path.of(URI.create(localPath.toString())).getFileName().toString();
                     }
                     return null;
                 })
@@ -259,10 +259,11 @@ class TriggerTest extends AbstractTriggerTest {
             java.util.Set<String> movedFiles = new java.util.HashSet<>();
 
             if (Files.exists(targetDir)) {
-                Files.list(targetDir).forEach(path -> {
-                    String fileName = path.getFileName().toString();
-                    movedFiles.add(fileName);
-                });
+                try (var paths = Files.walk(targetDir)) {
+                    paths.filter(Files::isRegularFile)
+                        .map(path -> path.getFileName().toString())
+                        .forEach(movedFiles::add);
+                }
             }
 
             assertThat("moved files should match processed files", movedFiles, is(processedSet));
@@ -335,7 +336,11 @@ class TriggerTest extends AbstractTriggerTest {
 
             java.util.Set<String> movedFiles = new java.util.HashSet<>();
             if (Files.exists(targetDir)) {
-                Files.list(targetDir).forEach(path -> movedFiles.add(path.getFileName().toString()));
+                try (var paths = Files.walk(targetDir)) {
+                    paths.filter(Files::isRegularFile)
+                        .map(path -> path.getFileName().toString())
+                        .forEach(movedFiles::add);
+                }
             }
 
             java.util.Set<String> expectedFiles = java.util.Set.of("settings.xml");
@@ -494,9 +499,17 @@ class TriggerTest extends AbstractTriggerTest {
 
             Path reportedPath = pathOf(files.getFirst().get("localPath"));
 
-            assertThat("localPath must point to the move destination", reportedPath, is(targetDir.resolve("f2.txt")));
+            assertThat(
+                "localPath must point to the move destination",
+                reportedPath.toAbsolutePath().normalize(),
+                is(targetDir.resolve("f2.txt").toAbsolutePath().normalize())
+            );
             assertThat("the file reported in localPath must exist", Files.exists(reportedPath), is(true));
-            assertThat("parent must point to the move destination", files.getFirst().get("parent"), is(targetDir.toString()));
+            assertThat(
+                "parent must point to the move destination",
+                Paths.get(files.getFirst().get("parent").toString()).toAbsolutePath().normalize(),
+                is(targetDir.toAbsolutePath().normalize())
+            );
         } finally {
             cleanup(sourceDir);
             cleanup(targetDir);
@@ -527,12 +540,71 @@ class TriggerTest extends AbstractTriggerTest {
             assertThat(output.getFiles(), hasSize(1));
 
             Path reportedPath = output.getFiles().getFirst().getLocalPath();
-            assertThat("localPath must point to the move destination", reportedPath, is(targetDir.resolve("f2.txt")));
+            assertThat(
+                "localPath must point to the move destination",
+                reportedPath.toAbsolutePath().normalize(),
+                is(targetDir.resolve("f2.txt").toAbsolutePath().normalize())
+            );
             assertThat("the file reported in localPath must exist", Files.exists(reportedPath), is(true));
-            assertThat(output.getOutputFiles().keySet(), contains(targetDir.resolve("f2.txt").toString()));
+            assertThat(
+                output.getOutputFiles().keySet(),
+                contains(targetDir.resolve("f2.txt").toAbsolutePath().normalize().toString())
+            );
         } finally {
             cleanup(sourceDir);
             cleanup(targetDir);
+        }
+    }
+
+    @Test
+    void triggerMoveNestedDirectoriesShouldPreserveRelativePaths() throws Exception {
+        Path sourceRoot = Paths.get("/tmp/trigger-nested-move-src-" + FriendlyId.createFriendlyId());
+        Path dept1 = sourceRoot.resolve("dept1");
+        Path dept2 = sourceRoot.resolve("dept2");
+        Path archiveRoot = Paths.get("/tmp/trigger-nested-move-dst-" + FriendlyId.createFriendlyId());
+
+        Files.createDirectories(dept1);
+        Files.createDirectories(dept2);
+        Files.createDirectories(archiveRoot);
+
+        try {
+            Files.writeString(dept1.resolve("report.csv"), "dept1 data");
+            Files.writeString(dept2.resolve("report.csv"), "dept2 data");
+
+            io.kestra.plugin.fs.local.Trigger trigger = io.kestra.plugin.fs.local.Trigger.builder()
+                .id(TriggerTest.class.getSimpleName())
+                .type(io.kestra.plugin.fs.local.Trigger.class.getName())
+                .from(Property.ofValue(sourceRoot.toString()))
+                .action(Property.ofValue(Downloads.Action.MOVE))
+                .moveDirectory(Property.ofValue(archiveRoot.toString()))
+                .recursive(Property.ofValue(true))
+                .build();
+
+            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            Optional<Execution> execution = trigger.evaluate(context.getKey(), context.getValue());
+
+            assertThat(execution.isPresent(), is(true));
+
+            Path expectedDest1 = archiveRoot.resolve("dept1").resolve("report.csv");
+            Path expectedDest2 = archiveRoot.resolve("dept2").resolve("report.csv");
+
+            assertThat("dept1/report.csv must exist at its relative path under moveDirectory",
+                Files.exists(expectedDest1), is(true));
+            assertThat("dept2/report.csv must exist at its relative path under moveDirectory",
+                Files.exists(expectedDest2), is(true));
+
+            assertThat("dept1/report.csv content must be preserved",
+                Files.readString(expectedDest1), is("dept1 data"));
+            assertThat("dept2/report.csv content must be preserved",
+                Files.readString(expectedDest2), is("dept2 data"));
+
+            assertThat("source dept1/report.csv must be removed after MOVE",
+                Files.exists(dept1.resolve("report.csv")), is(false));
+            assertThat("source dept2/report.csv must be removed after MOVE",
+                Files.exists(dept2.resolve("report.csv")), is(false));
+        } finally {
+            cleanup(sourceRoot);
+            cleanup(archiveRoot);
         }
     }
 

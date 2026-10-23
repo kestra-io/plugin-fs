@@ -99,7 +99,13 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
     private Property<Downloads.Action> action = Property.ofValue(Downloads.Action.NONE);
 
     @Schema(
-        title = "Destination directory when action is MOVE"
+        title = "Destination directory when action is MOVE",
+        description = """
+            During a MOVE, each file is placed beneath this directory at the same relative path it had
+            inside the source directory. This means a recursive move can create nested destination
+            directories that mirror the source layout (e.g., a file at `source/dept/report.csv` is
+            moved to `moveDirectory/dept/report.csv`).
+            """
     )
     @PluginProperty(group = "destination")
     private Property<String> moveDirectory;
@@ -133,7 +139,8 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
         java.util.List<File> files,
         Action action,
         Property<String> moveDirectory,
-        RunContext runContext) throws Exception {
+        RunContext runContext,
+        String sourceDirectory) throws Exception {
         if (action == Action.DELETE) {
             for (File file : files) {
                 if (!file.isDirectory()) {
@@ -158,25 +165,38 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
 
             List<File> movedFiles = new ArrayList<>(files.size());
 
+            Path sourceBase = Path.of(sourceDirectory).toAbsolutePath().normalize();
+
             for (File file : files) {
                 if (file.isDirectory()) {
                     movedFiles.add(file);
                     continue;
                 }
 
-                String fileName = file.getLocalPath().getFileName().toString();
-                String destinationPath = rMoveDirectory + fileName;
+                Path sourceFile = file.getLocalPath().toAbsolutePath().normalize();
+
+                if (!sourceFile.startsWith(sourceBase)) {
+                    throw new IllegalArgumentException(
+                        "File path must be inside the source directory: " + sourceFile
+                    );
+                }
+
+                var relativePath = sourceFile.equals(sourceBase)
+                    ? sourceFile.getFileName()
+                    : sourceBase.relativize(sourceFile);
+
+                Path destination = Path.of(rMoveDirectory).resolve(relativePath).normalize();
 
                 Move move = Move.builder()
                     .id(Move.class.getSimpleName())
                     .type(Move.class.getName())
                     .from(Property.ofValue(file.getLocalPath().toString()))
-                    .to(Property.ofValue(destinationPath))
+                    .to(Property.ofValue(destination.toString()))
                     .overwrite(Property.ofValue(true))
                     .build();
                 move.run(runContext);
 
-                movedFiles.add(file.withLocalPath(Path.of(destinationPath)));
+                movedFiles.add(file.withLocalPath(destination));
             }
 
             return movedFiles;
@@ -231,7 +251,7 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
             Action.NONE;
 
         List<File> resultFiles = selectedAction != Action.NONE ?
-            performAction(downloadedFiles, selectedAction, this.moveDirectory, runContext) :
+            performAction(downloadedFiles, selectedAction, this.moveDirectory, runContext, renderedFrom) :
             downloadedFiles;
 
         Map<String, URI> outputFiles = resultFiles.stream()

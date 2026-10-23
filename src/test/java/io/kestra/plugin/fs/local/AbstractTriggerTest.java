@@ -31,6 +31,7 @@ public abstract class AbstractTriggerTest {
 
     private static void cleanTestDirectory(Path directory) throws IOException {
         if (!Files.exists(directory)) {
+            Files.createDirectories(directory);
             return;
         }
 
@@ -39,6 +40,8 @@ public abstract class AbstractTriggerTest {
                 Files.deleteIfExists(path);
             }
         }
+
+        Files.createDirectories(directory);
     }
 
     @Test
@@ -48,8 +51,6 @@ public abstract class AbstractTriggerTest {
 
         cleanTestDirectory(Paths.get(toUploadDir));
         cleanTestDirectory(Paths.get(moveDir));
-
-        Files.createDirectories(Paths.get(toUploadDir));
 
         String out1 = FriendlyId.createFriendlyId();
         utils().upload(toUploadDir + "/" + out1);
@@ -85,8 +86,6 @@ public abstract class AbstractTriggerTest {
         String toUploadDir = "/tmp/local-listen-none-action";
 
         cleanTestDirectory(Paths.get(toUploadDir));
-
-        Files.createDirectories(Paths.get(toUploadDir));
 
         String out1 = FriendlyId.createFriendlyId();
         utils().upload(toUploadDir + "/" + out1);

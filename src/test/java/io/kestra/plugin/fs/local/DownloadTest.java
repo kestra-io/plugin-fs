@@ -188,4 +188,141 @@ class DownloadTest {
                 });
         }
     }
+
+    @Test
+    void downloadsMoveSingleFile() throws Exception {
+        Path allowedRoot = Path.of("/tmp");
+        Files.createDirectories(allowedRoot);
+
+        Path sourceRoot = Files.createTempDirectory(allowedRoot, "kestra-test-move-single-src-");
+        Path sourceFile = sourceRoot.resolve("report.csv");
+        Path archiveRoot = Files.createTempDirectory(allowedRoot, "kestra-test-move-single-dst-");
+
+        try {
+            Files.writeString(sourceFile, "single file data");
+
+            Downloads task = Downloads.builder()
+                .id(DownloadTest.class.getSimpleName())
+                .type(Downloads.class.getName())
+                .from(Property.ofValue(sourceFile.toString()))
+                .action(Property.ofValue(Downloads.Action.MOVE))
+                .moveDirectory(Property.ofValue(archiveRoot.toString()))
+                .build();
+
+            Downloads.Output output = task.run(
+                TestsUtils.mockRunContext(runContextFactory, task, Map.of())
+            );
+
+            Path destination = archiveRoot.resolve("report.csv");
+
+            assertTrue(Files.exists(destination), "The moved file must exist in moveDirectory");
+            assertThat(Files.readString(destination), is("single file data"));
+            assertFalse(Files.exists(sourceFile), "The original file must be removed after MOVE");
+            assertThat(
+                output.getFiles().stream().filter(file -> !file.isDirectory()).count(),
+                is(1L)
+            );
+        } finally {
+            try (var paths = Files.walk(sourceRoot)) {
+                paths.sorted(Comparator.reverseOrder()).forEach(path -> {
+                    try {
+                        Files.deleteIfExists(path);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+            }
+
+            try (var paths = Files.walk(archiveRoot)) {
+                paths.sorted(Comparator.reverseOrder()).forEach(path -> {
+                    try {
+                        Files.deleteIfExists(path);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+            }
+        }
+    }
+
+    @Test
+    void downloadsMovePrefixNested() throws Exception {
+        // Build source tree:
+        //   source/team-A/report.csv
+        //   source/team-B/report.csv
+        Path sourceRoot = Files.createTempDirectory(
+            Path.of(Paths.get("/tmp").toAbsolutePath().toUri()),
+            "kestra-test-move-nested-src-"
+        );
+        Path archiveRoot = Files.createTempDirectory(
+            Path.of(Paths.get("/tmp").toAbsolutePath().toUri()),
+            "kestra-test-move-nested-dst-"
+        );
+        try {
+            Path teamA = Files.createDirectories(sourceRoot.resolve("team-A"));
+            Path teamB = Files.createDirectories(sourceRoot.resolve("team-B"));
+
+            Path srcA = teamA.resolve("report.csv");
+            Path srcB = teamB.resolve("report.csv");
+
+            Files.writeString(srcA, "team-A data");
+            Files.writeString(srcB, "team-B data");
+
+            Downloads task = Downloads.builder()
+                .id(DownloadTest.class.getSimpleName())
+                .type(Downloads.class.getName())
+                .from(Property.ofValue(sourceRoot.toString()))
+                .recursive(Property.ofValue(true))
+                .action(Property.ofValue(Downloads.Action.MOVE))
+                .moveDirectory(Property.ofValue(archiveRoot.toString()))
+                .build();
+
+            Downloads.Output output = task.run(
+                TestsUtils.mockRunContext(runContextFactory, task, Map.of())
+            );
+
+            // Both files must appear in the output
+            long fileCount = output.getFiles().stream()
+                .filter(f -> !f.isDirectory())
+                .count();
+            assertThat(fileCount, is(2L));
+
+            // Destination paths must preserve the sub-directory structure
+            Path dstA = archiveRoot.resolve("team-A").resolve("report.csv");
+            Path dstB = archiveRoot.resolve("team-B").resolve("report.csv");
+
+            assertTrue(Files.exists(dstA), "team-A/report.csv must exist in archive");
+            assertTrue(Files.exists(dstB), "team-B/report.csv must exist in archive");
+
+            assertThat(Files.readString(dstA), is("team-A data"));
+            assertThat(Files.readString(dstB), is("team-B data"));
+
+            // Original files must have been removed
+            assertFalse(Files.exists(srcA), "source team-A/report.csv must be removed after MOVE");
+            assertFalse(Files.exists(srcB), "source team-B/report.csv must be removed after MOVE");
+
+        } finally {
+            try (var paths = Files.walk(sourceRoot)) {
+                paths.sorted(Comparator.reverseOrder())
+                    .forEach(path -> {
+                        try {
+                            Files.deleteIfExists(path);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
+            }
+
+            try (var paths = Files.walk(archiveRoot)) {
+                paths.sorted(Comparator.reverseOrder())
+                    .forEach(path -> {
+                        try {
+                            Files.deleteIfExists(path);
+                        } catch (IOException e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
+            }
+        }
+    }
 }
