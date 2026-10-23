@@ -143,6 +143,28 @@ class ListTest {
     }
 
     @Test
+    void shouldMatchRegExpWhenNameContainsPercent() throws Exception {
+        var dir = "/" + IdUtils.create();
+        ftpUtils.upload("upload" + dir + "/report 100%.txt");
+        ftpUtils.upload("upload" + dir + "/other.txt");
+
+        var task = List.builder()
+            .id("ftp-list-" + UUID.randomUUID())
+            .type(List.class.getName())
+            .from(Property.ofValue("/upload" + dir))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6621"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .regExp(Property.ofValue(".*/report 100%\\.txt"))
+            .build();
+
+        var run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(run.getFiles().size(), is(1));
+    }
+
+    @Test
     void maxFilesShouldLimit() throws Exception {
         String dir = "/" + IdUtils.create();
         ftpUtils.upload("upload" + dir + "/file1.yaml");

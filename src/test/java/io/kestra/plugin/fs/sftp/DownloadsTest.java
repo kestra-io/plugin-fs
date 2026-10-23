@@ -130,6 +130,32 @@ class DownloadsTest {
         assertThat(sftpUtils.list(moveDirectory).getFiles().stream().map(File::getName).toList(), contains(fileName));
     }
 
+    @Test
+    void shouldDownloadFileMatchedByRegExpWhenNameContainsPercent() throws Exception {
+        var toUploadDir = "/upload/" + random;
+        var fileName = IdUtils.create() + " report 100%.txt";
+
+        sftpUtils.upload(toUploadDir + "/" + fileName);
+        sftpUtils.upload(toUploadDir + "/" + IdUtils.create() + ".txt");
+
+        var task = Downloads.builder()
+            .id(DownloadsTest.class.getSimpleName() + "-" + IdUtils.create())
+            .type(DownloadsTest.class.getName())
+            .from(Property.ofValue(toUploadDir + "/"))
+            .regExp(Property.ofValue(".*/[^/]* report 100%\\.txt"))
+            .action(Property.ofValue(Downloads.Action.NONE))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+
+        var run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(run.getFiles().stream().map(File::getName).toList(), contains(fileName));
+        assertThat(run.getOutputFiles().size(), is(1));
+    }
+
     private static Downloads createPercentDownloadsTask(String from, Downloads.Action action) {
         return Downloads.builder()
             .id(DownloadsTest.class.getSimpleName() + "-" + IdUtils.create())

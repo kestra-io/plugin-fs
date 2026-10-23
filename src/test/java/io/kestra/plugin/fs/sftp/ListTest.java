@@ -163,4 +163,26 @@ class ListTest {
         run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
         assertThat(run.getFiles().stream().map(File::getName).toList(), contains("newer.txt", "older.txt"));
     }
+
+    @Test
+    void shouldMatchRegExpWhenNameContainsPercent() throws Exception {
+        var dir = "/" + IdUtils.create();
+        sftpUtils.upload("upload" + dir + "/report 100%.txt");
+        sftpUtils.upload("upload" + dir + "/other.txt");
+
+        var task = List.builder()
+            .id(ListTest.class.getSimpleName() + "-" + IdUtils.create())
+            .type(ListTest.class.getName())
+            .from(Property.ofValue("/upload" + dir))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .regExp(Property.ofValue(".*/report 100%\\.txt"))
+            .build();
+
+        var run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(run.getFiles().size(), is(1));
+    }
 }
