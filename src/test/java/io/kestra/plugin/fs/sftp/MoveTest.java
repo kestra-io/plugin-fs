@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 import static io.kestra.plugin.fs.sftp.SftpUtils.PASSWORD;
@@ -168,7 +169,7 @@ class MoveTest {
             .build();
         Download.Output output = task.run(runContext);
         try (var input = runContext.storage().getFile(output.getTo())) {
-            return new String(input.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            return new String(input.readAllBytes(), StandardCharsets.UTF_8);
         }
     }
 
