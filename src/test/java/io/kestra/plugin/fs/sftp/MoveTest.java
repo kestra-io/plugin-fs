@@ -140,15 +140,15 @@ class MoveTest {
 
     @Test
     void moveFile_fileExistsInDestinationWithDifferentName() throws Exception {
-        String source = "upload/" + IdUtils.create() + "/incoming.txt";
-        String destination = "upload/" + IdUtils.create() + "/current.txt";
+        var source = "upload/%s/incoming.txt".formatted(IdUtils.create());
+        var destination = "upload/%s/current.txt".formatted(IdUtils.create());
 
         sftpUtils.update(source, "new incoming data");
         sftpUtils.update(destination, "protected existing data");
 
-        Move task = createMoveTask(source, destination);
-        RunContext runContext = TestsUtils.mockRunContext(runContextFactory, task, Map.of());
-        KestraRuntimeException exception = assertThrows(KestraRuntimeException.class, () -> task.run(runContext));
+        var task = createMoveTask(source, destination);
+        var runContext = TestsUtils.mockRunContext(runContextFactory, task, Map.of());
+        var exception = assertThrows(KestraRuntimeException.class, () -> task.run(runContext));
 
         assertThat(exception.getMessage(), containsString("current.txt"));
         assertThat(sftpUtils.list(FilenameUtils.getPath(source)).getFiles(), hasSize(1));
@@ -158,7 +158,7 @@ class MoveTest {
     }
 
     private String downloadContent(String path, RunContext runContext) throws Exception {
-        Download task = Download.builder()
+        var task = Download.builder()
             .id(MoveTest.class.getSimpleName())
             .type(Download.class.getName())
             .from(Property.ofValue(path))
@@ -167,7 +167,7 @@ class MoveTest {
             .username(USERNAME)
             .password(PASSWORD)
             .build();
-        Download.Output output = task.run(runContext);
+        var output = task.run(runContext);
         try (var input = runContext.storage().getFile(output.getTo())) {
             return new String(input.readAllBytes(), StandardCharsets.UTF_8);
         }
