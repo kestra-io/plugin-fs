@@ -12,7 +12,6 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 import org.apache.commons.vfs2.FileType;
 import java.net.URI;
-import java.util.AbstractMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -65,7 +64,10 @@ public class Downloads extends AbstractSmbTask implements RunnableTask<Downloads
     private Property<io.kestra.plugin.fs.vfs.Downloads.Action> action;
 
     @Schema(
-        title = "Destination directory when action is MOVE"
+        title = "Destination directory when action is MOVE",
+        description = """
+            When `recursive` is `true`, the relative path from the `from` directory is preserved under `moveDirectory`.
+            """
     )
     @PluginProperty(group = "destination")
     private Property<String> moveDirectory;
@@ -92,6 +94,12 @@ public class Downloads extends AbstractSmbTask implements RunnableTask<Downloads
 
     public Output run(RunContext runContext) throws Exception {
         var logger = runContext.logger();
+
+        var rAction = this.action != null ? runContext.render(this.action).as(io.kestra.plugin.fs.vfs.Downloads.Action.class).orElse(null) : null;
+        var rMoveDirectory = this.moveDirectory != null ? runContext.render(this.moveDirectory).as(String.class).orElse(null) : null;
+        if (rAction == io.kestra.plugin.fs.vfs.Downloads.Action.MOVE && (rMoveDirectory == null || rMoveDirectory.isBlank())) {
+            throw new IllegalArgumentException("moveDirectory must be specified when action is MOVE");
+        }
 
         var ctx = createContext(runContext);
         try {
@@ -133,18 +141,35 @@ public class Downloads extends AbstractSmbTask implements RunnableTask<Downloads
 
             var outputFiles = list.stream()
                 .filter(file -> file.getFileType() != FileType.FOLDER)
-                .map(file -> new AbstractMap.SimpleEntry<>(file.getName(), file.getPath()))
-                .collect(Collectors.toMap(AbstractMap.SimpleEntry::getKey, AbstractMap.SimpleEntry::getValue));
+                .collect(Collectors.toMap(
+                    file -> relativePath(fromPath, file),
+                    file -> file,
+                    (f1, f2) -> {
+                        var p1 = f1.getServerPath() != null && f1.getServerPath().getPath() != null
+                            ? f1.getServerPath().getPath()
+                            : f1.getName();
+                        var p2 = f2.getServerPath() != null && f2.getServerPath().getPath() != null
+                            ? f2.getServerPath().getPath()
+                            : f2.getName();
+                        throw new IllegalStateException(String.format(
+                            "Cannot generate unique outputFiles key: duplicate key for files '%s' and '%s'.",
+                            p1, p2
+                        ));
+                    }
+                ))
+                .entrySet()
+                .stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().getPath()));
 
             if (this.action != null) {
-                var rAction = runContext.render(this.action).as(io.kestra.plugin.fs.vfs.Downloads.Action.class).orElse(null);
                 SmbService.performAction(
                     runContext,
                     ctx,
                     this,
                     files,
                     rAction,
-                    runContext.render(this.moveDirectory).as(String.class).orElse(null)
+                    rMoveDirectory,
+                    fromPath
                 );
             }
 
@@ -157,6 +182,14 @@ public class Downloads extends AbstractSmbTask implements RunnableTask<Downloads
         }
     }
 
+    static String relativePath(String fromPath, File file) {
+        var filePath = file.getServerPath() != null && file.getServerPath().getPath() != null
+            ? file.getServerPath().getPath()
+            : null;
+        var rel = SmbService.relativePath(fromPath, filePath);
+        return rel != null ? rel : file.getName();
+    }
+
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
@@ -166,7 +199,10 @@ public class Downloads extends AbstractSmbTask implements RunnableTask<Downloads
         private final java.util.List<File> files;
 
         @Schema(
-            title = "The downloaded files as a map of from/to URIs"
+            title = "The downloaded files as a map of from/to URIs",
+            description = """
+                Keys are paths relative to `from` (the file name for files directly under `from`, or subfolder paths for recursive downloads).
+                """
         )
         private final Map<String, URI> outputFiles;
     }
