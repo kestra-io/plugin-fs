@@ -195,9 +195,10 @@ public class Uploads extends AbstractLocalTask implements RunnableTask<Uploads.O
         List<URI> outputs = new ArrayList<>();
         for (Map.Entry<String, String> entry : fileMappings) {
             String fromURI = entry.getValue();
+            var sourceUri = URI.create(fromURI);
             String fileName = entry.getKey() != null
                 ? entry.getKey()
-                : FileUtils.getFileName(URI.create(fromURI));
+                : FileUtils.getFileName(sourceUri);
 
             Path target = destinationDir.resolve(fileName).normalize();
             // re-validate the resolved target to prevent escapes via "../" in filename
@@ -209,7 +210,7 @@ public class Uploads extends AbstractLocalTask implements RunnableTask<Uploads.O
                 ));
             }
 
-            try (InputStream in = runContext.storage().getFile(URI.create(fromURI))) {
+            try (InputStream in = runContext.storage().getFile(sourceUri)) {
                 runContext.logger().debug("Copying {} to {}", fromURI, target);
                 Files.copy(in, target, options);
             }
