@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 import static io.kestra.plugin.fs.sftp.SftpUtils.PASSWORD;
@@ -22,6 +23,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.endsWith;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @KestraTest
@@ -132,6 +135,41 @@ class MoveTest {
         } else {
             KestraRuntimeException exception = assertThrows(KestraRuntimeException.class, () -> secondMoveTask.run(runContext));
             assertThat(exception.getMessage(), containsString(fileName));
+        }
+    }
+
+    @Test
+    void moveFile_fileExistsInDestinationWithDifferentName() throws Exception {
+        var source = "upload/%s/incoming.txt".formatted(IdUtils.create());
+        var destination = "upload/%s/current.txt".formatted(IdUtils.create());
+
+        sftpUtils.update(source, "new incoming data");
+        sftpUtils.update(destination, "protected existing data");
+
+        var task = createMoveTask(source, destination);
+        var runContext = TestsUtils.mockRunContext(runContextFactory, task, Map.of());
+        var exception = assertThrows(KestraRuntimeException.class, () -> task.run(runContext));
+
+        assertThat(exception.getMessage(), containsString("current.txt"));
+        assertThat(sftpUtils.list(FilenameUtils.getPath(source)).getFiles(), hasSize(1));
+        assertThat(sftpUtils.list(FilenameUtils.getPath(destination)).getFiles(), hasSize(1));
+        assertThat(downloadContent(source, runContext), is("new incoming data"));
+        assertThat(downloadContent(destination, runContext), is("protected existing data"));
+    }
+
+    private String downloadContent(String path, RunContext runContext) throws Exception {
+        var task = Download.builder()
+            .id(MoveTest.class.getSimpleName())
+            .type(Download.class.getName())
+            .from(Property.ofValue(path))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+        var output = task.run(runContext);
+        try (var input = runContext.storage().getFile(output.getTo())) {
+            return new String(input.readAllBytes(), StandardCharsets.UTF_8);
         }
     }
 
