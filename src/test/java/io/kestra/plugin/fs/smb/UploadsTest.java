@@ -17,7 +17,9 @@ import java.util.Map;
 import static io.kestra.plugin.fs.smb.SmbUtils.PASSWORD;
 import static io.kestra.plugin.fs.smb.SmbUtils.USERNAME;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @KestraTest
 class UploadsTest {
@@ -114,5 +116,25 @@ class UploadsTest {
             .password(PASSWORD)
             .build();
         downloads.run(TestsUtils.mockRunContext(runContextFactory, downloads, Map.of()));
+    }
+
+    @Test
+    void shouldFailWhenDuplicateDestinationFilenames() {
+        var uploadsTask = Uploads.builder()
+            .id(IdUtils.create())
+            .type(Uploads.class.getName())
+            .from(List.of("kestra:///step1/file.txt", "kestra:///step2/file.txt"))
+            .to(Property.ofValue(SmbUtils.SHARE_NAME + "/" + random + "/"))
+            .host(Property.ofValue("localhost"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+
+        var exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> uploadsTask.run(TestsUtils.mockRunContext(runContextFactory, uploadsTask, Map.of()))
+        );
+
+        assertThat(exception.getMessage(), containsString("Multiple files resolve to the same destination filename 'file.txt'"));
     }
 }

@@ -195,4 +195,25 @@ class UploadsTest {
                 Matchers.is(Matchers.in(remoteFileUris))
         ));
     }
+
+    @Test
+    void shouldFailWhenDuplicateDestinationFilenames() {
+        var uploads = Uploads.builder()
+            .id(IdUtils.create())
+            .type(Uploads.class.getName())
+            .from(List.of("kestra:///step1/report.csv", "kestra:///step2/report.csv"))
+            .to(Property.ofValue("/upload/" + random))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+
+        var exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> uploads.run(TestsUtils.mockRunContext(runContextFactory, uploads, Map.of()))
+        );
+
+        assertThat(exception.getMessage(), containsString("Multiple files resolve to the same destination filename 'report.csv'"));
+    }
 }
