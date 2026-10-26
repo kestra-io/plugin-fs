@@ -61,12 +61,7 @@ class UploadsTest {
     }
 
     private URI uploadWithSuffix(String suffix) throws Exception {
-        return storageInterface.put(
-            TenantService.MAIN_TENANT,
-            null,
-            new URI("/" + FriendlyId.createFriendlyId() + suffix),
-            new ByteArrayInputStream("test".getBytes(StandardCharsets.UTF_8))
-        );
+        return upload("%s%s".formatted(FriendlyId.createFriendlyId(), suffix));
     }
 
     private URI upload(String name) throws Exception {
