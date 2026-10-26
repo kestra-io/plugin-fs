@@ -10,6 +10,7 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
+import io.kestra.core.utils.FileUtils;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -194,9 +195,10 @@ public class Uploads extends AbstractLocalTask implements RunnableTask<Uploads.O
         List<URI> outputs = new ArrayList<>();
         for (Map.Entry<String, String> entry : fileMappings) {
             String fromURI = entry.getValue();
+            var sourceUri = URI.create(fromURI);
             String fileName = entry.getKey() != null
                 ? entry.getKey()
-                : fromURI.substring(fromURI.lastIndexOf('/') + 1);
+                : FileUtils.getFileName(sourceUri);
 
             Path target = destinationDir.resolve(fileName).normalize();
             // re-validate the resolved target to prevent escapes via "../" in filename
@@ -208,7 +210,7 @@ public class Uploads extends AbstractLocalTask implements RunnableTask<Uploads.O
                 ));
             }
 
-            try (InputStream in = runContext.storage().getFile(URI.create(fromURI))) {
+            try (InputStream in = runContext.storage().getFile(sourceUri)) {
                 runContext.logger().debug("Copying {} to {}", fromURI, target);
                 Files.copy(in, target, options);
             }

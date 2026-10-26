@@ -61,10 +61,14 @@ class UploadsTest {
     }
 
     private URI uploadWithSuffix(String suffix) throws Exception {
+        return upload("%s%s".formatted(FriendlyId.createFriendlyId(), suffix));
+    }
+
+    private URI upload(String name) throws Exception {
         return storageInterface.put(
             TenantService.MAIN_TENANT,
             null,
-            new URI("/" + FriendlyId.createFriendlyId() + suffix),
+            new URI(null, null, "/%s".formatted(name), null),
             new ByteArrayInputStream("test".getBytes(StandardCharsets.UTF_8))
         );
     }
@@ -87,6 +91,25 @@ class UploadsTest {
         try (var paths = Files.list(destDir)) {
             assertThat(paths.count(), is(2L));
         }
+    }
+
+    @Test
+    void shouldDecodeFileNameFromUri() throws Exception {
+        var fileName = "%s report #1.csv".formatted(FriendlyId.createFriendlyId());
+        var uri = upload(fileName);
+
+        var task = Uploads.builder()
+            .id(IdUtils.create())
+            .type(Uploads.class.getName())
+            .from(List.of(uri.toString()))
+            .to(Property.ofValue(destDir.toString()))
+            .build();
+
+        var output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(output.getFiles().size(), is(1));
+        assertThat(Path.of(output.getFiles().getFirst()).getFileName().toString(), is(fileName));
+        assertThat(Files.exists(destDir.resolve(fileName)), is(true));
     }
 
     @Test
