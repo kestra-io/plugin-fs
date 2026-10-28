@@ -38,7 +38,7 @@ class DownloadsTest {
         smbUtils.upload(toUploadDir + "/" + IdUtils.create() + ".txt");
 
         Downloads task = Downloads.builder()
-            .id(DownloadsTest.class.getSimpleName())
+            .id(IdUtils.create())
             .type(DownloadsTest.class.getName())
             .from(Property.ofValue(toUploadDir))
             .action(Property.ofValue(io.kestra.plugin.fs.vfs.Downloads.Action.DELETE))
@@ -77,7 +77,7 @@ class DownloadsTest {
         String archiveShareDirectory = SmbUtils.SECOND_SHARE_NAME + "/" + rootFolder;
 
         Downloads task = Downloads.builder()
-            .id(DownloadsTest.class.getSimpleName())
+            .id(IdUtils.create())
             .type(DownloadsTest.class.getName())
             .from(Property.ofValue(toUploadDir))
             .moveDirectory(Property.ofValue(archiveShareDirectory + dirDelimiter))
@@ -114,6 +114,43 @@ class DownloadsTest {
     }
 
     @Test
+    void run_MoveRecursiveAfterDownloadsWithDuplicateFilenames() throws Exception {
+        var rootFolder = IdUtils.create();
+        var toUploadDir = "/" + SmbUtils.SHARE_NAME + "/" + rootFolder;
+        var sub1 = toUploadDir + "/sub1";
+        var sub2 = toUploadDir + "/sub2";
+
+        smbUtils.upload(sub1 + "/data.csv");
+        smbUtils.upload(sub2 + "/data.csv");
+
+        var archiveShareDirectory = SmbUtils.SECOND_SHARE_NAME + "/" + rootFolder;
+
+        var task = Downloads.builder()
+            .id(IdUtils.create())
+            .type(DownloadsTest.class.getName())
+            .from(Property.ofValue(toUploadDir))
+            .moveDirectory(Property.ofValue(archiveShareDirectory))
+            .recursive(Property.ofValue(true))
+            .action(Property.ofValue(io.kestra.plugin.fs.vfs.Downloads.Action.MOVE))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("445"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+
+        var run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(run.getFiles().size(), is(2));
+        assertThat(run.getOutputFiles().size(), is(2));
+        assertThat(run.getOutputFiles().containsKey("sub1/data.csv"), is(true));
+        assertThat(run.getOutputFiles().containsKey("sub2/data.csv"), is(true));
+
+        assertThat(smbUtils.list(toUploadDir).getFiles().isEmpty(), is(true));
+        assertThat(smbUtils.list(archiveShareDirectory + "/sub1").getFiles().size(), is(1));
+        assertThat(smbUtils.list(archiveShareDirectory + "/sub2").getFiles().size(), is(1));
+    }
+
+    @Test
     void run_NoneAfterDownloads() throws Exception {
         String rootFolder = IdUtils.create();
         String toUploadDir = "/" + SmbUtils.SHARE_NAME + "/" + rootFolder;
@@ -121,7 +158,7 @@ class DownloadsTest {
         smbUtils.upload(toUploadDir + "/" + IdUtils.create() + ".txt");
 
         Downloads task = Downloads.builder()
-            .id(DownloadsTest.class.getSimpleName())
+            .id(IdUtils.create())
             .type(DownloadsTest.class.getName())
             .from(Property.ofValue(toUploadDir))
             .action(Property.ofValue(io.kestra.plugin.fs.vfs.Downloads.Action.NONE))
@@ -152,7 +189,7 @@ class DownloadsTest {
         smbUtils.upload(toUploadDir + "/" + fileName2);
 
         Downloads task = Downloads.builder()
-            .id(DownloadsTest.class.getSimpleName())
+            .id(IdUtils.create())
             .type(DownloadsTest.class.getName())
             .from(Property.ofValue(toUploadDir))
             .action(Property.ofValue(io.kestra.plugin.fs.vfs.Downloads.Action.NONE))
