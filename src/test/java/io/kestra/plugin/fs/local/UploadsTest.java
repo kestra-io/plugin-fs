@@ -4,6 +4,7 @@ import com.devskiller.friendly_id.FriendlyId;
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.tenant.TenantService;
 import io.kestra.core.utils.IdUtils;
@@ -26,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -204,5 +206,79 @@ class UploadsTest {
             SecurityException.class,
             () -> task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()))
         );
+    }
+
+    @Test
+    void shouldFailWhenDuplicateDestinationFilenamesInList() throws Exception {
+        var uri1 = upload("step1/report.csv");
+        var uri2 = upload("step2/report.csv");
+
+        var task = Uploads.builder()
+            .id(IdUtils.create())
+            .type(Uploads.class.getName())
+            .from(List.of(uri1.toString(), uri2.toString()))
+            .to(Property.ofValue(destDir.toString()))
+            .build();
+
+        var exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()))
+        );
+
+        assertThat(exception.getMessage(), containsString("Multiple files resolve to the same destination filename 'report.csv'"));
+        try (var paths = Files.list(destDir)) {
+            assertThat(paths.count(), is(0L));
+        }
+    }
+
+    @Test
+    void shouldFailWhenDuplicateDestinationFilenamesInJsonList() throws Exception {
+        var uri1 = upload("step1/data.csv");
+        var uri2 = upload("step2/data.csv");
+
+        var task = Uploads.builder()
+            .id(IdUtils.create())
+            .type(Uploads.class.getName())
+            .from(JacksonMapper.ofJson().writeValueAsString(List.of(uri1.toString(), uri2.toString())))
+            .to(Property.ofValue(destDir.toString()))
+            .build();
+
+        var exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()))
+        );
+
+        assertThat(exception.getMessage(), containsString("Multiple files resolve to the same destination filename 'data.csv'"));
+        try (var paths = Files.list(destDir)) {
+            assertThat(paths.count(), is(0L));
+        }
+    }
+
+    @Test
+    void shouldFailWhenDuplicateDestinationFilenamesAfterUrlDecoding() throws Exception {
+        var uri1 = storageInterface.put(
+            TenantService.MAIN_TENANT,
+            null,
+            URI.create("/tasks/step1/r%2Ecsv"),
+            new ByteArrayInputStream("first".getBytes(StandardCharsets.UTF_8))
+        );
+        var uri2 = upload("step2/r.csv");
+
+        var task = Uploads.builder()
+            .id(IdUtils.create())
+            .type(Uploads.class.getName())
+            .from(List.of(uri1.toString(), uri2.toString()))
+            .to(Property.ofValue(destDir.toString()))
+            .build();
+
+        var exception = assertThrows(
+            IllegalArgumentException.class,
+            () -> task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()))
+        );
+
+        assertThat(exception.getMessage(), containsString("Multiple files resolve to the same destination filename 'r.csv'"));
+        try (var paths = Files.list(destDir)) {
+            assertThat(paths.count(), is(0L));
+        }
     }
 }

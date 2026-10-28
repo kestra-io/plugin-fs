@@ -432,21 +432,83 @@ public abstract class SmbService {
         SmbInterface smbInterface,
         java.util.List<File> blobList,
         io.kestra.plugin.fs.vfs.Downloads.Action action,
-        String moveDirectory
+        String moveDirectory,
+        String sourceBaseDir
     ) throws Exception {
         if (action == io.kestra.plugin.fs.vfs.Downloads.Action.DELETE) {
             for (File file : blobList) {
                 delete(runContext, cifsContext, smbInterface, file.getServerPath().getPath(), false);
             }
         } else if (action == io.kestra.plugin.fs.vfs.Downloads.Action.MOVE) {
+            if (moveDirectory == null || moveDirectory.isBlank()) {
+                throw new IllegalArgumentException("`moveDirectory` is required when `action` is MOVE");
+            }
+            var destinations = new HashMap<String, String>();
             for (File file : blobList) {
-                var moveTo = moveDirectory;
-                if (!moveTo.endsWith("/")) {
-                    moveTo += "/";
+                var filePath = file.getServerPath().getPath();
+                var moveTo = resolveDestinationPath(filePath, moveDirectory, sourceBaseDir);
+                var existing = destinations.put(moveTo, filePath);
+                if (existing != null) {
+                    throw new IllegalStateException(String.format(
+                        "Cannot move multiple files to the same destination '%s': '%s' and '%s'.",
+                        moveTo, existing, filePath
+                    ));
                 }
-                move(runContext, cifsContext, smbInterface, file.getServerPath().getPath(), moveTo, true);
+            }
+
+            for (var entry : destinations.entrySet()) {
+                move(runContext, cifsContext, smbInterface, entry.getValue(), entry.getKey(), true);
             }
         }
+    }
+
+    static String relativePath(String base, String filePath) {
+        if (base == null || base.isBlank() || filePath == null || filePath.isBlank()) {
+            return null;
+        }
+
+        var normalizedBase = normalizePath(base);
+        var normalizedFile = normalizePath(filePath);
+
+        if (normalizedBase == null || normalizedFile == null) {
+            return null;
+        }
+
+        if (!normalizedBase.endsWith("/")) {
+            normalizedBase += "/";
+        }
+
+        if (normalizedFile.startsWith(normalizedBase)) {
+            return normalizedFile.substring(normalizedBase.length());
+        }
+
+        return null;
+    }
+
+    private static String normalizePath(String path) {
+        if (path == null || path.isBlank()) {
+            return null;
+        }
+
+        var p = path.startsWith("/") ? path : "/" + path;
+        p = p.replaceAll("/+", "/");
+        var normalized = FilenameUtils.normalizeNoEndSeparator(p, true);
+        if (normalized == null) {
+            return p;
+        }
+        return normalized.isEmpty() ? "/" : normalized;
+    }
+
+    static String resolveDestinationPath(String filePath, String moveDirectory, String sourceBaseDir) {
+        var moveTo = moveDirectory != null ? moveDirectory : "";
+        if (!moveTo.endsWith("/")) {
+            moveTo += "/";
+        }
+        var rel = relativePath(sourceBaseDir, filePath);
+        if (rel != null) {
+            return moveTo + rel;
+        }
+        return moveTo + FilenameUtils.getName(filePath);
     }
 
     // --- Helpers ---

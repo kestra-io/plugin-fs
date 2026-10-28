@@ -2,14 +2,14 @@ id: all_fs
 namespace: sanitychecks.plugin-fs
 
 tasks:
-  - id: for_each
-    type: io.kestra.plugin.core.flow.ForEach
+  - id: loop
+    type: io.kestra.plugin.core.flow.Loop
     values:
       - request
       - download
     tasks:
       - id: subflow
         type: io.kestra.plugin.core.flow.Subflow
-        flowId: "{{taskrun.value}}"
+        flowId: "{{ item.value }}"
         namespace: "{{ flow.namespace }}"
         

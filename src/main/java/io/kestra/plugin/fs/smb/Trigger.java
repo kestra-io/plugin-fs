@@ -167,7 +167,12 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @NotNull
     private Property<Downloads.Action> action;
 
-    @Schema(title = "Destination directory when action is MOVE")
+    @Schema(
+        title = "Destination directory when action is MOVE",
+        description = """
+            When `recursive` is `true`, the relative path from the `from` directory is preserved under `moveDirectory`.
+            """
+    )
     @PluginProperty(group = "advanced")
     private Property<String> moveDirectory;
 
@@ -224,6 +229,12 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     public Optional<Execution> evaluate(ConditionContext conditionContext, TriggerContext context) throws Exception {
         var runContext = conditionContext.getRunContext();
         var logger = runContext.logger();
+
+        var rAction = this.action != null ? runContext.render(this.action).as(Downloads.Action.class).orElse(null) : null;
+        var rMoveDirectory = this.moveDirectory != null ? runContext.render(this.moveDirectory).as(String.class).orElse(null) : null;
+        if (rAction == Downloads.Action.MOVE && (rMoveDirectory == null || rMoveDirectory.isBlank())) {
+            throw new IllegalArgumentException("moveDirectory must be specified when action is MOVE");
+        }
 
         var rOn = runContext.render(on).as(On.class).orElse(On.CREATE_OR_UPDATE);
         var rStateKey = runContext.render(stateKey)
@@ -332,15 +343,14 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
             // 2) Perform remote action BEFORE committing state.
             if (this.action != null) {
-                var rAction = runContext.render(this.action).as(Downloads.Action.class).orElse(null);
-
                 SmbService.performAction(
                     runContext,
                     ctx,
                     this,
                     actionFiles,
                     rAction,
-                    runContext.render(this.moveDirectory).as(String.class).orElse(null)
+                    rMoveDirectory,
+                    fromPath
                 );
             }
 

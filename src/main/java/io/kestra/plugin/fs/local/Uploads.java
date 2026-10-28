@@ -11,6 +11,7 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.core.utils.FileUtils;
+import io.kestra.plugin.fs.UploadUtils;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -181,6 +182,11 @@ public class Uploads extends AbstractLocalTask implements RunnableTask<Uploads.O
             runContext.logger().warn("Too many files to process ({}), limiting to {}", fileMappings.size(), rMaxFiles);
             fileMappings = fileMappings.subList(0, rMaxFiles);
         }
+
+        UploadUtils.validateUniqueDestinationFilenames(
+            fileMappings,
+            uri -> FileUtils.getFileName(URI.create(uri))
+        );
 
         boolean rOverwrite = runContext.render(this.overwrite).as(Boolean.class).orElse(true);
         String rTo = runContext.render(this.to).as(String.class).orElseThrow();

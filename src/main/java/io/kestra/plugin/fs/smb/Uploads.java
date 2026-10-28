@@ -9,6 +9,7 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
+import io.kestra.plugin.fs.UploadUtils;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -98,6 +99,8 @@ public class Uploads extends AbstractSmbTask implements RunnableTask<Uploads.Out
                 runContext.logger().warn("Too many files to process ({}), limiting to {}", fileMappings.size(), rMaxFiles);
                 fileMappings = fileMappings.subList(0, rMaxFiles);
             }
+
+            UploadUtils.validateUniqueDestinationFilenames(fileMappings);
 
             var outputs = fileMappings.stream().map(throwFunction(entry -> {
                 var destFileName = entry.getKey();
