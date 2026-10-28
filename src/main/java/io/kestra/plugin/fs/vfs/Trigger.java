@@ -63,7 +63,13 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
     @NotNull
     private Property<Downloads.Action> action;
 
-    @Schema(title = "Destination directory when action is MOVE")
+    @Schema(
+        title = "Destination directory when action is MOVE",
+        description = """
+            The directory where files are moved after action.
+            When `recursive` is `true`, the relative path from the `from` directory is preserved under `moveDirectory`.
+            """
+    )
     @PluginProperty(group = "advanced")
     private Property<String> moveDirectory;
 
@@ -192,6 +198,10 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
 
         var rOn = runContext.render(on).as(On.class).orElse(On.CREATE_OR_UPDATE);
         var rAction = runContext.render(this.action).as(Downloads.Action.class).orElse(Downloads.Action.NONE);
+        var rMoveDirectory = runContext.render(this.moveDirectory).as(String.class).orElse(null);
+        if (rAction == Downloads.Action.MOVE && (rMoveDirectory == null || rMoveDirectory.isBlank())) {
+            throw new IllegalArgumentException("moveDirectory must be specified when action is MOVE");
+        }
         // MOVE/DELETE remove the file from the watched location after processing, so the action itself
         // prevents reprocessing. Any file still present in the listing is therefore genuinely new and must
         // fire, regardless of persisted state. Stateful dedup only applies when the file stays (action NONE).
@@ -373,8 +383,9 @@ public abstract class Trigger extends AbstractTrigger implements PollingTriggerI
                         runContext.render(this.getPort()).as(String.class).orElse(null),
                         runContext.render(this.username).as(String.class).orElse(null),
                         runContext.render(this.password).as(String.class).orElse(null),
-                        runContext.render(this.moveDirectory).as(String.class).orElse(null)
-                    )
+                        rMoveDirectory
+                    ),
+                    from
                 );
             }
 

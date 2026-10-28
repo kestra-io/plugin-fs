@@ -4,12 +4,15 @@ import com.devskiller.friendly_id.FriendlyId;
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.storages.StorageInterface;
+import io.kestra.core.tenant.TenantService;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.vfs.models.File;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
@@ -17,6 +20,7 @@ import static io.kestra.plugin.fs.sftp.SftpUtils.PASSWORD;
 import static io.kestra.plugin.fs.sftp.SftpUtils.USERNAME;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @KestraTest
 class DownloadsTest {
@@ -25,6 +29,9 @@ class DownloadsTest {
 
     @Inject
     private SftpUtils sftpUtils;
+
+    @Inject
+    private StorageInterface storageInterface;
 
     private final String random = IdUtils.create();
 
@@ -233,6 +240,36 @@ class DownloadsTest {
         assertThat(sftpUtils.list(moveDirectory + "/").getFiles().stream().map(File::getName).toList(), contains(fileName));
     }
 
+    @Test
+    void recursiveDownloadsWithDuplicateFilenamesInSiblingDirectories() throws Exception {
+        var toUploadDir = "/upload/" + random;
+        var subA = toUploadDir + "/subA";
+        var subB = toUploadDir + "/subB";
+        var fileName = "report.csv";
+
+        sftpUtils.upload(subA + "/" + fileName);
+        sftpUtils.upload(subB + "/" + fileName);
+
+        var task = Downloads.builder()
+            .id(DownloadsTest.class.getSimpleName() + "-" + IdUtils.create())
+            .type(DownloadsTest.class.getName())
+            .from(Property.ofValue(toUploadDir + "/"))
+            .recursive(Property.ofValue(true))
+            .action(Property.ofValue(Downloads.Action.NONE))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+
+        var run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(run.getFiles().size(), is(2));
+        assertThat(run.getOutputFiles().size(), is(2));
+        assertThat(run.getOutputFiles().containsKey("subA/" + fileName), is(true));
+        assertThat(run.getOutputFiles().containsKey("subB/" + fileName), is(true));
+    }
+
     private static Downloads createMoveDownloadsTask(String from, String moveDirectory) {
         return Downloads.builder()
             .id(DownloadsTest.class.getSimpleName() + "-" + IdUtils.create())
@@ -245,5 +282,93 @@ class DownloadsTest {
             .username(USERNAME)
             .password(PASSWORD)
             .build();
+    }
+    @Test
+    void recursiveDownloadsWithDuplicateFilenamesAndMoveAction() throws Exception {
+        var toUploadDir = "/upload/" + random;
+        var subA = toUploadDir + "/subA";
+        var subB = toUploadDir + "/subB";
+        var fileName = "report.csv";
+        var moveDirectory = "/upload/" + IdUtils.create() + "-moved/";
+
+        sftpUtils.update(subA + "/" + fileName, "contentA");
+        sftpUtils.update(subB + "/" + fileName, "contentB");
+
+        var task = Downloads.builder()
+            .id(DownloadsTest.class.getSimpleName() + "-" + IdUtils.create())
+            .type(DownloadsTest.class.getName())
+            .from(Property.ofValue(toUploadDir + "/"))
+            .recursive(Property.ofValue(true))
+            .action(Property.ofValue(Downloads.Action.MOVE))
+            .moveDirectory(Property.ofValue(moveDirectory))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+
+        var run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(run.getFiles().size(), is(2));
+        assertThat(run.getOutputFiles().size(), is(2));
+        assertThat(run.getOutputFiles().containsKey("subA/" + fileName), is(true));
+        assertThat(run.getOutputFiles().containsKey("subB/" + fileName), is(true));
+
+        var outContentA = new String(storageInterface.get(TenantService.MAIN_TENANT, null, run.getOutputFiles().get("subA/" + fileName)).readAllBytes(), StandardCharsets.UTF_8);
+        assertThat(outContentA, is("contentA"));
+        var outContentB = new String(storageInterface.get(TenantService.MAIN_TENANT, null, run.getOutputFiles().get("subB/" + fileName)).readAllBytes(), StandardCharsets.UTF_8);
+        assertThat(outContentB, is("contentB"));
+
+        assertThat(sftpUtils.list(toUploadDir).getFiles().isEmpty(), is(true));
+
+        var downloadSubA = Download.builder()
+            .id(IdUtils.create())
+            .type(Download.class.getName())
+            .from(Property.ofValue(moveDirectory + "subA/" + fileName))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+        var runSubA = downloadSubA.run(TestsUtils.mockRunContext(runContextFactory, downloadSubA, Map.of()));
+
+        var movedContentA = new String(storageInterface.get(TenantService.MAIN_TENANT, null, runSubA.getTo()).readAllBytes(), StandardCharsets.UTF_8);
+        assertThat(movedContentA, is("contentA"));
+
+        var downloadSubB = Download.builder()
+            .id(IdUtils.create())
+            .type(Download.class.getName())
+            .from(Property.ofValue(moveDirectory + "subB/" + fileName))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+        var runSubB = downloadSubB.run(TestsUtils.mockRunContext(runContextFactory, downloadSubB, Map.of()));
+
+        var movedContentB = new String(storageInterface.get(TenantService.MAIN_TENANT, null, runSubB.getTo()).readAllBytes(), StandardCharsets.UTF_8);
+        assertThat(movedContentB, is("contentB"));
+    }
+
+
+    @Test
+    void run_moveWithoutMoveDirectoryShouldThrowAndKeepSource() throws Exception {
+        String dir = "/upload/" + random + "/move-fail-" + IdUtils.create();
+        sftpUtils.update(dir + "/test.txt", "content");
+
+        var task = Downloads.builder()
+            .id(DownloadsTest.class.getSimpleName() + "-" + IdUtils.create())
+            .type(DownloadsTest.class.getName())
+            .from(Property.ofValue(dir + "/"))
+            .action(Property.ofValue(Downloads.Action.MOVE))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+
+        var runContext = TestsUtils.mockRunContext(runContextFactory, task, Map.of());
+        assertThrows(IllegalArgumentException.class, () -> task.run(runContext));
+        assertThat(sftpUtils.list(dir).getFiles(), hasSize(1));
     }
 }

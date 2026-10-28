@@ -346,10 +346,10 @@ public abstract class VfsService {
             } else {
                 URI pathToCreate = withPath(to, "/" + FilenameUtils.getPath(to.getPath()));
 
-                try (FileObject directory = fsm.resolveFile(to.toString(), fileSystemOptions)) {
+                try (FileObject directory = fsm.resolveFile(pathToCreate.toString(), fileSystemOptions)) {
                     if (!directory.exists()) {
                         directory.createFolder();
-                        runContext.logger().debug("Create directory '{}", VfsService.uriWithoutAuth(pathToCreate));
+                        runContext.logger().debug("Create directory '{}'", VfsService.uriWithoutAuth(pathToCreate));
                     }
                 }
             }
@@ -375,7 +375,8 @@ public abstract class VfsService {
         FileSystemOptions fileSystemOptions,
         java.util.List<io.kestra.plugin.fs.vfs.models.File> blobList,
         Downloads.Action action,
-        URI moveDirectory
+        URI moveDirectory,
+        URI sourceBaseDir
     ) throws Exception {
         if (action == Downloads.Action.DELETE) {
             for (io.kestra.plugin.fs.vfs.models.File file : blobList) {
@@ -389,17 +390,22 @@ public abstract class VfsService {
                 );
             }
         } else if (action == Downloads.Action.MOVE) {
+            if (moveDirectory == null || moveDirectory.getPath() == null) {
+                throw new IllegalArgumentException("moveDirectory must be specified when action is MOVE");
+            }
+            var moveDir = moveDirectory;
+            if (!moveDir.getPath().endsWith("/")) {
+                moveDir = withPath(moveDir, StringUtils.stripEnd(moveDir.getPath(), "/") + "/");
+            }
             for (io.kestra.plugin.fs.vfs.models.File file : blobList) {
-                //Destination should be considered as a directory
-                if (!moveDirectory.getPath().endsWith("/")) {
-                    moveDirectory = withPath(moveDirectory, StringUtils.stripEnd(moveDirectory.getPath(), "/") + "/");
-                }
+                var rel = sourceBaseDir != null ? Downloads.relativePath(sourceBaseDir, file) : file.getName();
+                var targetUri = withPath(moveDir, moveDir.getPath() + rel);
                 VfsService.move(
                     runContext,
                     fsm,
                     fileSystemOptions,
                     file.getServerPath(),
-                    moveDirectory,
+                    targetUri,
                     true
                 );
             }

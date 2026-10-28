@@ -99,7 +99,10 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
     private Property<Downloads.Action> action = Property.ofValue(Downloads.Action.NONE);
 
     @Schema(
-        title = "Destination directory when action is MOVE"
+        title = "Destination directory when action is MOVE",
+        description = """
+            When `recursive` is `true`, the relative path from the `from` directory is preserved under `moveDirectory`.
+            """
     )
     @PluginProperty(group = "destination")
     private Property<String> moveDirectory;
@@ -129,10 +132,11 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
      * location: on MOVE, {@code localPath}, {@code name} and {@code parent} point to the destination so that
      * downstream tasks are not handed a path that no longer exists.
      */
-    static java.util.List<File> performAction(
-        java.util.List<File> files,
+    static List<File> performAction(
+        List<File> files,
         Action action,
         Property<String> moveDirectory,
+        Path sourceBaseDir,
         RunContext runContext) throws Exception {
         if (action == Action.DELETE) {
             for (File file : files) {
@@ -164,8 +168,12 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
                     continue;
                 }
 
-                String fileName = file.getLocalPath().getFileName().toString();
-                String destinationPath = rMoveDirectory + fileName;
+                var fileLocalPath = file.getLocalPath();
+                var relativeSubPath = sourceBaseDir != null && Files.isDirectory(sourceBaseDir)
+                    ? sourceBaseDir.relativize(fileLocalPath)
+                    : fileLocalPath.getFileName();
+                var destPath = Path.of(rMoveDirectory).resolve(relativeSubPath).normalize();
+                var destinationPath = destPath.toString();
 
                 Move move = Move.builder()
                     .id(Move.class.getSimpleName())
@@ -230,14 +238,16 @@ public class Downloads extends AbstractLocalTask implements RunnableTask<Downloa
             runContext.render(this.action).as(Action.class).orElse(Action.NONE) :
             Action.NONE;
 
+        var sourceBaseDir = resolveLocalPath(renderedFrom, runContext);
+
         List<File> resultFiles = selectedAction != Action.NONE ?
-            performAction(downloadedFiles, selectedAction, this.moveDirectory, runContext) :
+            performAction(downloadedFiles, selectedAction, this.moveDirectory, sourceBaseDir, runContext) :
             downloadedFiles;
 
         Map<String, URI> outputFiles = resultFiles.stream()
             .filter(file -> !file.isDirectory() && file.getUri() != null)
             .map(file -> new AbstractMap.SimpleEntry<>(file.getLocalPath().toString(), file.getUri()))
-            .collect(Collectors.toMap(AbstractMap.SimpleEntry::getKey, AbstractMap.SimpleEntry::getValue));
+            .collect(Collectors.toMap(AbstractMap.SimpleEntry::getKey, AbstractMap.SimpleEntry::getValue, (existing, replacement) -> replacement));
 
         return Output.builder()
             .files(resultFiles)

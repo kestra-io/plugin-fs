@@ -1,24 +1,25 @@
 package io.kestra.plugin.fs.vfs;
 
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
+import io.kestra.plugin.fs.vfs.models.File;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.vfs2.FileSystemOptions;
 import org.apache.commons.vfs2.FileType;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 import org.slf4j.Logger;
 
 import java.net.URI;
-import java.util.AbstractMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
-import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -39,7 +40,11 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
     private Property<Downloads.Action> action;
 
     @Schema(
-        title = "Destination directory when action is MOVE"
+        title = "Destination directory when action is MOVE",
+        description = """
+            The directory where files are moved after action.
+            When `recursive` is `true`, the relative path from the `from` directory is preserved under `moveDirectory`.
+            """
     )
     @PluginProperty(group = "advanced")
     private Property<String> moveDirectory;
@@ -72,6 +77,12 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
             fsm.init();
 
             // path
+            var rAction = runContext.render(this.action).as(Downloads.Action.class).orElse(null);
+            var rMoveDirectory = runContext.render(this.moveDirectory).as(String.class).orElse(null);
+            if (rAction == Action.MOVE && (rMoveDirectory == null || rMoveDirectory.isBlank())) {
+                throw new IllegalArgumentException("moveDirectory must be specified when action is MOVE");
+            }
+
             URI from = this.uri(runContext, runContext.render(this.from).as(String.class).orElseThrow());
 
             // connection options
@@ -122,10 +133,27 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
                 }))
                 .toList();
 
-            Map<String, URI> outputFiles = list.stream()
+            var outputFiles = list.stream()
                 .filter(file -> file.getFileType() != FileType.FOLDER)
-                .map(file -> new AbstractMap.SimpleEntry<>(file.getName(), file.getPath()))
-                .collect(Collectors.toMap(AbstractMap.SimpleEntry::getKey, AbstractMap.SimpleEntry::getValue));
+                .collect(Collectors.toMap(
+                    file -> relativePath(from, file),
+                    file -> file,
+                    (f1, f2) -> {
+                        var p1 = f1.getServerPath() != null && f1.getServerPath().getPath() != null
+                            ? f1.getServerPath().getPath()
+                            : f1.getName();
+                        var p2 = f2.getServerPath() != null && f2.getServerPath().getPath() != null
+                            ? f2.getServerPath().getPath()
+                            : f2.getName();
+                        throw new IllegalStateException(String.format(
+                            "Cannot generate unique outputFiles key: duplicate key for files '%s' and '%s'.",
+                            p1, p2
+                        ));
+                    }
+                ))
+                .entrySet()
+                .stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().getPath()));
 
             if (this.action != null) {
                 VfsService.performAction(
@@ -133,8 +161,9 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
                     fsm,
                     fileSystemOptions,
                     files,
-                    runContext.render(this.action).as(Downloads.Action.class).orElse(null),
-                    this.uri(runContext, runContext.render(this.moveDirectory).as(String.class).orElse(null))
+                    rAction,
+                    this.uri(runContext, rMoveDirectory),
+                    from
                 );
             }
 
@@ -144,6 +173,48 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
                 .outputFiles(outputFiles)
                 .build();
         }
+    }
+
+    static String relativePath(URI from, File file) {
+        var filePath = file.getServerPath() != null && file.getServerPath().getPath() != null
+            ? file.getServerPath().getPath()
+            : null;
+
+        var fromPath = from != null ? from.getPath() : null;
+        if (fromPath == null || filePath == null) {
+            return file.getName();
+        }
+
+        var normalizedFrom = normalizePath(fromPath);
+        var normalizedFile = normalizePath(filePath);
+
+        if (normalizedFrom == null || normalizedFile == null) {
+            return file.getName();
+        }
+
+        if (!normalizedFrom.endsWith("/")) {
+            normalizedFrom += "/";
+        }
+
+        if (normalizedFile.startsWith(normalizedFrom)) {
+            return normalizedFile.substring(normalizedFrom.length());
+        }
+
+        return file.getName();
+    }
+
+    private static String normalizePath(String path) {
+        if (path == null || path.isBlank()) {
+            return null;
+        }
+
+        var p = path.startsWith("/") ? path : "/" + path;
+        p = p.replaceAll("/+", "/");
+        var normalized = FilenameUtils.normalizeNoEndSeparator(p, true);
+        if (normalized == null) {
+            return p;
+        }
+        return normalized.isEmpty() ? "/" : normalized;
     }
 
     public enum Action {
@@ -162,7 +233,10 @@ public abstract class Downloads extends AbstractVfsTask implements RunnableTask<
         private final java.util.List<io.kestra.plugin.fs.vfs.models.File> files;
 
         @Schema(
-            title = "The downloaded files as a map of from/to URIs"
+            title = "The downloaded files as a map of from/to URIs",
+            description = """
+                The downloaded files as a map of from/to URIs.
+                Keys are paths relative to `from` (the file name for files directly under `from`, or subfolder paths for recursive downloads)."""
         )
         private final Map<String, URI> outputFiles;
     }

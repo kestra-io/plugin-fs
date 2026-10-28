@@ -93,7 +93,10 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     private Property<String> from;
 
     @Schema(
-        title = "Destination directory when action is MOVE"
+        title = "Destination directory when action is MOVE",
+        description = """
+            When `recursive` is `true`, the relative path from the `from` directory is preserved under `moveDirectory`.
+            """
     )
     @PluginProperty(group = "advanced")
     private Property<String> moveDirectory;
@@ -213,12 +216,15 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         if (selectedAction != Downloads.Action.NONE) {
             java.util.List<TriggeredFile> triggeredFiles = limitedToFire;
 
+            var sourceBaseDir = AbstractLocalTask.resolveLocalPath(rFrom, runContext);
+
             // performAction returns the files relocated to their new location, so the output does not report
             // a `localPath` that the action just made obsolete
             java.util.List<File> processed = Downloads.performAction(
                 triggeredFiles.stream().map(TriggeredFile::getFile).toList(),
                 selectedAction,
                 this.moveDirectory,
+                sourceBaseDir,
                 runContext
             );
 
