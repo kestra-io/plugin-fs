@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
 public abstract class AbstractLocalTask extends Task {
     static final String ALLOWED_PATHS = "allowed-paths";
 
-    protected List<String> allowedPaths(RunContext runContext) {
+    protected static List<String> allowedPaths(RunContext runContext) {
         Optional<List<String>> allowedPathConfig = runContext.pluginConfiguration(ALLOWED_PATHS);
 
         if (allowedPathConfig.isEmpty() || allowedPathConfig.get().isEmpty()) {
@@ -35,7 +35,7 @@ public abstract class AbstractLocalTask extends Task {
         return allowedPathConfig.get();
     }
 
-    protected Path resolveLocalPath(String renderedPath, RunContext runContext) throws IllegalVariableEvaluationException {
+    protected static Path resolveLocalPath(String renderedPath, RunContext runContext) throws IllegalVariableEvaluationException {
         Path path = Paths.get(renderedPath).normalize();
 
         validatePath(path, runContext);
@@ -49,7 +49,7 @@ public abstract class AbstractLocalTask extends Task {
      * @param path The path to validate
      * @param runContext The run context
      */
-    protected void validatePath(Path path, RunContext runContext) {
+    protected static void validatePath(Path path, RunContext runContext) {
 
         List<String> renderedAllowedPaths = allowedPaths(runContext);
 

@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -186,6 +187,55 @@ class DownloadTest {
                     } catch (IOException ignored) {
                     }
                 });
+        }
+    }
+
+    @Test
+    void recursiveDownloadsWithDuplicateFilenamesAndMoveAction() throws Exception {
+        var tempDir = Files.createTempDirectory(Path.of(Paths.get("/tmp").toAbsolutePath().toUri()), "kestra-test-nested-");
+        var moveDir = Files.createTempDirectory(Path.of(Paths.get("/tmp").toAbsolutePath().toUri()), "kestra-test-move-");
+        try {
+            var subA = tempDir.resolve("subA");
+            var subB = tempDir.resolve("subB");
+            Files.createDirectories(subA);
+            Files.createDirectories(subB);
+
+            Files.writeString(subA.resolve("report.csv"), "content A");
+            Files.writeString(subB.resolve("report.csv"), "content B");
+
+            var task = Downloads.builder()
+                .id(DownloadTest.class.getSimpleName())
+                .type(Downloads.class.getName())
+                .from(Property.ofValue(tempDir.toString()))
+                .recursive(Property.ofValue(true))
+                .action(Property.ofValue(Downloads.Action.MOVE))
+                .moveDirectory(Property.ofValue(moveDir.toString()))
+                .build();
+
+            var output = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+            assertThat(output.getFiles().size(), is(2));
+            assertThat(output.getOutputFiles().size(), is(2));
+
+            var movedA = moveDir.resolve("subA").resolve("report.csv");
+            var movedB = moveDir.resolve("subB").resolve("report.csv");
+            assertTrue(Files.exists(movedA));
+            assertTrue(Files.exists(movedB));
+            assertThat(Files.readString(movedA), is("content A"));
+            assertThat(Files.readString(movedB), is("content B"));
+        } finally {
+            for (var dir : List.of(tempDir, moveDir)) {
+                if (Files.exists(dir)) {
+                    Files.walk(dir)
+                        .sorted(Comparator.reverseOrder())
+                        .forEach(path -> {
+                            try {
+                                Files.deleteIfExists(path);
+                            } catch (IOException ignored) {
+                            }
+                        });
+                }
+            }
         }
     }
 }

@@ -259,4 +259,28 @@ public class TriggerTest extends AbstractFileTriggerTest {
         // DELETE must not have run: the file is still there for the next poll.
         assertThat(utils().list(dir).getFiles(), hasSize(1));
     }
+
+    @Test
+    void moveWithoutMoveDirectoryShouldThrowAndKeepSource() throws Exception {
+        String dir = "/upload/trigger/move-fail-" + IdUtils.create() + "/";
+        String file = dir + FriendlyId.createFriendlyId() + ".yml";
+        utils().upload(file);
+
+        var trigger = Trigger.builder()
+            .id("sftp-move-fail-" + IdUtils.create())
+            .type(Trigger.class.getName())
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .from(Property.ofValue(dir))
+            .action(Property.ofValue(Downloads.Action.MOVE))
+            .interval(Duration.ofSeconds(5))
+            .build();
+        var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+
+        assertThrows(IllegalArgumentException.class, () -> trigger.evaluate(context.getKey(), context.getValue()));
+        // MOVE without moveDirectory must fail before download/action: source file is still there
+        assertThat(utils().list(dir).getFiles(), hasSize(1));
+    }
 }

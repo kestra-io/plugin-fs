@@ -43,7 +43,7 @@ class TriggerTest extends AbstractTriggerTest {
 
         io.kestra.plugin.fs.local.Trigger trigger = io.kestra.plugin.fs.local.Trigger.builder()
             .id(TriggerTest.class.getSimpleName())
-            .type(io.kestra.plugin.fs.local.Trigger.class.getName())
+            .type(Trigger.class.getName())
             .from(Property.ofValue("/tmp/trigger/"))
             .action(Property.ofValue(Downloads.Action.MOVE))
             .moveDirectory(Property.ofValue("/tmp/trigger-move/"))
@@ -114,7 +114,7 @@ class TriggerTest extends AbstractTriggerTest {
 
             io.kestra.plugin.fs.local.Trigger trigger = io.kestra.plugin.fs.local.Trigger.builder()
                 .id(TriggerTest.class.getSimpleName())
-                .type(io.kestra.plugin.fs.local.Trigger.class.getName())
+                .type(Trigger.class.getName())
                 .from(Property.ofValue("/tmp/test/"))
                 .regExp(Property.ofValue(".*u.*"))
                 .action(Property.ofValue(Downloads.Action.MOVE))
@@ -160,7 +160,7 @@ class TriggerTest extends AbstractTriggerTest {
 
             io.kestra.plugin.fs.local.Trigger trigger = io.kestra.plugin.fs.local.Trigger.builder()
                 .id(TriggerTest.class.getSimpleName())
-                .type(io.kestra.plugin.fs.local.Trigger.class.getName())
+                .type(Trigger.class.getName())
                 .from(Property.ofValue(sourceDir.toString()))
                 .maxFiles(Property.ofValue(1))
                 .build();
@@ -204,7 +204,7 @@ class TriggerTest extends AbstractTriggerTest {
 
             io.kestra.plugin.fs.local.Trigger trigger = io.kestra.plugin.fs.local.Trigger.builder()
                 .id(TriggerTest.class.getSimpleName())
-                .type(io.kestra.plugin.fs.local.Trigger.class.getName())
+                .type(Trigger.class.getName())
                 .from(Property.ofValue("/tmp/test-recursive/"))
                 .regExp(Property.ofValue(".*u.*"))
                 .action(Property.ofValue(Downloads.Action.MOVE))
@@ -259,10 +259,12 @@ class TriggerTest extends AbstractTriggerTest {
             java.util.Set<String> movedFiles = new java.util.HashSet<>();
 
             if (Files.exists(targetDir)) {
-                Files.list(targetDir).forEach(path -> {
-                    String fileName = path.getFileName().toString();
-                    movedFiles.add(fileName);
-                });
+                try (var stream = Files.walk(targetDir)) {
+                    stream.filter(path -> !Files.isDirectory(path)).forEach(path -> {
+                        var fileName = path.getFileName().toString();
+                        movedFiles.add(fileName);
+                    });
+                }
             }
 
             assertThat("moved files should match processed files", movedFiles, is(processedSet));
@@ -292,7 +294,7 @@ class TriggerTest extends AbstractTriggerTest {
 
             io.kestra.plugin.fs.local.Trigger trigger1 = io.kestra.plugin.fs.local.Trigger.builder()
                 .id(TriggerTest.class.getSimpleName())
-                .type(io.kestra.plugin.fs.local.Trigger.class.getName())
+                .type(Trigger.class.getName())
                 .from(Property.ofValue("/tmp/test-dir-regex/"))
                 .regExp(Property.ofValue(".*u.*"))
                 .action(Property.ofValue(Downloads.Action.MOVE))
@@ -314,7 +316,7 @@ class TriggerTest extends AbstractTriggerTest {
 
             io.kestra.plugin.fs.local.Trigger trigger2 = io.kestra.plugin.fs.local.Trigger.builder()
                 .id(TriggerTest.class.getSimpleName())
-                .type(io.kestra.plugin.fs.local.Trigger.class.getName())
+                .type(Trigger.class.getName())
                 .from(Property.ofValue("/tmp/test-dir-regex/"))
                 .regExp(Property.ofValue(".*\\.xml"))
                 .action(Property.ofValue(Downloads.Action.MOVE))
@@ -335,7 +337,9 @@ class TriggerTest extends AbstractTriggerTest {
 
             java.util.Set<String> movedFiles = new java.util.HashSet<>();
             if (Files.exists(targetDir)) {
-                Files.list(targetDir).forEach(path -> movedFiles.add(path.getFileName().toString()));
+                try (var stream = Files.walk(targetDir)) {
+                    stream.filter(path -> !Files.isDirectory(path)).forEach(path -> movedFiles.add(path.getFileName().toString()));
+                }
             }
 
             java.util.Set<String> expectedFiles = java.util.Set.of("settings.xml");
@@ -353,9 +357,9 @@ class TriggerTest extends AbstractTriggerTest {
         Files.createDirectories(dir);
 
         try {
-            var trigger = io.kestra.plugin.fs.local.Trigger.builder()
+            var trigger = Trigger.builder()
                 .id("local-" + FriendlyId.createFriendlyId())
-                .type(io.kestra.plugin.fs.local.Trigger.class.getName())
+                .type(Trigger.class.getName())
                 .from(Property.ofValue(dir.toString()))
                 .on(Property.ofValue(StatefulTriggerInterface.On.CREATE))
                 .interval(Duration.ofSeconds(5))
@@ -379,9 +383,9 @@ class TriggerTest extends AbstractTriggerTest {
         Files.createDirectories(dir);
 
         try {
-            var trigger = io.kestra.plugin.fs.local.Trigger.builder()
+            var trigger = Trigger.builder()
                 .id("local-" + FriendlyId.createFriendlyId())
-                .type(io.kestra.plugin.fs.local.Trigger.class.getName())
+                .type(Trigger.class.getName())
                 .from(Property.ofValue(dir.toString()))
                 .on(Property.ofValue(StatefulTriggerInterface.On.UPDATE))
                 .interval(Duration.ofSeconds(5))
@@ -409,9 +413,9 @@ class TriggerTest extends AbstractTriggerTest {
         Files.createDirectories(dir);
 
         try {
-            var trigger = io.kestra.plugin.fs.local.Trigger.builder()
+            var trigger = Trigger.builder()
                 .id("local-" + FriendlyId.createFriendlyId())
-                .type(io.kestra.plugin.fs.local.Trigger.class.getName())
+                .type(Trigger.class.getName())
                 .from(Property.ofValue(dir.toString()))
                 .on(Property.ofValue(io.kestra.core.models.triggers.StatefulTriggerInterface.On.CREATE_OR_UPDATE))
                 .interval(Duration.ofSeconds(5))
@@ -445,7 +449,7 @@ class TriggerTest extends AbstractTriggerTest {
 
             io.kestra.plugin.fs.local.Trigger trigger = io.kestra.plugin.fs.local.Trigger.builder()
                 .id(TriggerTest.class.getSimpleName())
-                .type(io.kestra.plugin.fs.local.Trigger.class.getName())
+                .type(Trigger.class.getName())
                 .from(Property.ofValue(sourceDir.toString()))
                 .build();
 
@@ -474,7 +478,7 @@ class TriggerTest extends AbstractTriggerTest {
 
             io.kestra.plugin.fs.local.Trigger trigger = io.kestra.plugin.fs.local.Trigger.builder()
                 .id(TriggerTest.class.getSimpleName())
-                .type(io.kestra.plugin.fs.local.Trigger.class.getName())
+                .type(Trigger.class.getName())
                 .from(Property.ofValue(sourceDir.toString()))
                 .action(Property.ofValue(Downloads.Action.MOVE))
                 .moveDirectory(Property.ofValue(targetDir.toString()))
@@ -497,6 +501,47 @@ class TriggerTest extends AbstractTriggerTest {
             assertThat("localPath must point to the move destination", reportedPath, is(targetDir.resolve("f2.txt")));
             assertThat("the file reported in localPath must exist", Files.exists(reportedPath), is(true));
             assertThat("parent must point to the move destination", files.getFirst().get("parent"), is(targetDir.toString()));
+        } finally {
+            cleanup(sourceDir);
+            cleanup(targetDir);
+        }
+    }
+
+    @Test
+    void recursiveMoveWithDuplicateFilenamesShouldPreserveDirectoryStructure() throws Exception {
+        var sourceDir = Paths.get("/tmp/trigger-move-nested-" + FriendlyId.createFriendlyId());
+        var targetDir = Paths.get("/tmp/trigger-move-nested-done-" + FriendlyId.createFriendlyId());
+
+        var subA = sourceDir.resolve("subA");
+        var subB = sourceDir.resolve("subB");
+        Files.createDirectories(subA);
+        Files.createDirectories(subB);
+        Files.createDirectories(targetDir);
+
+        try {
+            Files.writeString(subA.resolve("report.csv"), "content A");
+            Files.writeString(subB.resolve("report.csv"), "content B");
+
+            var trigger = Trigger.builder()
+                .id(TriggerTest.class.getSimpleName())
+                .type(Trigger.class.getName())
+                .from(Property.ofValue(sourceDir.toString()))
+                .action(Property.ofValue(Downloads.Action.MOVE))
+                .moveDirectory(Property.ofValue(targetDir.toString()))
+                .recursive(Property.ofValue(true))
+                .build();
+
+            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            var execution = trigger.evaluate(context.getKey(), context.getValue());
+
+            assertThat(execution.isPresent(), is(true));
+
+            var movedA = targetDir.resolve("subA").resolve("report.csv");
+            var movedB = targetDir.resolve("subB").resolve("report.csv");
+            assertThat(Files.exists(movedA), is(true));
+            assertThat(Files.exists(movedB), is(true));
+            assertThat(Files.readString(movedA), is("content A"));
+            assertThat(Files.readString(movedB), is("content B"));
         } finally {
             cleanup(sourceDir);
             cleanup(targetDir);
