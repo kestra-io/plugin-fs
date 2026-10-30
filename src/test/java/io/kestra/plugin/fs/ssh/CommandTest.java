@@ -3,6 +3,7 @@ package io.kestra.plugin.fs.ssh;
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.executions.LogEntry;
 import io.kestra.core.models.property.Property;
+import io.kestra.core.models.tasks.runners.PluginUtilsService;
 import io.kestra.core.queues.QueueFactoryInterface;
 import io.kestra.core.queues.QueueInterface;
 import io.kestra.core.runners.RunContextFactory;
@@ -17,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.slf4j.event.Level;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
@@ -116,10 +118,10 @@ class CommandTest {
         assertThat(levelOf(command, "declared info", null, null), is(Level.INFO));
     }
 
-    // Kestra only recognizes a payload spanning the whole line (`^::{...}::$`), so a level prefix makes it plain text
-    // with or without level detection: nothing is lost by detecting the level first.
+    // When a stderr line has both a log level prefix and a Kestra output payload,
+    // the log level is detected and the output payload is parsed.
     @Test
-    void logLevels_prefixedPayloadIsPlainTextAsBefore() throws Exception {
+    void logLevels_prefixedPayloadParsesOutputsAndDetectsLevel() throws Exception {
         var logs = new CopyOnWriteArrayList<LogEntry>();
         var receive = TestsUtils.receive(logQueue, l -> logs.add(l.getLeft()));
 
@@ -139,12 +141,84 @@ class CommandTest {
         TestsUtils.awaitLog(logs, log -> log.getMessage() != null && log.getMessage().contains("\"outputs\""));
         receive.blockLast();
 
-        assertThat(run.getVars().get("k"), is(nullValue()));
+        assertThat(run.getVars().get("k"), is("v"));
         assertThat(logs.stream()
             .filter(log -> log.getMessage() != null && log.getMessage().contains("\"outputs\""))
             .map(LogEntry::getLevel)
             .findFirst()
             .orElseThrow(), is(Level.INFO));
+    }
+
+    @Test
+    void logRunnable_prefixedOutputParsedAndLoggedAtDetectedLevel() throws Exception {
+        var logs = new CopyOnWriteArrayList<LogEntry>();
+        var receive = TestsUtils.receive(logQueue, l -> logs.add(l.getLeft()));
+
+        var runContext = TestsUtils.mockRunContext(runContextFactory, Command.builder().id("test").type(Command.class.getName()).build(), Map.of());
+        var input = new ByteArrayInputStream("[INFO] ::{\"outputs\":{\"result\":\"success\"}}::\n".getBytes(StandardCharsets.UTF_8));
+        var logRunnable = new Command.LogRunnable(input, true, true, runContext);
+        logRunnable.run();
+
+        TestsUtils.awaitLog(logs, log -> log.getMessage() != null && log.getMessage().contains("\"outputs\""));
+        receive.blockLast();
+
+        assertThat(logRunnable.outputs.get("result"), is("success"));
+        assertThat(logs.stream()
+            .filter(log -> log.getMessage() != null && log.getMessage().contains("\"outputs\""))
+            .map(LogEntry::getLevel)
+            .findFirst()
+            .orElseThrow(), is(Level.INFO));
+    }
+
+    @Test
+    void logRunnable_prefixedMetricParsedAndLoggedAtDetectedLevel() throws Exception {
+        var logs = new CopyOnWriteArrayList<LogEntry>();
+        var receive = TestsUtils.receive(logQueue, l -> logs.add(l.getLeft()));
+
+        var runContext = TestsUtils.mockRunContext(runContextFactory, Command.builder().id("test").type(Command.class.getName()).build(), Map.of());
+        var input = new ByteArrayInputStream("[WARN] ::{\"metrics\":[{\"name\":\"test_counter\",\"type\":\"counter\",\"value\":5}]}::\n".getBytes(StandardCharsets.UTF_8));
+        var logRunnable = new Command.LogRunnable(input, true, true, runContext);
+        logRunnable.run();
+
+        TestsUtils.awaitLog(logs, log -> log.getMessage() != null && log.getMessage().contains("\"metrics\""));
+        receive.blockLast();
+
+        assertThat(logs.stream()
+            .filter(log -> log.getMessage() != null && log.getMessage().contains("\"metrics\""))
+            .map(LogEntry::getLevel)
+            .findFirst()
+            .orElseThrow(), is(Level.WARN));
+    }
+
+    @Test
+    void logRunnable_stderrWithDetectedLevelIsNotError() throws Exception {
+        var logs = new CopyOnWriteArrayList<LogEntry>();
+        var receive = TestsUtils.receive(logQueue, l -> logs.add(l.getLeft()));
+
+        var runContext = TestsUtils.mockRunContext(runContextFactory, Command.builder().id("test").type(Command.class.getName()).build(), Map.of());
+        var input = new ByteArrayInputStream("WARNING:root:disk almost full\n".getBytes(StandardCharsets.UTF_8));
+        var logRunnable = new Command.LogRunnable(input, true, true, runContext);
+        logRunnable.run();
+
+        TestsUtils.awaitLog(logs, log -> log.getMessage() != null && log.getMessage().contains("disk almost full"));
+        receive.blockLast();
+
+        var matchingLogs = logs.stream()
+            .filter(log -> log.getMessage() != null && log.getMessage().contains("disk almost full"))
+            .toList();
+
+        assertThat(matchingLogs.size(), is(1));
+        assertThat(matchingLogs.getFirst().getLevel(), is(Level.WARN));
+    }
+
+    @Test
+    void logRunnable_unprefixedOutputStillCaptured() throws Exception {
+        var runContext = TestsUtils.mockRunContext(runContextFactory, Command.builder().id("test").type(Command.class.getName()).build(), Map.of());
+        var input = new ByteArrayInputStream("::{\"outputs\":{\"foo\":\"bar\"}}::\n".getBytes(StandardCharsets.UTF_8));
+        var logRunnable = new Command.LogRunnable(input, true, true, runContext);
+        logRunnable.run();
+
+        assertThat(logRunnable.outputs.get("foo"), is("bar"));
     }
 
     @Test

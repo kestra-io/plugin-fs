@@ -699,7 +699,7 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
         }
     }
 
-    private static class LogRunnable implements Runnable {
+    static class LogRunnable implements Runnable {
         private final InputStream inputStream;
 
         private final boolean isStdErr;
@@ -708,11 +708,11 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
 
         private final RunContext runContext;
 
-        private final AtomicInteger count = new AtomicInteger(0);
+        final AtomicInteger count = new AtomicInteger(0);
 
-        private final Map<String, Object> outputs = new ConcurrentHashMap<>();
+        final Map<String, Object> outputs = new ConcurrentHashMap<>();
 
-        protected LogRunnable(InputStream inputStream, boolean isStdErr, boolean parseLogLevel, RunContext runContext) {
+        LogRunnable(InputStream inputStream, boolean isStdErr, boolean parseLogLevel, RunContext runContext) {
             this.inputStream = inputStream;
             this.isStdErr = isStdErr;
             this.parseLogLevel = parseLogLevel;
@@ -731,7 +731,14 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
                         var detected = parseLogLevel ? LogLevelDetector.detect(line) : Optional.<Level>empty();
                         if (detected.isPresent()) {
                             runContext.logger().atLevel(detected.get()).log(line);
-                        } else {
+                        }
+
+                        int start = line.indexOf("::{");
+                        int end = line.lastIndexOf("::");
+                        if (start != -1 && end > start) {
+                            String parseLine = line.substring(start, end + 2);
+                            outputs.putAll(PluginUtilsService.parseOut(parseLine, runContext.logger(), runContext, isStdErr, null));
+                        } else if (detected.isEmpty()) {
                             outputs.putAll(PluginUtilsService.parseOut(line, runContext.logger(), runContext, isStdErr, null));
                         }
                     }
