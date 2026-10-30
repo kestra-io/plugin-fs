@@ -317,7 +317,7 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
             Recognized levels are FATAL, CRITICAL, SEVERE, ERROR, WARN, WARNING, INFO and NOTICE, plus DEBUG, TRACE, FINE, FINER and FINEST in brackets only.
             The detected level is never below INFO, so `[DEBUG]` lines are shown at INFO.
             Lines without a recognized level stay at ERROR, including continuation lines of a multi-line record, and stdout is not affected.
-            A `::{...}::` payload still takes priority over level detection.
+            A `::{...}::` payload after an optional detected level prefix is now parsed for outputs and metrics.
             Since detection is on by default, some stderr lines move from ERROR to WARN or INFO, so flows alerting on ERROR logs may stop firing for them.
             Set to `false` to log every stderr line at ERROR, as before.
             """
@@ -728,9 +728,18 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
                     String line;
                     while ((line = bufferedReader.readLine()) != null) {
                         count.incrementAndGet();
-                        var detected = parseLogLevel ? LogLevelDetector.detect(line) : Optional.<Level>empty();
+                        var detected = parseLogLevel ? LogLevelDetector.detectWithRemainder(line) : Optional.<LogLevelDetector.Detection>empty();
                         if (detected.isPresent()) {
-                            runContext.logger().atLevel(detected.get()).log(line);
+                            var remainder = detected.get().remainder().stripLeading();
+                            if (remainder.startsWith(":") && !remainder.startsWith("::")) {
+                                remainder = remainder.substring(1).stripLeading();
+                            }
+                            var trimmed = remainder.trim();
+                            if (trimmed.startsWith("::{") && trimmed.endsWith("}::")) {
+                                outputs.putAll(PluginUtilsService.parseOut(trimmed, runContext.logger(), runContext, isStdErr, null));
+                            } else {
+                                runContext.logger().atLevel(detected.get().level()).log(line);
+                            }
                         } else {
                             outputs.putAll(PluginUtilsService.parseOut(line, runContext.logger(), runContext, isStdErr, null));
                         }

@@ -42,7 +42,9 @@ final class LogLevelDetector {
     private LogLevelDetector() {
     }
 
-    static Optional<Level> detect(String line) {
+    record Detection(Level level, String remainder) {}
+
+    static Optional<Detection> detectWithRemainder(String line) {
         if (line == null || line.isEmpty()) {
             return Optional.empty();
         }
@@ -54,6 +56,15 @@ final class LogLevelDetector {
         }
 
         var token = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
-        return Optional.ofNullable(LEVELS.get(token.toUpperCase(Locale.ROOT)));
+        var level = LEVELS.get(token.toUpperCase(Locale.ROOT));
+        if (level == null) {
+            return Optional.empty();
+        }
+
+        return Optional.of(new Detection(level, line.substring(matcher.end())));
+    }
+
+    static Optional<Level> detect(String line) {
+        return detectWithRemainder(line).map(Detection::level);
     }
 }
