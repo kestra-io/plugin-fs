@@ -3,7 +3,6 @@ package io.kestra.plugin.fs.ssh;
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.executions.LogEntry;
 import io.kestra.core.models.property.Property;
-import io.kestra.core.models.tasks.runners.PluginUtilsService;
 import io.kestra.core.queues.QueueFactoryInterface;
 import io.kestra.core.queues.QueueInterface;
 import io.kestra.core.runners.RunContextFactory;
@@ -18,7 +17,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.slf4j.event.Level;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
@@ -118,8 +116,6 @@ class CommandTest {
         assertThat(levelOf(command, "declared info", null, null), is(Level.INFO));
     }
 
-    // When a stderr line has both a log level prefix and a Kestra output payload,
-    // the log level is detected and the output payload is parsed.
     @Test
     void logLevels_prefixedPayloadParsesOutputsAndDetectsLevel() throws Exception {
         var logs = new CopyOnWriteArrayList<LogEntry>();
@@ -133,92 +129,169 @@ class CommandTest {
             .authMethod(Property.ofValue(AuthMethod.PASSWORD))
             .password(PASSWORD)
             .port(Property.ofValue("2222"))
-            .commands(new String[] {">&2 echo '[INFO] ::{\"outputs\":{\"k\":\"v\"}}::'"})
+            .commands(new String[] {
+                ">&2 echo '[INFO] ::{\"outputs\":{\"k\":\"v\"}}::'",
+                ">&2 echo 'outputs-done'"
+            })
             .build();
 
         var run = command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));
 
-        TestsUtils.awaitLog(logs, log -> log.getMessage() != null && log.getMessage().contains("\"outputs\""));
+        TestsUtils.awaitLog(logs, log -> log.getMessage() != null && log.getMessage().contains("outputs-done"));
         receive.blockLast();
 
         assertThat(run.getVars().get("k"), is("v"));
-        assertThat(logs.stream()
-            .filter(log -> log.getMessage() != null && log.getMessage().contains("\"outputs\""))
-            .map(LogEntry::getLevel)
-            .findFirst()
-            .orElseThrow(), is(Level.INFO));
+        assertThat(logs.stream().noneMatch(log -> log.getMessage() != null && log.getMessage().contains("\"outputs\"")), is(true));
     }
 
     @Test
-    void logRunnable_prefixedOutputParsedAndLoggedAtDetectedLevel() throws Exception {
+    void logLevels_prefixedMetricPayloadEmitsMetric() throws Exception {
         var logs = new CopyOnWriteArrayList<LogEntry>();
         var receive = TestsUtils.receive(logQueue, l -> logs.add(l.getLeft()));
 
-        var runContext = TestsUtils.mockRunContext(runContextFactory, Command.builder().id("test").type(Command.class.getName()).build(), Map.of());
-        var input = new ByteArrayInputStream("[INFO] ::{\"outputs\":{\"result\":\"success\"}}::\n".getBytes(StandardCharsets.UTF_8));
-        var logRunnable = new Command.LogRunnable(input, true, true, runContext);
-        logRunnable.run();
+        var command = Command.builder()
+            .id(IdUtils.create())
+            .type(Command.class.getName())
+            .host(Property.ofValue("localhost"))
+            .username(USERNAME)
+            .authMethod(Property.ofValue(AuthMethod.PASSWORD))
+            .password(PASSWORD)
+            .port(Property.ofValue("2222"))
+            .commands(new String[] {
+                ">&2 echo '[WARN] ::{\"metrics\":[{\"name\":\"test_counter\",\"type\":\"counter\",\"value\":5}]}::'",
+                ">&2 echo 'metrics-done'"
+            })
+            .build();
 
-        TestsUtils.awaitLog(logs, log -> log.getMessage() != null && log.getMessage().contains("\"outputs\""));
+        var runContext = TestsUtils.mockRunContext(runContextFactory, command, Map.of());
+        command.run(runContext);
+
+        TestsUtils.awaitLog(logs, log -> log.getMessage() != null && log.getMessage().contains("metrics-done"));
         receive.blockLast();
 
-        assertThat(logRunnable.outputs.get("result"), is("success"));
-        assertThat(logs.stream()
-            .filter(log -> log.getMessage() != null && log.getMessage().contains("\"outputs\""))
-            .map(LogEntry::getLevel)
+        var metric = runContext.metrics().stream()
+            .filter(m -> "test_counter".equals(m.getName()))
             .findFirst()
-            .orElseThrow(), is(Level.INFO));
+            .orElseThrow();
+        assertThat(((Number) metric.getValue()).intValue(), is(5));
+        assertThat(logs.stream().noneMatch(log -> log.getMessage() != null && log.getMessage().contains("\"metrics\"")), is(true));
     }
 
     @Test
-    void logRunnable_prefixedMetricParsedAndLoggedAtDetectedLevel() throws Exception {
+    void logLevels_prefixedLogsPayloadEmitsExactlyOneLogEntry() throws Exception {
         var logs = new CopyOnWriteArrayList<LogEntry>();
         var receive = TestsUtils.receive(logQueue, l -> logs.add(l.getLeft()));
 
-        var runContext = TestsUtils.mockRunContext(runContextFactory, Command.builder().id("test").type(Command.class.getName()).build(), Map.of());
-        var input = new ByteArrayInputStream("[WARN] ::{\"metrics\":[{\"name\":\"test_counter\",\"type\":\"counter\",\"value\":5}]}::\n".getBytes(StandardCharsets.UTF_8));
-        var logRunnable = new Command.LogRunnable(input, true, true, runContext);
-        logRunnable.run();
+        var command = Command.builder()
+            .id(IdUtils.create())
+            .type(Command.class.getName())
+            .host(Property.ofValue("localhost"))
+            .username(USERNAME)
+            .authMethod(Property.ofValue(AuthMethod.PASSWORD))
+            .password(PASSWORD)
+            .port(Property.ofValue("2222"))
+            .commands(new String[] {">&2 echo '[INFO] ::{\"logs\":[{\"level\":\"WARN\",\"message\":\"prefixed log message\"}]}::'"})
+            .build();
 
-        TestsUtils.awaitLog(logs, log -> log.getMessage() != null && log.getMessage().contains("\"metrics\""));
+        command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));
+
+        TestsUtils.awaitLog(logs, log -> log.getMessage() != null && log.getMessage().contains("prefixed log message"));
         receive.blockLast();
 
-        assertThat(logs.stream()
-            .filter(log -> log.getMessage() != null && log.getMessage().contains("\"metrics\""))
-            .map(LogEntry::getLevel)
-            .findFirst()
-            .orElseThrow(), is(Level.WARN));
-    }
-
-    @Test
-    void logRunnable_stderrWithDetectedLevelIsNotError() throws Exception {
-        var logs = new CopyOnWriteArrayList<LogEntry>();
-        var receive = TestsUtils.receive(logQueue, l -> logs.add(l.getLeft()));
-
-        var runContext = TestsUtils.mockRunContext(runContextFactory, Command.builder().id("test").type(Command.class.getName()).build(), Map.of());
-        var input = new ByteArrayInputStream("WARNING:root:disk almost full\n".getBytes(StandardCharsets.UTF_8));
-        var logRunnable = new Command.LogRunnable(input, true, true, runContext);
-        logRunnable.run();
-
-        TestsUtils.awaitLog(logs, log -> log.getMessage() != null && log.getMessage().contains("disk almost full"));
-        receive.blockLast();
-
-        var matchingLogs = logs.stream()
-            .filter(log -> log.getMessage() != null && log.getMessage().contains("disk almost full"))
+        var matched = logs.stream()
+            .filter(log -> log.getMessage() != null && (log.getMessage().contains("prefixed log message") || log.getMessage().contains("\"logs\"")))
             .toList();
-
-        assertThat(matchingLogs.size(), is(1));
-        assertThat(matchingLogs.getFirst().getLevel(), is(Level.WARN));
+        assertThat(matched.size(), is(1));
+        assertThat(matched.getFirst().getLevel(), is(Level.WARN));
+        assertThat(matched.getFirst().getMessage(), is("prefixed log message"));
     }
 
     @Test
-    void logRunnable_unprefixedOutputStillCaptured() throws Exception {
-        var runContext = TestsUtils.mockRunContext(runContextFactory, Command.builder().id("test").type(Command.class.getName()).build(), Map.of());
-        var input = new ByteArrayInputStream("::{\"outputs\":{\"foo\":\"bar\"}}::\n".getBytes(StandardCharsets.UTF_8));
-        var logRunnable = new Command.LogRunnable(input, true, true, runContext);
-        logRunnable.run();
+    void logLevels_stdoutLineContainingBracesIsLoggedOnceUnchanged() throws Exception {
+        var logs = new CopyOnWriteArrayList<LogEntry>();
+        var receive = TestsUtils.receive(logQueue, l -> logs.add(l.getLeft()));
 
-        assertThat(logRunnable.outputs.get("foo"), is("bar"));
+        var command = Command.builder()
+            .id(IdUtils.create())
+            .type(Command.class.getName())
+            .host(Property.ofValue("localhost"))
+            .username(USERNAME)
+            .authMethod(Property.ofValue(AuthMethod.PASSWORD))
+            .password(PASSWORD)
+            .port(Property.ofValue("2222"))
+            .commands(new String[] {"echo 'pre ::{ x :: post'"})
+            .build();
+
+        command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));
+
+        TestsUtils.awaitLog(logs, log -> log.getMessage() != null && log.getMessage().contains("pre ::{ x :: post"));
+        receive.blockLast();
+
+        var matched = logs.stream()
+            .filter(log -> log.getMessage() != null && log.getMessage().contains("pre ::{ x :: post"))
+            .toList();
+        assertThat(matched.size(), is(1));
+        assertThat(matched.getFirst().getLevel(), is(Level.INFO));
+        assertThat(matched.getFirst().getMessage(), is("pre ::{ x :: post"));
+    }
+
+    @Test
+    void logLevels_parseLogLevelDisabledKeepsLineContainingBracesOnError() throws Exception {
+        var logs = new CopyOnWriteArrayList<LogEntry>();
+        var receive = TestsUtils.receive(logQueue, l -> logs.add(l.getLeft()));
+
+        var command = Command.builder()
+            .id(IdUtils.create())
+            .type(Command.class.getName())
+            .host(Property.ofValue("localhost"))
+            .username(USERNAME)
+            .authMethod(Property.ofValue(AuthMethod.PASSWORD))
+            .password(PASSWORD)
+            .port(Property.ofValue("2222"))
+            .parseLogLevel(Property.ofValue(false))
+            .commands(new String[] {">&2 echo 'pre ::{ x :: post'"})
+            .build();
+
+        command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));
+
+        TestsUtils.awaitLog(logs, log -> log.getMessage() != null && log.getMessage().contains("pre ::{ x :: post"));
+        receive.blockLast();
+
+        var matched = logs.stream()
+            .filter(log -> log.getMessage() != null && log.getMessage().contains("pre ::{ x :: post"))
+            .toList();
+        assertThat(matched.size(), is(1));
+        assertThat(matched.getFirst().getLevel(), is(Level.ERROR));
+        assertThat(matched.getFirst().getMessage(), is("pre ::{ x :: post"));
+    }
+
+    @Test
+    void logLevels_stderrLineWithDetectedLevelAndBracesIsLoggedOnceUnchanged() throws Exception {
+        var logs = new CopyOnWriteArrayList<LogEntry>();
+        var receive = TestsUtils.receive(logQueue, l -> logs.add(l.getLeft()));
+
+        var command = Command.builder()
+            .id(IdUtils.create())
+            .type(Command.class.getName())
+            .host(Property.ofValue("localhost"))
+            .username(USERNAME)
+            .authMethod(Property.ofValue(AuthMethod.PASSWORD))
+            .password(PASSWORD)
+            .port(Property.ofValue("2222"))
+            .commands(new String[] {">&2 echo '[WARN] os::{lambda()#1}::operator() slow'"})
+            .build();
+
+        command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));
+
+        TestsUtils.awaitLog(logs, log -> log.getMessage() != null && log.getMessage().contains("os::{lambda()#1}::operator() slow"));
+        receive.blockLast();
+
+        var matched = logs.stream()
+            .filter(log -> log.getMessage() != null && log.getMessage().contains("os::{lambda()#1}::operator() slow"))
+            .toList();
+        assertThat(matched.size(), is(1));
+        assertThat(matched.getFirst().getLevel(), is(Level.WARN));
+        assertThat(matched.getFirst().getMessage(), is("[WARN] os::{lambda()#1}::operator() slow"));
     }
 
     @Test

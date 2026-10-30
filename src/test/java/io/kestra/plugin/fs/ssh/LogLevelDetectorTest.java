@@ -55,4 +55,15 @@ class LogLevelDetectorTest {
         assertThat(LogLevelDetector.detect(" ".repeat(100_000) + "ERROR x").isPresent(), is(false));
         assertThat(LogLevelDetector.detect(null).isPresent(), is(false));
     }
+
+    @Test
+    void detectWithRemainder_returnsLevelAndRemainder() {
+        var detection = LogLevelDetector.detectWithRemainder("[INFO] ::{\"outputs\":{\"k\":\"v\"}}::").orElseThrow();
+        assertThat(detection.level(), is(Level.INFO));
+        assertThat(detection.remainder().trim(), is("::{\"outputs\":{\"k\":\"v\"}}::"));
+
+        var warningDetection = LogLevelDetector.detectWithRemainder("WARNING:root:disk almost full").orElseThrow();
+        assertThat(warningDetection.level(), is(Level.WARN));
+        assertThat(warningDetection.remainder(), is(":root:disk almost full"));
+    }
 }
