@@ -10,6 +10,7 @@ import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.vfs.models.File;
 import jakarta.inject.Inject;
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.vfs2.FileType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -155,6 +156,28 @@ class MoveTest {
         assertThat(sftpUtils.list(FilenameUtils.getPath(destination)).getFiles(), hasSize(1));
         assertThat(downloadContent(source, runContext), is("new incoming data"));
         assertThat(downloadContent(destination, runContext), is("protected existing data"));
+    }
+
+    @Test
+    void shouldCreateIntermediateDirectoryWhenMovingFileToNestedNonExistentPath() throws Exception {
+        var source = "upload/%s/source.txt".formatted(IdUtils.create());
+        var targetDir = "upload/%s-nested/sub/".formatted(IdUtils.create());
+        var destination = targetDir + "report.txt";
+
+        sftpUtils.update(source, "sample report content");
+
+        var task = createMoveTask(source, destination);
+        var runContext = TestsUtils.mockRunContext(runContextFactory, task, Map.of());
+        var run = task.run(runContext);
+
+        assertThat(run.getTo().getPath(), containsString(destination));
+
+        var targetFiles = sftpUtils.list(targetDir).getFiles();
+        assertThat(targetFiles, hasSize(1));
+        assertThat(targetFiles.getFirst().getName(), is("report.txt"));
+        assertThat(targetFiles.getFirst().getFileType(), is(FileType.FILE));
+        assertThat(downloadContent(destination, runContext), is("sample report content"));
+        assertThat(sftpUtils.list(FilenameUtils.getPath(source)).getFiles(), hasSize(0));
     }
 
     private String downloadContent(String path, RunContext runContext) throws Exception {
