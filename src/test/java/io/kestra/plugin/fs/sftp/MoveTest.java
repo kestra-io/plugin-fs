@@ -159,7 +159,7 @@ class MoveTest {
     }
 
     @Test
-    void moveFileToNonExistentTargetCreatesFileNotDirectory() throws Exception {
+    void shouldCreateIntermediateDirectoryWhenMovingFileToNestedNonExistentPath() throws Exception {
         var source = "upload/%s/source.txt".formatted(IdUtils.create());
         var targetDir = "upload/%s-nested/sub/".formatted(IdUtils.create());
         var destination = targetDir + "report.txt";
