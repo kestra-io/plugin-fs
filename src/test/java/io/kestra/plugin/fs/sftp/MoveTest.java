@@ -177,6 +177,7 @@ class MoveTest {
         assertThat(targetFiles.getFirst().getName(), is("report.txt"));
         assertThat(targetFiles.getFirst().getFileType(), is(FileType.FILE));
         assertThat(downloadContent(destination, runContext), is("sample report content"));
+        assertThat(sftpUtils.list(FilenameUtils.getPath(source)).getFiles(), hasSize(0));
     }
 
     private String downloadContent(String path, RunContext runContext) throws Exception {
