@@ -16,6 +16,8 @@ import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Instant;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 
 @Getter
 @Builder
@@ -37,9 +39,9 @@ public class File {
 
     public static File of(AbstractFileObject<?> fileObject) throws FileSystemException, URISyntaxException {
         FileBuilder builder = File.builder()
-            .path(new URI(null, fileObject.getName().getPathDecoded(), null))
+            .path(new URI(null, decodePath(fileObject.getName().getPath()), null))
             .serverPath(serverPath(fileObject))
-            .name(FilenameUtils.getName(fileObject.getName().getPathDecoded()))
+            .name(FilenameUtils.getName(decodePath(fileObject.getName().getPath())))
             .fileType(fileObject.getType())
             .symbolicLink(fileObject.isSymbolicLink());
 
@@ -84,7 +86,7 @@ public class File {
                     VfsService.basicAuth(urlFileName.getUserName(), urlFileName.getPassword()),
                     urlFileName.getHostName(),
                     urlFileName.getPort(),
-                    urlFileName.getPathDecoded(),
+                    decodePath(urlFileName.getPath()),
                     urlFileName.getQueryString(),
                     null
                 );
@@ -93,11 +95,19 @@ public class File {
                     VfsService.basicAuth(genericFileName.getUserName(), genericFileName.getPassword()),
                     genericFileName.getHostName(),
                     genericFileName.getPort(),
-                    genericFileName.getPathDecoded(),
+                    decodePath(genericFileName.getPath()),
                     null,
                     null
                 );
             default -> fileObject.getURI();
         };
+    }
+    private static String decodePath(String path) {
+        if (path == null) {
+            return null;
+        }
+        // Bypass VFS UriParser limitation by fully decoding the path.
+        // Replace '+' with '%2B' first to prevent URLDecoder from turning literal '+' into spaces.
+        return URLDecoder.decode(path.replace("+", "%2B"), StandardCharsets.UTF_8);
     }
 }

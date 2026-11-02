@@ -16,6 +16,8 @@ import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.NoSuchElementException;
 import java.util.Objects;
@@ -103,7 +105,7 @@ public abstract class VfsService {
                 public boolean includeFile(FileSelectInfo file) throws Exception {
                     // Do not include directories in the result and apply user's filter
                     return file.getFile().isFile()
-                        && (regExp == null || file.getFile().getName().getPathDecoded().matches(regExp));
+                        && (regExp == null || decodePath(file.getFile().getName().getPath()).matches(regExp));
                 }
             });
 
@@ -259,7 +261,7 @@ public abstract class VfsService {
 
                     @Override
                     public boolean includeFile(FileSelectInfo file) throws Exception {
-                        return file.getFile().isFile() && pattern.matcher(file.getFile().getName().getPathDecoded()).matches();
+                        return file.getFile().isFile() && pattern.matcher(decodePath(file.getFile().getName().getPath())).matches();
                     }
                 });
 
@@ -434,5 +436,13 @@ public abstract class VfsService {
             return path.substring(path.indexOf('.'));
         }
         return null;
+    }
+    private static String decodePath(String path) {
+        if (path == null) {
+            return null;
+        }
+        // Bypass VFS UriParser limitation by fully decoding the path.
+        // Replace '+' with '%2B' first to prevent URLDecoder from turning literal '+' into spaces.
+        return URLDecoder.decode(path.replace("+", "%2B"), StandardCharsets.UTF_8);
     }
 }
