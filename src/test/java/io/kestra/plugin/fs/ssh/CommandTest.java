@@ -116,10 +116,8 @@ class CommandTest {
         assertThat(levelOf(command, "declared info", null, null), is(Level.INFO));
     }
 
-    // Kestra only recognizes a payload spanning the whole line (`^::{...}::$`), so a level prefix makes it plain text
-    // with or without level detection: nothing is lost by detecting the level first.
     @Test
-    void logLevels_prefixedPayloadIsPlainTextAsBefore() throws Exception {
+    void logLevels_prefixedPayloadParsesOutputsAndDetectsLevel() throws Exception {
         var logs = new CopyOnWriteArrayList<LogEntry>();
         var receive = TestsUtils.receive(logQueue, l -> logs.add(l.getLeft()));
 
@@ -131,20 +129,169 @@ class CommandTest {
             .authMethod(Property.ofValue(AuthMethod.PASSWORD))
             .password(PASSWORD)
             .port(Property.ofValue("2222"))
-            .commands(new String[] {">&2 echo '[INFO] ::{\"outputs\":{\"k\":\"v\"}}::'"})
+            .commands(new String[] {
+                ">&2 echo '[INFO] ::{\"outputs\":{\"k\":\"v\"}}::'",
+                ">&2 echo 'outputs-done'"
+            })
             .build();
 
         var run = command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));
 
-        TestsUtils.awaitLog(logs, log -> log.getMessage() != null && log.getMessage().contains("\"outputs\""));
+        TestsUtils.awaitLog(logs, log -> log.getMessage() != null && log.getMessage().contains("outputs-done"));
         receive.blockLast();
 
-        assertThat(run.getVars().get("k"), is(nullValue()));
-        assertThat(logs.stream()
-            .filter(log -> log.getMessage() != null && log.getMessage().contains("\"outputs\""))
-            .map(LogEntry::getLevel)
+        assertThat(run.getVars().get("k"), is("v"));
+        assertThat(logs.stream().noneMatch(log -> log.getMessage() != null && log.getMessage().contains("\"outputs\"")), is(true));
+    }
+
+    @Test
+    void logLevels_prefixedMetricPayloadEmitsMetric() throws Exception {
+        var logs = new CopyOnWriteArrayList<LogEntry>();
+        var receive = TestsUtils.receive(logQueue, l -> logs.add(l.getLeft()));
+
+        var command = Command.builder()
+            .id(IdUtils.create())
+            .type(Command.class.getName())
+            .host(Property.ofValue("localhost"))
+            .username(USERNAME)
+            .authMethod(Property.ofValue(AuthMethod.PASSWORD))
+            .password(PASSWORD)
+            .port(Property.ofValue("2222"))
+            .commands(new String[] {
+                ">&2 echo '[WARN] ::{\"metrics\":[{\"name\":\"test_counter\",\"type\":\"counter\",\"value\":5}]}::'",
+                ">&2 echo 'metrics-done'"
+            })
+            .build();
+
+        var runContext = TestsUtils.mockRunContext(runContextFactory, command, Map.of());
+        command.run(runContext);
+
+        TestsUtils.awaitLog(logs, log -> log.getMessage() != null && log.getMessage().contains("metrics-done"));
+        receive.blockLast();
+
+        var metric = runContext.metrics().stream()
+            .filter(m -> "test_counter".equals(m.getName()))
             .findFirst()
-            .orElseThrow(), is(Level.INFO));
+            .orElseThrow();
+        assertThat(((Number) metric.getValue()).intValue(), is(5));
+        assertThat(logs.stream().noneMatch(log -> log.getMessage() != null && log.getMessage().contains("\"metrics\"")), is(true));
+    }
+
+    @Test
+    void logLevels_prefixedLogsPayloadEmitsExactlyOneLogEntry() throws Exception {
+        var logs = new CopyOnWriteArrayList<LogEntry>();
+        var receive = TestsUtils.receive(logQueue, l -> logs.add(l.getLeft()));
+
+        var command = Command.builder()
+            .id(IdUtils.create())
+            .type(Command.class.getName())
+            .host(Property.ofValue("localhost"))
+            .username(USERNAME)
+            .authMethod(Property.ofValue(AuthMethod.PASSWORD))
+            .password(PASSWORD)
+            .port(Property.ofValue("2222"))
+            .commands(new String[] {">&2 echo '[INFO] ::{\"logs\":[{\"level\":\"WARN\",\"message\":\"prefixed log message\"}]}::'"})
+            .build();
+
+        command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));
+
+        TestsUtils.awaitLog(logs, log -> log.getMessage() != null && log.getMessage().contains("prefixed log message"));
+        receive.blockLast();
+
+        var matched = logs.stream()
+            .filter(log -> log.getMessage() != null && (log.getMessage().contains("prefixed log message") || log.getMessage().contains("\"logs\"")))
+            .toList();
+        assertThat(matched.size(), is(1));
+        assertThat(matched.getFirst().getLevel(), is(Level.WARN));
+        assertThat(matched.getFirst().getMessage(), is("prefixed log message"));
+    }
+
+    @Test
+    void logLevels_stdoutLineContainingBracesIsLoggedOnceUnchanged() throws Exception {
+        var logs = new CopyOnWriteArrayList<LogEntry>();
+        var receive = TestsUtils.receive(logQueue, l -> logs.add(l.getLeft()));
+
+        var command = Command.builder()
+            .id(IdUtils.create())
+            .type(Command.class.getName())
+            .host(Property.ofValue("localhost"))
+            .username(USERNAME)
+            .authMethod(Property.ofValue(AuthMethod.PASSWORD))
+            .password(PASSWORD)
+            .port(Property.ofValue("2222"))
+            .commands(new String[] {"echo 'pre ::{ x :: post'"})
+            .build();
+
+        command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));
+
+        TestsUtils.awaitLog(logs, log -> log.getMessage() != null && log.getMessage().contains("pre ::{ x :: post"));
+        receive.blockLast();
+
+        var matched = logs.stream()
+            .filter(log -> log.getMessage() != null && log.getMessage().contains("pre ::{ x :: post"))
+            .toList();
+        assertThat(matched.size(), is(1));
+        assertThat(matched.getFirst().getLevel(), is(Level.INFO));
+        assertThat(matched.getFirst().getMessage(), is("pre ::{ x :: post"));
+    }
+
+    @Test
+    void logLevels_parseLogLevelDisabledKeepsLineContainingBracesOnError() throws Exception {
+        var logs = new CopyOnWriteArrayList<LogEntry>();
+        var receive = TestsUtils.receive(logQueue, l -> logs.add(l.getLeft()));
+
+        var command = Command.builder()
+            .id(IdUtils.create())
+            .type(Command.class.getName())
+            .host(Property.ofValue("localhost"))
+            .username(USERNAME)
+            .authMethod(Property.ofValue(AuthMethod.PASSWORD))
+            .password(PASSWORD)
+            .port(Property.ofValue("2222"))
+            .parseLogLevel(Property.ofValue(false))
+            .commands(new String[] {">&2 echo 'pre ::{ x :: post'"})
+            .build();
+
+        command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));
+
+        TestsUtils.awaitLog(logs, log -> log.getMessage() != null && log.getMessage().contains("pre ::{ x :: post"));
+        receive.blockLast();
+
+        var matched = logs.stream()
+            .filter(log -> log.getMessage() != null && log.getMessage().contains("pre ::{ x :: post"))
+            .toList();
+        assertThat(matched.size(), is(1));
+        assertThat(matched.getFirst().getLevel(), is(Level.ERROR));
+        assertThat(matched.getFirst().getMessage(), is("pre ::{ x :: post"));
+    }
+
+    @Test
+    void logLevels_stderrLineWithDetectedLevelAndBracesIsLoggedOnceUnchanged() throws Exception {
+        var logs = new CopyOnWriteArrayList<LogEntry>();
+        var receive = TestsUtils.receive(logQueue, l -> logs.add(l.getLeft()));
+
+        var command = Command.builder()
+            .id(IdUtils.create())
+            .type(Command.class.getName())
+            .host(Property.ofValue("localhost"))
+            .username(USERNAME)
+            .authMethod(Property.ofValue(AuthMethod.PASSWORD))
+            .password(PASSWORD)
+            .port(Property.ofValue("2222"))
+            .commands(new String[] {">&2 echo '[WARN] os::{lambda()#1}::operator() slow'"})
+            .build();
+
+        command.run(TestsUtils.mockRunContext(runContextFactory, command, Map.of()));
+
+        TestsUtils.awaitLog(logs, log -> log.getMessage() != null && log.getMessage().contains("os::{lambda()#1}::operator() slow"));
+        receive.blockLast();
+
+        var matched = logs.stream()
+            .filter(log -> log.getMessage() != null && log.getMessage().contains("os::{lambda()#1}::operator() slow"))
+            .toList();
+        assertThat(matched.size(), is(1));
+        assertThat(matched.getFirst().getLevel(), is(Level.WARN));
+        assertThat(matched.getFirst().getMessage(), is("[WARN] os::{lambda()#1}::operator() slow"));
     }
 
     @Test
