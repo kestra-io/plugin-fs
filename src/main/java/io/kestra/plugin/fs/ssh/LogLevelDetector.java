@@ -63,8 +63,4 @@ final class LogLevelDetector {
 
         return Optional.of(new Detection(level, line.substring(matcher.end())));
     }
-
-    static Optional<Level> detect(String line) {
-        return detectWithRemainder(line).map(Detection::level);
-    }
 }

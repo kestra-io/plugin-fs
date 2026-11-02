@@ -28,7 +28,7 @@ class LogLevelDetectorTest {
         "[warn] x|WARN"
     })
     void detect_recognizesDeclaredLevel(String line, Level expected) {
-        assertThat(LogLevelDetector.detect(line).orElse(null), is(expected));
+        assertThat(LogLevelDetector.detectWithRemainder(line).map(LogLevelDetector.Detection::level).orElse(null), is(expected));
     }
 
     @ParameterizedTest
@@ -46,14 +46,14 @@ class LogLevelDetectorTest {
         "Permission denied"
     })
     void detect_ignoresLinesWithoutDeclaredLevel(String line) {
-        assertThat(LogLevelDetector.detect(line).isPresent(), is(false));
+        assertThat(LogLevelDetector.detectWithRemainder(line).isPresent(), is(false));
     }
 
     @Test
     void detect_neverThrowsOnVeryLongOrNullLines() {
-        assertThat(LogLevelDetector.detect("1".repeat(100_000)).isPresent(), is(false));
-        assertThat(LogLevelDetector.detect(" ".repeat(100_000) + "ERROR x").isPresent(), is(false));
-        assertThat(LogLevelDetector.detect(null).isPresent(), is(false));
+        assertThat(LogLevelDetector.detectWithRemainder("1".repeat(100_000)).isPresent(), is(false));
+        assertThat(LogLevelDetector.detectWithRemainder(" ".repeat(100_000) + "ERROR x").isPresent(), is(false));
+        assertThat(LogLevelDetector.detectWithRemainder(null).isPresent(), is(false));
     }
 
     @Test
