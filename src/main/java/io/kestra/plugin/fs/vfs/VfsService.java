@@ -437,12 +437,12 @@ public abstract class VfsService {
         }
         return null;
     }
-    private static String decodePath(String path) {
+    
+    // Bypasses VFS UriParser limitation by fully decoding the path, preserving literal '+' signs.
+    public static String decodePath(String path) {
         if (path == null) {
             return null;
         }
-        // Bypass VFS UriParser limitation by fully decoding the path.
-        // Replace '+' with '%2B' first to prevent URLDecoder from turning literal '+' into spaces.
         return URLDecoder.decode(path.replace("+", "%2B"), StandardCharsets.UTF_8);
     }
 }
