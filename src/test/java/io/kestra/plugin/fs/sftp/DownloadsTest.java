@@ -373,6 +373,28 @@ class DownloadsTest {
     }
 
     @Test
+    void shouldDownloadSingleFileWhenNameContainsBracketsAndPercent() throws Exception {
+        String toUploadDir = "/upload/" + random;
+        String fileName = "report[100%].txt";
+        sftpUtils.upload(toUploadDir + "/" + fileName);
+
+        Download task = Download.builder()
+            .id(DownloadsTest.class.getSimpleName() + "-" + IdUtils.create())
+            .type(Download.class.getName())
+            .from(Property.ofValue(toUploadDir + "/" + fileName))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+
+        Download.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(run.getFrom().getPath(), endsWith(fileName));
+        assertThat(run.getTo(), is(notNullValue()));
+    }
+
+    @Test
     void shouldDownloadFilesWhenNamesContainBracketsAndPercent() throws Exception {
         String toUploadDir = "/upload/" + random;
         String file1 = "report[1].txt";

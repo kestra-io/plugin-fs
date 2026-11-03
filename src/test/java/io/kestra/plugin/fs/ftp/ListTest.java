@@ -143,6 +143,30 @@ class ListTest {
     }
 
     @Test
+    void shouldMatchRegExpWhenNameContainsBracketsAndPercent() throws Exception {
+        var dir = "/" + IdUtils.create();
+        ftpUtils.upload("upload" + dir + "/report[1].txt");
+        ftpUtils.upload("upload" + dir + "/report[100%].txt");
+        ftpUtils.upload("upload" + dir + "/other.txt");
+
+        var task = List.builder()
+            .id(ListTest.class.getSimpleName() + "-" + IdUtils.create())
+            .type(ListTest.class.getName())
+            .from(Property.ofValue("/upload" + dir))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6621"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .regExp(Property.ofValue(".*/report\\[100%\\]\\.txt"))
+            .build();
+
+        var run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(run.getFiles().size(), is(1));
+        assertThat(run.getFiles().getFirst().getName(), is("report[100%].txt"));
+    }
+
+    @Test
     void shouldMatchRegExpWhenNameContainsPercent() throws Exception {
         var dir = "/" + IdUtils.create();
         ftpUtils.upload("upload" + dir + "/report 100%.txt");

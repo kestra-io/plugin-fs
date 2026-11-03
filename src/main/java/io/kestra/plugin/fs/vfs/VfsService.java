@@ -11,9 +11,12 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.vfs2.*;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 import org.apache.commons.vfs2.provider.AbstractFileObject;
+import org.apache.commons.vfs2.util.FileObjectUtils;
 
 import java.io.FileOutputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLDecoder;
@@ -93,17 +96,16 @@ public abstract class VfsService {
         String regExp,
         boolean recursive
     ) throws Exception {
-        try (FileObject local = fsm.resolveFile(from.toString(), fileSystemOptions)) {
+        try (FileObject local = resolveFile(fsm, from, fileSystemOptions)) {
             FileObject[] children = local.findFiles(new FileSelector() {
                 @Override
                 public boolean traverseDescendents(FileSelectInfo file) {
-                    // if not recursive only traverse "from"
                     return recursive || Objects.equals(file.getFile().getName().getPath(), local.getName().getPath());
                 }
 
                 @Override
                 public boolean includeFile(FileSelectInfo file) throws Exception {
-                    // Do not include directories in the result and apply user's filter
+                    repairProviderPath(file.getFile());
                     return file.getFile().isFile()
                         && (regExp == null || decodePath(file.getFile().getName().getPath()).matches(regExp));
                 }
@@ -133,8 +135,8 @@ public abstract class VfsService {
         java.io.File tempFile = runContext.workingDir().createTempFile(FileUtils.getExtension(from)).toFile();
 
         try (
-            FileObject local = request.fsm().resolveFile(tempFile.toURI());
-            FileObject remote = request.fsm().resolveFile(from.toString(), request.fileSystemOptions())
+            FileObject local = resolveFile(request.fsm(), tempFile.toURI(), null);
+            FileObject remote = resolveFile(request.fsm(), from, request.fileSystemOptions())
         ) {
             local.copyFrom(remote, Selectors.SELECT_SELF);
         }
@@ -182,8 +184,8 @@ public abstract class VfsService {
         }
 
         // upload
-        try (FileObject local = fsm.resolveFile(tempFile.toURI());
-             FileObject remote = fsm.resolveFile(to.toString(), fileSystemOptions)
+        try (FileObject local = resolveFile(fsm, tempFile.toURI(), null);
+             FileObject remote = resolveFile(fsm, to, fileSystemOptions)
         ) {
             //Avoid overriding a folder with a file when the remote folder exists
             if (!overwrite && remote.isFolder() && remote.exists() && !to.getPath().endsWith("/")) {
@@ -234,7 +236,7 @@ public abstract class VfsService {
         String regExp
     ) throws Exception {
         if (regExp != null) {
-            try (FileObject dir = fsm.resolveFile(from.toString(), fileSystemOptions)) {
+            try (FileObject dir = resolveFile(fsm, from, fileSystemOptions)) {
                 if (!dir.exists()) {
                     if (Boolean.TRUE.equals(errorOnMissing)) {
                         throw new NoSuchElementException("Unable to find directory '" + VfsService.uriWithoutAuth(from) + "'");
@@ -261,6 +263,7 @@ public abstract class VfsService {
 
                     @Override
                     public boolean includeFile(FileSelectInfo file) throws Exception {
+                        repairProviderPath(file.getFile());
                         return file.getFile().isFile() && pattern.matcher(decodePath(file.getFile().getName().getPath())).matches();
                     }
                 });
@@ -295,7 +298,7 @@ public abstract class VfsService {
             }
         }
 
-        try (FileObject local = fsm.resolveFile(from.toString(), fileSystemOptions)) {
+        try (FileObject local = resolveFile(fsm, from, fileSystemOptions)) {
             boolean exists = local.exists();
 
             if (!exists && Boolean.TRUE.equals(errorOnMissing)) {
@@ -332,8 +335,8 @@ public abstract class VfsService {
         }
 
         try (
-            FileObject local = fsm.resolveFile(from.toString(), fileSystemOptions);
-            FileObject remote = fsm.resolveFile(to.toString(), fileSystemOptions)
+            FileObject local = resolveFile(fsm, from, fileSystemOptions);
+            FileObject remote = resolveFile(fsm, to, fileSystemOptions)
         ) {
             if (!local.exists()) {
                 throw new NoSuchElementException("Unable to find file '" + VfsService.uriWithoutAuth(from) + "'");
@@ -348,7 +351,7 @@ public abstract class VfsService {
             } else {
                 URI pathToCreate = withPath(to, "/" + FilenameUtils.getPath(to.getPath()));
 
-                try (FileObject directory = fsm.resolveFile(pathToCreate.toString(), fileSystemOptions)) {
+                try (FileObject directory = resolveFile(fsm, pathToCreate, fileSystemOptions)) {
                     if (!directory.exists()) {
                         directory.createFolder();
                         runContext.logger().debug("Create directory '{}'", VfsService.uriWithoutAuth(pathToCreate));
@@ -419,6 +422,76 @@ public abstract class VfsService {
         return new URI(uri.getScheme(), uri.getUserInfo(), uri.getHost(), uri.getPort(), path, null, null);
     }
 
+    private static FileObject resolveFile(
+        StandardFileSystemManager fsm,
+        URI uri,
+        FileSystemOptions fileSystemOptions
+    ) throws FileSystemException {
+        FileObject file = fileSystemOptions == null
+            ? fsm.resolveFile(uri)
+            : fsm.resolveFile(uri.toString(), fileSystemOptions);
+        repairProviderPath(file);
+        return file;
+    }
+
+    private static void repairProviderPath(FileObject fileObject) throws FileSystemException {
+        AbstractFileObject<?> abstractFileObject = FileObjectUtils.getAbstractFileObject(fileObject);
+        String className = abstractFileObject.getClass().getName();
+        if (!className.endsWith("SftpFileObject") && !className.endsWith("FtpFileObject")) {
+            return;
+        }
+
+        Field relPath = findField(abstractFileObject.getClass(), "relPath");
+        if (relPath == null) {
+            return;
+        }
+
+        try {
+            relPath.setAccessible(true);
+            String relativePath = decodePath(abstractFileObject.getName().getRoot().getRelativeName(abstractFileObject.getName()));
+            relPath.set(abstractFileObject, ".".equals(relativePath) ? null : relativePath);
+
+            if (className.endsWith("FtpFileObject")) {
+                FileObject parent = fileObject.getParent();
+                if (parent != null) {
+                    Method getChildFile = findMethod(parent.getClass(), "getChildFile", String.class, boolean.class);
+                    Field ftpFile = findField(abstractFileObject.getClass(), "ftpFile");
+                    if (getChildFile != null && ftpFile != null) {
+                        getChildFile.setAccessible(true);
+                        ftpFile.setAccessible(true);
+                        ftpFile.set(abstractFileObject, getChildFile.invoke(
+                            FileObjectUtils.getAbstractFileObject(parent),
+                            decodePath(abstractFileObject.getName().getBaseName()),
+                            false
+                        ));
+                    }
+                }
+            }
+        } catch (ReflectiveOperationException e) {
+            throw new FileSystemException("Unable to repair encoded VFS path for " + fileObject.getName(), e);
+        }
+    }
+
+    private static Field findField(Class<?> type, String name) {
+        for (Class<?> current = type; current != null; current = current.getSuperclass()) {
+            try {
+                return current.getDeclaredField(name);
+            } catch (NoSuchFieldException ignored) {
+            }
+        }
+        return null;
+    }
+
+    private static Method findMethod(Class<?> type, String name, Class<?>... parameterTypes) {
+        for (Class<?> current = type; current != null; current = current.getSuperclass()) {
+            try {
+                return current.getDeclaredMethod(name, parameterTypes);
+            } catch (NoSuchMethodException ignored) {
+            }
+        }
+        return null;
+    }
+
     private static boolean isDirectory(URI uri) {
         return ("/" + FilenameUtils.getPath(uri.getPath())).equals(uri.getPath());
     }
@@ -437,12 +510,15 @@ public abstract class VfsService {
         }
         return null;
     }
-    
-    // Bypasses VFS UriParser limitation by fully decoding the path, preserving literal '+' signs.
+
+    // Commons VFS treats brackets as IPv6 host delimiters and skips percent decoding inside them.
     public static String decodePath(String path) {
         if (path == null) {
             return null;
         }
-        return URLDecoder.decode(path.replace("+", "%2B"), StandardCharsets.UTF_8);
+        return URLDecoder.decode(
+            path.replace("+", "%2B").replaceAll("%(?![0-9A-Fa-f]{2})", "%25"),
+            StandardCharsets.UTF_8
+        );
     }
 }
