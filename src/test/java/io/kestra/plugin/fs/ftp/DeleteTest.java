@@ -105,4 +105,35 @@ class DeleteTest {
         assertThat(remaining.getFiles(), hasSize(1));
         assertThat(remaining.getFiles().getFirst().getName(), endsWith(".yaml"));
     }
+
+    @Test
+    void shouldDeleteByRegExpWhenNameContainsBracketsAndPercent() throws Exception {
+        var directory = IdUtils.create();
+        ftpUtils.upload(directory + "/report[1].txt");
+        ftpUtils.upload(directory + "/report[100%].txt");
+        ftpUtils.upload(directory + "/other.yaml");
+
+        var task = io.kestra.plugin.fs.ftp.Delete.builder()
+            .id(DeleteTest.class.getSimpleName() + "-" + IdUtils.create())
+            .type(DeleteTest.class.getName())
+            .uri(Property.ofValue(directory))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6621"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .regExp(Property.ofValue(".*/report\\[100%\\]\\.txt"))
+            .build();
+
+        var run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(run.isDeleted(), is(true));
+        assertThat(run.getUris(), hasSize(1));
+        assertThat(run.getUris().getFirst().getPath(), endsWith("report[100%].txt"));
+
+        var remaining = ftpUtils.list(directory);
+        java.util.List<String> remainingNames = remaining.getFiles().stream().map(io.kestra.plugin.fs.vfs.models.File::getName).toList();
+        assertThat(remainingNames.contains("report[1].txt"), is(true));
+        assertThat(remainingNames.contains("other.yaml"), is(true));
+        assertThat(remainingNames.contains("report[100%].txt"), is(false));
+    }
 }

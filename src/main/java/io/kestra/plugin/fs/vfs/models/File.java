@@ -37,9 +37,9 @@ public class File {
 
     public static File of(AbstractFileObject<?> fileObject) throws FileSystemException, URISyntaxException {
         FileBuilder builder = File.builder()
-            .path(new URI(null, fileObject.getName().getPathDecoded(), null))
+            .path(new URI(null, null, VfsService.decodePath(fileObject.getName().getPath()), null))
             .serverPath(serverPath(fileObject))
-            .name(FilenameUtils.getName(fileObject.getName().getPathDecoded()))
+            .name(FilenameUtils.getName(VfsService.decodePath(fileObject.getName().getPath())))
             .fileType(fileObject.getType())
             .symbolicLink(fileObject.isSymbolicLink());
 
@@ -84,7 +84,7 @@ public class File {
                     VfsService.basicAuth(urlFileName.getUserName(), urlFileName.getPassword()),
                     urlFileName.getHostName(),
                     urlFileName.getPort(),
-                    urlFileName.getPathDecoded(),
+                    VfsService.decodePath(urlFileName.getPath()),
                     urlFileName.getQueryString(),
                     null
                 );
@@ -93,7 +93,7 @@ public class File {
                     VfsService.basicAuth(genericFileName.getUserName(), genericFileName.getPassword()),
                     genericFileName.getHostName(),
                     genericFileName.getPort(),
-                    genericFileName.getPathDecoded(),
+                    VfsService.decodePath(genericFileName.getPath()),
                     null,
                     null
                 );

@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.hasItems;
 
 @KestraTest
 class ListTest {
@@ -184,5 +185,43 @@ class ListTest {
         var run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(run.getFiles().size(), is(1));
+    }
+
+    @Test
+    void shouldMatchRegExpWhenNameContainsBracketsAndPercent() throws Exception {
+        var dir = "/" + IdUtils.create();
+        sftpUtils.upload("upload" + dir + "/report[1].txt");
+        sftpUtils.upload("upload" + dir + "/report[100%].txt");
+        sftpUtils.upload("upload" + dir + "/other.txt");
+
+        var taskAll = List.builder()
+            .id(ListTest.class.getSimpleName() + "-" + IdUtils.create())
+            .type(ListTest.class.getName())
+            .from(Property.ofValue("/upload" + dir))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+
+        var runAll = taskAll.run(TestsUtils.mockRunContext(runContextFactory, taskAll, Map.of()));
+        assertThat(runAll.getFiles().size(), is(3));
+        java.util.List<String> fileNames = runAll.getFiles().stream().map(File::getName).toList();
+        assertThat(fileNames, hasItems("report[1].txt", "report[100%].txt", "other.txt"));
+
+        var taskRegExp = List.builder()
+            .id(ListTest.class.getSimpleName() + "-" + IdUtils.create())
+            .type(ListTest.class.getName())
+            .from(Property.ofValue("/upload" + dir))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .regExp(Property.ofValue(".*/report\\[100%\\]\\.txt"))
+            .build();
+
+        var runRegExp = taskRegExp.run(TestsUtils.mockRunContext(runContextFactory, taskRegExp, Map.of()));
+        assertThat(runRegExp.getFiles().size(), is(1));
+        assertThat(runRegExp.getFiles().getFirst().getName(), is("report[100%].txt"));
     }
 }

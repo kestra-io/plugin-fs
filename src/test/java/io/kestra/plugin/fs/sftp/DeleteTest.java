@@ -7,6 +7,7 @@ import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
+import io.kestra.plugin.fs.vfs.models.File;
 
 import java.util.Map;
 
@@ -156,5 +157,35 @@ class DeleteTest {
         var remaining = sftpUtils.list(directory);
         assertThat(remaining.getFiles(), hasSize(1));
         assertThat(remaining.getFiles().getFirst().getName(), endsWith(".yaml"));
+    }
+
+    @Test
+    void shouldDeleteByRegExpWhenNameContainsBracketsAndPercent() throws Exception {
+        var directory = "upload/" + IdUtils.create();
+        sftpUtils.upload(directory + "/report[1].txt");
+        sftpUtils.upload(directory + "/report[100%].txt");
+        sftpUtils.upload(directory + "/other.yaml");
+
+        var task = Delete.builder()
+            .id(DeleteTest.class.getSimpleName() + "-" + IdUtils.create())
+            .type(DeleteTest.class.getName())
+            .uri(Property.ofValue(directory))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .regExp(Property.ofValue(".*/report\\[100%\\]\\.txt"))
+            .build();
+
+        var run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(run.isDeleted(), is(true));
+        assertThat(run.getUris(), hasSize(1));
+        assertThat(run.getUris().getFirst().getPath(), endsWith("report[100%].txt"));
+
+        var remaining = sftpUtils.list(directory);
+        java.util.List<String> remainingNames = remaining.getFiles().stream().map(File::getName).toList();
+        assertThat(remainingNames, hasItems("report[1].txt", "other.yaml"));
+        assertThat(remainingNames.contains("report[100%].txt"), is(false));
     }
 }
