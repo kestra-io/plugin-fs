@@ -631,6 +631,7 @@ public class Command extends Task implements SshInterface, RunnableTask<Command.
                 .replace("%p", String.valueOf(port))
                 .replace("%r", sanitizedUsername);
 
+            // nosemgrep: java.lang.security.audit.command-injection-process-builder.command-injection-process-builder -- shell is intended (OpenSSH ProxyCommand semantics), %h/%r are SAFE_VALUE allow-listed and %p is an int
             var processBuilder = new ProcessBuilder(shellCommand(resolvedCommand));
             processBuilder.redirectError(ProcessBuilder.Redirect.DISCARD);
             process = processBuilder.start();
