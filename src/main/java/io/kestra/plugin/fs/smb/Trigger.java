@@ -51,9 +51,9 @@ import io.kestra.core.models.annotations.PluginProperty;
                     type: io.kestra.plugin.core.flow.ForEach
                     values: "{{ trigger.files }}"
                     tasks:
-                      - id: return
-                        type: io.kestra.plugin.core.debug.Return
-                        format: "{{ taskrun.value | jq('.path') }}"
+                      - id: log_file
+                        type: io.kestra.plugin.core.log.Log
+                        message: "{{ taskrun.value | jq('.path') }}"
 
                 triggers:
                   - id: watch
@@ -82,9 +82,9 @@ import io.kestra.core.models.annotations.PluginProperty;
                     type: io.kestra.plugin.core.flow.ForEach
                     values: "{{ trigger.files }}"
                     tasks:
-                      - id: return
-                        type: io.kestra.plugin.core.debug.Return
-                        format: "{{ taskrun.value | jq('.path') }}"
+                      - id: log_file
+                        type: io.kestra.plugin.core.log.Log
+                        message: "{{ taskrun.value | jq('.path') }}"
                       - id: delete
                         type: io.kestra.plugin.fs.smb.Delete
                         host: localhost
@@ -119,9 +119,9 @@ import io.kestra.core.models.annotations.PluginProperty;
                     type: io.kestra.plugin.core.flow.ForEach
                     values: "{{ trigger.files }}"
                     tasks:
-                      - id: return
-                        type: io.kestra.plugin.core.debug.Return
-                        format: "{{ taskrun.value | jq('.path') }}"
+                      - id: log_file
+                        type: io.kestra.plugin.core.log.Log
+                        message: "{{ taskrun.value | jq('.path') }}"
 
                 triggers:
                   - id: watch
