@@ -105,7 +105,7 @@ public abstract class VfsService {
                 public boolean includeFile(FileSelectInfo file) throws Exception {
                     // Do not include directories in the result and apply user's filter
                     return file.getFile().isFile()
-                        && (regExp == null || URLDecoder.decode(file.getFile().getName().getPath().replace("+", "%2B"), StandardCharsets.UTF_8).matches(regExp));
+                        && (regExp == null || decodePath(file.getFile().getName().getPath()).matches(regExp));
                 }
             });
 
@@ -261,7 +261,7 @@ public abstract class VfsService {
 
                     @Override
                     public boolean includeFile(FileSelectInfo file) throws Exception {
-                        return file.getFile().isFile() && pattern.matcher(URLDecoder.decode(file.getFile().getName().getPath().replace("+", "%2B"), StandardCharsets.UTF_8)).matches();
+                        return file.getFile().isFile() && pattern.matcher(decodePath(file.getFile().getName().getPath())).matches();
                     }
                 });
 
@@ -436,5 +436,16 @@ public abstract class VfsService {
             return path.substring(path.indexOf('.'));
         }
         return null;
+    }
+    public static String decodePath(String encodedPath) {
+        if (encodedPath == null) {
+            return null;
+        }
+        try {
+            // URLDecoder turns '+' into spaces. To preserve literal '+', we hide them as '%2B' BEFORE decoding, so URLDecoder decodes them back to '+'.
+            return java.net.URLDecoder.decode(encodedPath.replace("+", "%2B"), java.nio.charset.StandardCharsets.UTF_8.name());
+        } catch (java.io.UnsupportedEncodingException e) {
+            throw new RuntimeException("UTF-8 encoding not supported", e);
+        }
     }
 }

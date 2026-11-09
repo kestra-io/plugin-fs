@@ -38,7 +38,7 @@ public class File {
     private final Instant updatedDate;
 
     public static File of(AbstractFileObject<?> fileObject) throws FileSystemException, URISyntaxException {
-        String decodedPath = URLDecoder.decode(fileObject.getName().getPath().replace("+", "%2B"), StandardCharsets.UTF_8);
+        String decodedPath = VfsService.decodePath(fileObject.getName().getPath());
         FileBuilder builder = File.builder()
             .path(new URI(null, decodedPath, null))
             .serverPath(serverPath(fileObject))
@@ -87,7 +87,7 @@ public class File {
                     VfsService.basicAuth(urlFileName.getUserName(), urlFileName.getPassword()),
                     urlFileName.getHostName(),
                     urlFileName.getPort(),
-                    URLDecoder.decode(urlFileName.getPath().replace("+", "%2B"), StandardCharsets.UTF_8),
+                    VfsService.decodePath(urlFileName.getPath()),
                     urlFileName.getQueryString(),
                     null
                 );
@@ -96,7 +96,7 @@ public class File {
                     VfsService.basicAuth(genericFileName.getUserName(), genericFileName.getPassword()),
                     genericFileName.getHostName(),
                     genericFileName.getPort(),
-                    URLDecoder.decode(genericFileName.getPath().replace("+", "%2B"), StandardCharsets.UTF_8),
+                    VfsService.decodePath(genericFileName.getPath()),
                     null,
                     null
                 );
