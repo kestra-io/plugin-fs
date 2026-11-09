@@ -36,9 +36,9 @@ import java.io.IOException;
                     type: io.kestra.plugin.core.flow.ForEach
                     values: "{{ trigger.files }}"
                     tasks:
-                      - id: return
-                        type: io.kestra.plugin.core.debug.Return
-                        format: "{{ taskrun.value | jq('.path') }}"
+                      - id: log_file
+                        type: io.kestra.plugin.core.log.Log
+                        message: "{{ taskrun.value | jq('.path') }}"
 
                 triggers:
                   - id: watch
@@ -65,9 +65,9 @@ import java.io.IOException;
                     type: io.kestra.plugin.core.flow.ForEach
                     values: "{{ trigger.files | jq('.path') }}"
                     tasks:
-                      - id: return
-                        type: io.kestra.plugin.core.debug.Return
-                        format: "{{ taskrun.value }}"
+                      - id: log_file
+                        type: io.kestra.plugin.core.log.Log
+                        message: "{{ taskrun.value }}"
                       - id: delete
                         type: io.kestra.plugin.fs.sftp.Delete
                         host: localhost
@@ -100,9 +100,9 @@ import java.io.IOException;
                     type: io.kestra.plugin.core.flow.ForEach
                     values: "{{ trigger.files }}"
                     tasks:
-                      - id: return
-                        type: io.kestra.plugin.core.debug.Return
-                        format: "{{ taskrun.value | jq('.path') }}"
+                      - id: log_file
+                        type: io.kestra.plugin.core.log.Log
+                        message: "{{ taskrun.value | jq('.path') }}"
 
                 triggers:
                   - id: watch
