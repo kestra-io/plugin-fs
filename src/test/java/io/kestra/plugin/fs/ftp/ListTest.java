@@ -143,12 +143,14 @@ class ListTest {
     }
 
     @Test
-    void shouldMatchRegExpWhenNameContainsPercent() throws Exception {
+    void shouldMatchRegExpWhenNameContainsPercentAndBrackets() throws Exception {
         var dir = "/" + IdUtils.create();
-        ftpUtils.upload("upload" + dir + "/report 100%.txt");
+        ftpUtils.upload("upload" + dir + "/report[100%].txt");
+        ftpUtils.upload("upload" + dir + "/literal+plus.txt");
         ftpUtils.upload("upload" + dir + "/other.txt");
 
-        var task = List.builder()
+        // Test matching the bracket/percent file
+        var taskBracket = List.builder()
             .id("ftp-list-" + UUID.randomUUID())
             .type(List.class.getName())
             .from(Property.ofValue("/upload" + dir))
@@ -156,12 +158,28 @@ class ListTest {
             .port(Property.ofValue("6621"))
             .username(USERNAME)
             .password(PASSWORD)
-            .regExp(Property.ofValue(".*/report 100%\\.txt"))
+            .regExp(Property.ofValue(".*/report\\[100%\\]\\.txt"))
             .build();
 
-        var run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+        var runBracket = taskBracket.run(TestsUtils.mockRunContext(runContextFactory, taskBracket, Map.of()));
+        assertThat(runBracket.getFiles().size(), is(1));
+        assertThat(runBracket.getFiles().getFirst().getName(), is("report[100%].txt"));
 
-        assertThat(run.getFiles().size(), is(1));
+        // Test matching the literal plus file
+        var taskPlus = List.builder()
+            .id("ftp-list-" + UUID.randomUUID())
+            .type(List.class.getName())
+            .from(Property.ofValue("/upload" + dir))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6621"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .regExp(Property.ofValue(".*/literal\\+plus\\.txt"))
+            .build();
+
+        var runPlus = taskPlus.run(TestsUtils.mockRunContext(runContextFactory, taskPlus, Map.of()));
+        assertThat(runPlus.getFiles().size(), is(1));
+        assertThat(runPlus.getFiles().getFirst().getName(), is("literal+plus.txt"));
     }
 
     @Test

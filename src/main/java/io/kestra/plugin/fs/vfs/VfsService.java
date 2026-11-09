@@ -23,6 +23,8 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -103,7 +105,7 @@ public abstract class VfsService {
                 public boolean includeFile(FileSelectInfo file) throws Exception {
                     // Do not include directories in the result and apply user's filter
                     return file.getFile().isFile()
-                        && (regExp == null || file.getFile().getName().getPathDecoded().matches(regExp));
+                        && (regExp == null || URLDecoder.decode(file.getFile().getName().getPath().replace("+", "%2B"), StandardCharsets.UTF_8).matches(regExp));
                 }
             });
 
@@ -259,7 +261,7 @@ public abstract class VfsService {
 
                     @Override
                     public boolean includeFile(FileSelectInfo file) throws Exception {
-                        return file.getFile().isFile() && pattern.matcher(file.getFile().getName().getPathDecoded()).matches();
+                        return file.getFile().isFile() && pattern.matcher(URLDecoder.decode(file.getFile().getName().getPath().replace("+", "%2B"), StandardCharsets.UTF_8)).matches();
                     }
                 });
 

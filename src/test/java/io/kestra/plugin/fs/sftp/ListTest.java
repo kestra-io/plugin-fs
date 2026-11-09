@@ -20,6 +20,7 @@ import static io.kestra.plugin.fs.sftp.SftpUtils.PASSWORD;
 import static io.kestra.plugin.fs.sftp.SftpUtils.USERNAME;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
@@ -90,10 +91,14 @@ class ListTest {
     }
 
     @Test
-    void shouldReturnDecodedNameWhenFileNameContainsPercent() throws Exception {
+    void shouldReturnDecodedNameWhenFileNameContainsPercentAndBrackets() throws Exception {
         String dir = "/" + IdUtils.create();
-        String fileName = IdUtils.create() + " report 100%.txt";
-        sftpUtils.upload("upload" + dir + "/" + fileName);
+        String filePercent = IdUtils.create() + " report 100%.txt";
+        String fileBracket = IdUtils.create() + " report[100%].txt";
+        String filePlus = IdUtils.create() + " literal+plus.txt";
+        sftpUtils.upload("upload" + dir + "/" + filePercent);
+        sftpUtils.upload("upload" + dir + "/" + fileBracket);
+        sftpUtils.upload("upload" + dir + "/" + filePlus);
 
         List task = List.builder()
             .id(ListTest.class.getSimpleName() + "-" + IdUtils.create())
@@ -107,8 +112,14 @@ class ListTest {
 
         List.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
-        assertThat(run.getFiles().stream().map(File::getName).toList(), contains(fileName));
-        assertThat(run.getFiles().getFirst().getPath().getPath(), is("/upload" + dir + "/" + fileName));
+        java.util.List<String> expectedNames = java.util.List.of(filePercent, fileBracket, filePlus);
+        assertThat(run.getFiles().size(), is(3));
+        assertThat(run.getFiles().stream().map(File::getName).toList(), containsInAnyOrder(expectedNames.toArray()));
+        assertThat(run.getFiles().stream().map(f -> f.getPath().getPath()).toList(), containsInAnyOrder(
+            "/upload" + dir + "/" + filePercent,
+            "/upload" + dir + "/" + fileBracket,
+            "/upload" + dir + "/" + filePlus
+        ));
     }
 
     @Test
@@ -184,5 +195,43 @@ class ListTest {
         var run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
 
         assertThat(run.getFiles().size(), is(1));
+    }@Test
+    void shouldMatchRegExpWhenNameContainsPercentAndBrackets() throws Exception {
+        var dir = "/" + IdUtils.create();
+        sftpUtils.upload("upload" + dir + "/report[100%].txt");
+        sftpUtils.upload("upload" + dir + "/literal+plus.txt");
+        sftpUtils.upload("upload" + dir + "/other.txt");
+
+        // Test bracket regex
+        var taskBracket = List.builder()
+            .id(ListTest.class.getSimpleName() + "-" + IdUtils.create())
+            .type(ListTest.class.getName())
+            .from(Property.ofValue("/upload" + dir))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .regExp(Property.ofValue(".*/report\\[100%\\]\\.txt"))
+            .build();
+
+        var runBracket = taskBracket.run(TestsUtils.mockRunContext(runContextFactory, taskBracket, Map.of()));
+        assertThat(runBracket.getFiles().size(), is(1));
+        assertThat(runBracket.getFiles().getFirst().getName(), is("report[100%].txt"));
+        
+        // Test literal plus regex
+        var taskPlus = List.builder()
+            .id(ListTest.class.getSimpleName() + "-" + IdUtils.create())
+            .type(ListTest.class.getName())
+            .from(Property.ofValue("/upload" + dir))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .regExp(Property.ofValue(".*/literal\\+plus\\.txt"))
+            .build();
+
+        var runPlus = taskPlus.run(TestsUtils.mockRunContext(runContextFactory, taskPlus, Map.of()));
+        assertThat(runPlus.getFiles().size(), is(1));
+        assertThat(runPlus.getFiles().getFirst().getName(), is("literal+plus.txt"));
     }
 }

@@ -16,6 +16,8 @@ import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Instant;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 
 @Getter
 @Builder
@@ -36,10 +38,11 @@ public class File {
     private final Instant updatedDate;
 
     public static File of(AbstractFileObject<?> fileObject) throws FileSystemException, URISyntaxException {
+        String decodedPath = URLDecoder.decode(fileObject.getName().getPath().replace("+", "%2B"), StandardCharsets.UTF_8);
         FileBuilder builder = File.builder()
-            .path(new URI(null, fileObject.getName().getPathDecoded(), null))
+            .path(new URI(null, decodedPath, null))
             .serverPath(serverPath(fileObject))
-            .name(FilenameUtils.getName(fileObject.getName().getPathDecoded()))
+            .name(FilenameUtils.getName(decodedPath))
             .fileType(fileObject.getType())
             .symbolicLink(fileObject.isSymbolicLink());
 
@@ -84,7 +87,7 @@ public class File {
                     VfsService.basicAuth(urlFileName.getUserName(), urlFileName.getPassword()),
                     urlFileName.getHostName(),
                     urlFileName.getPort(),
-                    urlFileName.getPathDecoded(),
+                    URLDecoder.decode(urlFileName.getPath().replace("+", "%2B"), StandardCharsets.UTF_8),
                     urlFileName.getQueryString(),
                     null
                 );
@@ -93,7 +96,7 @@ public class File {
                     VfsService.basicAuth(genericFileName.getUserName(), genericFileName.getPassword()),
                     genericFileName.getHostName(),
                     genericFileName.getPort(),
-                    genericFileName.getPathDecoded(),
+                    URLDecoder.decode(genericFileName.getPath().replace("+", "%2B"), StandardCharsets.UTF_8),
                     null,
                     null
                 );
