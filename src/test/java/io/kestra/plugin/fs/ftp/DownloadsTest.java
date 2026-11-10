@@ -18,6 +18,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.endsWith;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
 
 @KestraTest
 class DownloadsTest {
@@ -134,5 +135,56 @@ class DownloadsTest {
 
         assertThat(run.getFiles().stream().map(File::getName).toList(), contains(fileName));
         assertThat(run.getOutputFiles().size(), is(1));
+    }
+
+    @Test
+    void shouldDownloadSingleFileWhenNameContainsBracketsAndPercent() throws Exception {
+        String toUploadDir = "/upload/" + random;
+        String fileName = "report[100%].txt";
+        ftpUtils.upload(toUploadDir + "/" + fileName);
+
+        Download task = Download.builder()
+            .id(DownloadsTest.class.getSimpleName() + "-" + IdUtils.create())
+            .type(Download.class.getName())
+            .from(Property.ofValue(toUploadDir + "/" + fileName))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6621"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+
+        Download.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(run.getFrom().getPath(), endsWith(fileName));
+        assertThat(run.getTo(), is(notNullValue()));
+    }
+
+    @Test
+    void shouldDownloadFilesWhenNamesContainBracketsAndPercent() throws Exception {
+        String toUploadDir = "/upload/" + random;
+        String file1 = "report[1].txt";
+        String file2 = "report[100%].txt";
+
+        ftpUtils.upload(toUploadDir + "/" + file1);
+        ftpUtils.upload(toUploadDir + "/" + file2);
+
+        Downloads task = Downloads.builder()
+            .id(DownloadsTest.class.getSimpleName() + "-" + IdUtils.create())
+            .type(DownloadsTest.class.getName())
+            .from(Property.ofValue(toUploadDir + "/"))
+            .action(Property.ofValue(Downloads.Action.NONE))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6621"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+
+        Downloads.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        java.util.List<String> downloadedNames = run.getFiles().stream().map(File::getName).toList();
+        assertThat(downloadedNames.contains(file1), is(true));
+        assertThat(downloadedNames.contains(file2), is(true));
+        assertThat(run.getOutputFiles().containsKey(file1), is(true));
+        assertThat(run.getOutputFiles().containsKey(file2), is(true));
     }
 }

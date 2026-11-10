@@ -371,4 +371,54 @@ class DownloadsTest {
         assertThrows(IllegalArgumentException.class, () -> task.run(runContext));
         assertThat(sftpUtils.list(dir).getFiles(), hasSize(1));
     }
+
+    @Test
+    void shouldDownloadSingleFileWhenNameContainsBracketsAndPercent() throws Exception {
+        String toUploadDir = "/upload/" + random;
+        String fileName = "report[100%].txt";
+        sftpUtils.upload(toUploadDir + "/" + fileName);
+
+        Download task = Download.builder()
+            .id(DownloadsTest.class.getSimpleName() + "-" + IdUtils.create())
+            .type(Download.class.getName())
+            .from(Property.ofValue(toUploadDir + "/" + fileName))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+
+        Download.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(run.getFrom().getPath(), endsWith(fileName));
+        assertThat(run.getTo(), is(notNullValue()));
+    }
+
+    @Test
+    void shouldDownloadFilesWhenNamesContainBracketsAndPercent() throws Exception {
+        String toUploadDir = "/upload/" + random;
+        String file1 = "report[1].txt";
+        String file2 = "report[100%].txt";
+
+        sftpUtils.upload(toUploadDir + "/" + file1);
+        sftpUtils.upload(toUploadDir + "/" + file2);
+
+        Downloads task = Downloads.builder()
+            .id(DownloadsTest.class.getSimpleName() + "-" + IdUtils.create())
+            .type(DownloadsTest.class.getName())
+            .from(Property.ofValue(toUploadDir + "/"))
+            .action(Property.ofValue(Downloads.Action.NONE))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+
+        Downloads.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        java.util.List<String> downloadedNames = run.getFiles().stream().map(File::getName).toList();
+        assertThat(downloadedNames, hasItems(file1, file2));
+        assertThat(run.getOutputFiles().containsKey(file1), is(true));
+        assertThat(run.getOutputFiles().containsKey(file2), is(true));
+    }
 }

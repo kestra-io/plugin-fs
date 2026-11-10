@@ -305,4 +305,44 @@ class ListTest {
 
         assertThat(run.getFiles().size(), is(0));
     }
+
+    @Test
+    void shouldMatchRegExpWhenNameContainsBracketsAndPercent() throws Exception {
+        var dir = "/" + IdUtils.create();
+        ftpUtils.upload("upload" + dir + "/report[1].txt");
+        ftpUtils.upload("upload" + dir + "/report[100%].txt");
+        ftpUtils.upload("upload" + dir + "/other.txt");
+
+        var taskAll = List.builder()
+            .id(ListTest.class.getSimpleName() + "-" + IdUtils.create())
+            .type(ListTest.class.getName())
+            .from(Property.ofValue("/upload" + dir))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6621"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+
+        var runAll = taskAll.run(TestsUtils.mockRunContext(runContextFactory, taskAll, Map.of()));
+        assertThat(runAll.getFiles().size(), is(3));
+        java.util.List<String> fileNames = runAll.getFiles().stream().map(File::getName).toList();
+        assertThat(fileNames.contains("report[1].txt"), is(true));
+        assertThat(fileNames.contains("report[100%].txt"), is(true));
+        assertThat(fileNames.contains("other.txt"), is(true));
+
+        var taskRegExp = List.builder()
+            .id(ListTest.class.getSimpleName() + "-" + IdUtils.create())
+            .type(ListTest.class.getName())
+            .from(Property.ofValue("/upload" + dir))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6621"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .regExp(Property.ofValue(".*/report\\[100%\\]\\.txt"))
+            .build();
+
+        var runRegExp = taskRegExp.run(TestsUtils.mockRunContext(runContextFactory, taskRegExp, Map.of()));
+        assertThat(runRegExp.getFiles().size(), is(1));
+        assertThat(runRegExp.getFiles().getFirst().getName(), is("report[100%].txt"));
+    }
 }
