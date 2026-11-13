@@ -44,18 +44,7 @@ class KestraStandardFileSystemManager extends StandardFileSystemManager {
         registeredProviders.add(effectiveProvider);
     }
 
-    /**
-     * Swaps the stock SFTP/FTP/FTPS providers for subclasses whose file-name parser keeps
-     * {@code [} and {@code ]} percent-encoded in VFS file names.
-     * <p>
-     * Commons VFS 2.10.0 {@code UriParser.decode} treats everything between {@code [} and {@code ]}
-     * as an IPv6 host and skips the {@code %XX} sequences there. Every path is decoded with it
-     * ({@code getPathDecoded()}, and the SFTP/FTP {@code relPath} sent to the server), so a name
-     * such as {@code report[100%].txt} was turned into {@code report[100%25].txt}: it was listed
-     * with the wrong name, could not be downloaded, moved or deleted, and was uploaded under the
-     * wrong name. With the brackets kept as {@code %5B}/{@code %5D}, no literal bracket reaches
-     * {@code decode}, so it restores the real name. Exact class checks keep any other subclass as is.
-     */
+    // VFS 2.10 UriParser.decode skips %XX between '[' and ']' (IPv6 host): keep brackets encoded so names round-trip (#405)
     private static FileProvider bracketSafe(FileProvider provider) {
         if (provider.getClass() == SftpFileProvider.class) {
             return new BracketSafeSftpFileProvider();

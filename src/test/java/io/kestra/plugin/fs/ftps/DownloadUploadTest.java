@@ -171,7 +171,7 @@ class DownloadUploadTest {
         var source = ftpUtils.uploadToStorage();
 
         var upload = Upload.builder()
-            .id(DownloadUploadTest.class.getSimpleName())
+            .id(IdUtils.create())
             .type(Upload.class.getName())
             .from(Property.ofValue(source.toString()))
             .to(Property.ofValue(path))
@@ -183,7 +183,7 @@ class DownloadUploadTest {
         upload.run(TestsUtils.mockRunContext(runContextFactory, upload, Map.of()));
 
         var list = io.kestra.plugin.fs.ftps.List.builder()
-            .id(DownloadUploadTest.class.getSimpleName())
+            .id(IdUtils.create())
             .type(io.kestra.plugin.fs.ftps.List.class.getName())
             .from(Property.ofValue(dir))
             .regExp(Property.ofValue(".*/" + Pattern.quote(fileName)))
@@ -196,7 +196,7 @@ class DownloadUploadTest {
         assertThat(listRun.getFiles().stream().map(File::getName).toList(), contains(fileName));
 
         var download = Download.builder()
-            .id(DownloadUploadTest.class.getSimpleName())
+            .id(IdUtils.create())
             .type(Download.class.getName())
             .from(Property.ofValue(path))
             .host(Property.ofValue("127.0.0.1"))
@@ -211,7 +211,7 @@ class DownloadUploadTest {
         );
 
         var delete = Delete.builder()
-            .id(DownloadUploadTest.class.getSimpleName())
+            .id(IdUtils.create())
             .type(Delete.class.getName())
             .uri(Property.ofValue(path))
             .errorOnMissing(Property.ofValue(true))

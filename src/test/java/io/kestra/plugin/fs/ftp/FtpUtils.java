@@ -22,13 +22,12 @@ import java.util.Map;
 public class FtpUtils extends AbstractUtils {
     @Inject
     private RunContextFactory runContextFactory;
-    public static final Property<String> USERNAME = Property.ofValue("guest");
-    public static final Property<String> PASSWORD = Property.ofValue("O7m)&H/0Em4/T8RqCa!Al=M@N6^;@+");
+    private static final String RAW_USERNAME = "guest";
+    private static final String RAW_PASSWORD = "O7m)&H/0Em4/T8RqCa!Al=M@N6^;@+";
+    public static final Property<String> USERNAME = Property.ofValue(RAW_USERNAME);
+    public static final Property<String> PASSWORD = Property.ofValue(RAW_PASSWORD);
 
-    /**
-     * Writes a file with a raw commons-net client, bypassing Commons VFS and its file-name
-     * encoding, so the file on the server has exactly the given name.
-     */
+    // Raw commons-net write, bypassing VFS name encoding, so the server-side name is exactly fileName
     public void putRaw(String dir, String fileName, String content) throws Exception {
         withClient(client -> {
             var current = "";
@@ -46,10 +45,7 @@ public class FtpUtils extends AbstractUtils {
         });
     }
 
-    /**
-     * Lists the file names of a directory with a raw commons-net client, bypassing Commons VFS;
-     * returns an empty list when the directory doesn't exist.
-     */
+    // Raw commons-net listing of file names, bypassing VFS; empty when the directory doesn't exist
     public java.util.List<String> listRaw(String dir) throws Exception {
         return withClient(client -> {
             if (!client.changeWorkingDirectory(dir)) {
@@ -66,7 +62,7 @@ public class FtpUtils extends AbstractUtils {
         var client = new FTPClient();
         client.connect("localhost", 6621);
         try {
-            if (!client.login("guest", "O7m)&H/0Em4/T8RqCa!Al=M@N6^;@+")) {
+            if (!client.login(RAW_USERNAME, RAW_PASSWORD)) {
                 throw new IOException("FTP login failed: " + client.getReplyString());
             }
             client.enterLocalPassiveMode();

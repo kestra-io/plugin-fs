@@ -627,7 +627,7 @@ public abstract class SmbService {
         var serverPath = serverPathUri(host, port, path);
 
         var builder = File.builder()
-            .path(new URI(null, path, null))
+            .path(new URI(null, null, path, null))
             .serverPath(serverPath)
             .name(FilenameUtils.getName(path))
             .fileType(smbFile.isDirectory() ? FileType.FOLDER : FileType.FILE)

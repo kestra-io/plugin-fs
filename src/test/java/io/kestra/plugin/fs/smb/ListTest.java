@@ -114,6 +114,26 @@ class ListTest {
     }
 
     @Test
+    void shouldListWhenNameContainsBrackets() throws Exception {
+        String dir = "/" + IdUtils.create();
+        smbUtils.upload(SmbUtils.SHARE_NAME + dir + "/report[100%].txt");
+
+        List task = List.builder()
+            .id(IdUtils.create())
+            .type(List.class.getName())
+            .from(Property.ofValue(SmbUtils.SHARE_NAME + dir))
+            .host(Property.ofValue("localhost"))
+            .username(USERNAME)
+            .password(PASSWORD)
+            .build();
+
+        io.kestra.plugin.fs.vfs.List.Output run = task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of()));
+
+        assertThat(run.getFiles().stream().map(File::getName).toList(), contains("report[100%].txt"));
+        assertThat(run.getFiles().getFirst().getPath().getPath(), is("/" + SmbUtils.SHARE_NAME + dir + "/report[100%].txt"));
+    }
+
+    @Test
     void sortAppliesBeforeMaxFilesTruncation() throws Exception {
         String dir = "/" + IdUtils.create();
         smbUtils.upload(SmbUtils.SHARE_NAME + dir + "/b.txt");

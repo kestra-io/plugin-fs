@@ -3,7 +3,6 @@ package io.kestra.plugin.fs.sftp;
 import com.jcraft.jsch.ChannelSftp;
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
-import com.jcraft.jsch.Session;
 import com.jcraft.jsch.SftpException;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
@@ -24,13 +23,12 @@ class SftpUtils extends AbstractUtils {
     @Inject
     private RunContextFactory runContextFactory;
 
-    public static final Property<String> USERNAME = Property.ofValue("foo");
-    public static final Property<String> PASSWORD = Property.ofValue("pass*+=");
+    private static final String RAW_USERNAME = "foo";
+    private static final String RAW_PASSWORD = "pass*+=";
+    public static final Property<String> USERNAME = Property.ofValue(RAW_USERNAME);
+    public static final Property<String> PASSWORD = Property.ofValue(RAW_PASSWORD);
 
-    /**
-     * Writes a file with a raw JSch channel, bypassing Commons VFS and its file-name encoding,
-     * so the file on the server has exactly the given name.
-     */
+    // Raw JSch write, bypassing VFS name encoding, so the server-side name is exactly fileName
     public void putRaw(String dir, String fileName, String content) throws Exception {
         withChannel(channel -> {
             var current = "";
@@ -50,10 +48,7 @@ class SftpUtils extends AbstractUtils {
         });
     }
 
-    /**
-     * Lists the file names of a directory with a raw JSch channel, bypassing Commons VFS;
-     * returns an empty list when the directory doesn't exist.
-     */
+    // Raw JSch listing of file names, bypassing VFS; empty when the directory doesn't exist
     public java.util.List<String> listRaw(String dir) throws Exception {
         return withChannel(channel -> {
             var names = new ArrayList<String>();
@@ -73,9 +68,9 @@ class SftpUtils extends AbstractUtils {
     }
 
     private <T> T withChannel(SftpAction<T> action) throws Exception {
-        Session session = new JSch().getSession("foo", "localhost", 6622);
+        var session = new JSch().getSession(RAW_USERNAME, "localhost", 6622);
         try {
-            session.setPassword("pass*+=");
+            session.setPassword(RAW_PASSWORD);
             session.setConfig("StrictHostKeyChecking", "no");
             session.connect();
             var channel = (ChannelSftp) session.openChannel("sftp");
