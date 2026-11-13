@@ -16,8 +16,6 @@ import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Instant;
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
 
 @Getter
 @Builder
@@ -38,9 +36,10 @@ public class File {
     private final Instant updatedDate;
 
     public static File of(AbstractFileObject<?> fileObject) throws FileSystemException, URISyntaxException {
-        String decodedPath = VfsService.decodePath(fileObject.getName().getPath());
+        var decodedPath = fileObject.getName().getPathDecoded();
+        // 4-argument constructor: the 3-argument one does not quote '[' and ']' and fails to parse them
         FileBuilder builder = File.builder()
-            .path(new URI(null, decodedPath, null))
+            .path(new URI(null, null, decodedPath, null))
             .serverPath(serverPath(fileObject))
             .name(FilenameUtils.getName(decodedPath))
             .fileType(fileObject.getType())
@@ -87,7 +86,7 @@ public class File {
                     VfsService.basicAuth(urlFileName.getUserName(), urlFileName.getPassword()),
                     urlFileName.getHostName(),
                     urlFileName.getPort(),
-                    VfsService.decodePath(urlFileName.getPath()),
+                    urlFileName.getPathDecoded(),
                     urlFileName.getQueryString(),
                     null
                 );
@@ -96,7 +95,7 @@ public class File {
                     VfsService.basicAuth(genericFileName.getUserName(), genericFileName.getPassword()),
                     genericFileName.getHostName(),
                     genericFileName.getPort(),
-                    VfsService.decodePath(genericFileName.getPath()),
+                    genericFileName.getPathDecoded(),
                     null,
                     null
                 );

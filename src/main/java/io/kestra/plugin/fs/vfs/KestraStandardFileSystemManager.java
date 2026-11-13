@@ -6,6 +6,11 @@ import org.apache.commons.vfs2.impl.DefaultFileReplicator;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 import org.apache.commons.vfs2.provider.FileProvider;
 import org.apache.commons.vfs2.provider.VfsComponent;
+import org.apache.commons.vfs2.provider.ftp.FtpFileNameParser;
+import org.apache.commons.vfs2.provider.ftp.FtpFileProvider;
+import org.apache.commons.vfs2.provider.ftps.FtpsFileProvider;
+import org.apache.commons.vfs2.provider.sftp.SftpFileNameParser;
+import org.apache.commons.vfs2.provider.sftp.SftpFileProvider;
 
 import java.io.File;
 import java.nio.file.Path;
@@ -34,8 +39,68 @@ class KestraStandardFileSystemManager extends StandardFileSystemManager {
 
     @Override
     public void addProvider(String[] urlSchemes, FileProvider provider) throws FileSystemException {
-        super.addProvider(urlSchemes, provider);
-        registeredProviders.add(provider);
+        var effectiveProvider = bracketSafe(provider);
+        super.addProvider(urlSchemes, effectiveProvider);
+        registeredProviders.add(effectiveProvider);
+    }
+
+    /**
+     * Swaps the stock SFTP/FTP/FTPS providers for subclasses whose file-name parser keeps
+     * {@code [} and {@code ]} percent-encoded in VFS file names.
+     * <p>
+     * Commons VFS 2.10.0 {@code UriParser.decode} treats everything between {@code [} and {@code ]}
+     * as an IPv6 host and skips the {@code %XX} sequences there. Every path is decoded with it
+     * ({@code getPathDecoded()}, and the SFTP/FTP {@code relPath} sent to the server), so a name
+     * such as {@code report[100%].txt} was turned into {@code report[100%25].txt}: it was listed
+     * with the wrong name, could not be downloaded, moved or deleted, and was uploaded under the
+     * wrong name. With the brackets kept as {@code %5B}/{@code %5D}, no literal bracket reaches
+     * {@code decode}, so it restores the real name. Exact class checks keep any other subclass as is.
+     */
+    private static FileProvider bracketSafe(FileProvider provider) {
+        if (provider.getClass() == SftpFileProvider.class) {
+            return new BracketSafeSftpFileProvider();
+        }
+        if (provider.getClass() == FtpsFileProvider.class) {
+            return new BracketSafeFtpsFileProvider();
+        }
+        if (provider.getClass() == FtpFileProvider.class) {
+            return new BracketSafeFtpFileProvider();
+        }
+        return provider;
+    }
+
+    private static boolean isBracket(char ch) {
+        return ch == '[' || ch == ']';
+    }
+
+    private static final class BracketSafeSftpFileProvider extends SftpFileProvider {
+        BracketSafeSftpFileProvider() {
+            setFileNameParser(new SftpFileNameParser() {
+                @Override
+                public boolean encodeCharacter(char ch) {
+                    return super.encodeCharacter(ch) || isBracket(ch);
+                }
+            });
+        }
+    }
+
+    private static final class BracketSafeFtpFileProvider extends FtpFileProvider {
+        BracketSafeFtpFileProvider() {
+            setFileNameParser(new BracketSafeFtpFileNameParser());
+        }
+    }
+
+    private static final class BracketSafeFtpsFileProvider extends FtpsFileProvider {
+        BracketSafeFtpsFileProvider() {
+            setFileNameParser(new BracketSafeFtpFileNameParser());
+        }
+    }
+
+    private static final class BracketSafeFtpFileNameParser extends FtpFileNameParser {
+        @Override
+        public boolean encodeCharacter(char ch) {
+            return super.encodeCharacter(ch) || isBracket(ch);
+        }
     }
 
     /**

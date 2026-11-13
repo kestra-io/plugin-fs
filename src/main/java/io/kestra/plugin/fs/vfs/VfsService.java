@@ -23,8 +23,6 @@ import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -105,7 +103,7 @@ public abstract class VfsService {
                 public boolean includeFile(FileSelectInfo file) throws Exception {
                     // Do not include directories in the result and apply user's filter
                     return file.getFile().isFile()
-                        && (regExp == null || decodePath(file.getFile().getName().getPath()).matches(regExp));
+                        && (regExp == null || file.getFile().getName().getPathDecoded().matches(regExp));
                 }
             });
 
@@ -261,7 +259,7 @@ public abstract class VfsService {
 
                     @Override
                     public boolean includeFile(FileSelectInfo file) throws Exception {
-                        return file.getFile().isFile() && pattern.matcher(decodePath(file.getFile().getName().getPath())).matches();
+                        return file.getFile().isFile() && pattern.matcher(file.getFile().getName().getPathDecoded()).matches();
                     }
                 });
 
@@ -281,7 +279,8 @@ public abstract class VfsService {
                     if (match.getType() == FileType.FOLDER) {
                         continue;
                     }
-                    var matchUri = VfsService.uriWithoutAuth(new URI(match.getName().getURI()));
+                    // Not new URI(getURI()): VFS leaves '[' and ']' unencoded there, which java.net.URI rejects
+                    var matchUri = VfsService.uriWithoutAuth(withPath(from, match.getName().getPathDecoded()));
                     match.delete();
                     deletedUris.add(matchUri);
                     runContext.logger().debug("Deleted '{}'", matchUri);
@@ -436,16 +435,5 @@ public abstract class VfsService {
             return path.substring(path.indexOf('.'));
         }
         return null;
-    }
-    public static String decodePath(String encodedPath) {
-        if (encodedPath == null) {
-            return null;
-        }
-        try {
-            // URLDecoder turns '+' into spaces. To preserve literal '+', we hide them as '%2B' BEFORE decoding, so URLDecoder decodes them back to '+'.
-            return java.net.URLDecoder.decode(encodedPath.replace("+", "%2B"), java.nio.charset.StandardCharsets.UTF_8.name());
-        } catch (java.io.UnsupportedEncodingException e) {
-            throw new RuntimeException("UTF-8 encoding not supported", e);
-        }
     }
 }
