@@ -190,14 +190,14 @@ public abstract class VfsService {
                     Overwrite field is set to `false`. Folder %s will be overwritten with current file.
                     If you want the folder to be overwritten with the file, set `overwrite: true`.
                     """,
-                    remote.getName().getPath()
+                    remote.getName().getPathDecoded()
                 ));
             }
             //Fail when the destination file already exists and overwrite is disabled
             if (!overwrite && remote.exists() && !remote.isFolder()) {
                 throw new KestraRuntimeException(String.format(
                     "File '%s' already exists in the remote server and cannot be overwritten. Set `overwrite: true` to replace it.",
-                    remote.getName().getPath()
+                    remote.getName().getPathDecoded()
                 ));
             }
             remote.copyFrom(local, Selectors.SELECT_SELF);
@@ -279,7 +279,8 @@ public abstract class VfsService {
                     if (match.getType() == FileType.FOLDER) {
                         continue;
                     }
-                    var matchUri = VfsService.uriWithoutAuth(new URI(match.getName().getURI()));
+                    // Not new URI(getURI()): VFS leaves '[' and ']' unencoded there, which java.net.URI rejects
+                    var matchUri = VfsService.uriWithoutAuth(withPath(from, match.getName().getPathDecoded()));
                     match.delete();
                     deletedUris.add(matchUri);
                     runContext.logger().debug("Deleted '{}'", matchUri);
@@ -338,7 +339,7 @@ public abstract class VfsService {
             }
 
             if (remote.exists()) {
-                String remoteFileName = FilenameUtils.getName(remote.getName().getPath());
+                String remoteFileName = FilenameUtils.getName(remote.getName().getPathDecoded());
                 if (!overwrite) {
                     throw new KestraRuntimeException("File '%s' already exists in the remote server and cannot be overwritten. If you want to ignore this, set `overwrite` to `true`.".formatted(remoteFileName));
                 }

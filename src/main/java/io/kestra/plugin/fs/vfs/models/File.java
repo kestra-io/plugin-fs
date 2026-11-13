@@ -36,10 +36,12 @@ public class File {
     private final Instant updatedDate;
 
     public static File of(AbstractFileObject<?> fileObject) throws FileSystemException, URISyntaxException {
+        var decodedPath = fileObject.getName().getPathDecoded();
+        // 4-argument constructor: the 3-argument one does not quote '[' and ']' and fails to parse them
         FileBuilder builder = File.builder()
-            .path(new URI(null, fileObject.getName().getPathDecoded(), null))
+            .path(new URI(null, null, decodedPath, null))
             .serverPath(serverPath(fileObject))
-            .name(FilenameUtils.getName(fileObject.getName().getPathDecoded()))
+            .name(FilenameUtils.getName(decodedPath))
             .fileType(fileObject.getType())
             .symbolicLink(fileObject.isSymbolicLink());
 

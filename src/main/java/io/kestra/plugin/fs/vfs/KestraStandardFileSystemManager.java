@@ -6,6 +6,11 @@ import org.apache.commons.vfs2.impl.DefaultFileReplicator;
 import org.apache.commons.vfs2.impl.StandardFileSystemManager;
 import org.apache.commons.vfs2.provider.FileProvider;
 import org.apache.commons.vfs2.provider.VfsComponent;
+import org.apache.commons.vfs2.provider.ftp.FtpFileNameParser;
+import org.apache.commons.vfs2.provider.ftp.FtpFileProvider;
+import org.apache.commons.vfs2.provider.ftps.FtpsFileProvider;
+import org.apache.commons.vfs2.provider.sftp.SftpFileNameParser;
+import org.apache.commons.vfs2.provider.sftp.SftpFileProvider;
 
 import java.io.File;
 import java.nio.file.Path;
@@ -34,8 +39,57 @@ class KestraStandardFileSystemManager extends StandardFileSystemManager {
 
     @Override
     public void addProvider(String[] urlSchemes, FileProvider provider) throws FileSystemException {
-        super.addProvider(urlSchemes, provider);
-        registeredProviders.add(provider);
+        var effectiveProvider = bracketSafe(provider);
+        super.addProvider(urlSchemes, effectiveProvider);
+        registeredProviders.add(effectiveProvider);
+    }
+
+    // VFS 2.10 UriParser.decode skips %XX between '[' and ']' (IPv6 host): keep brackets encoded so names round-trip (#405)
+    private static FileProvider bracketSafe(FileProvider provider) {
+        if (provider.getClass() == SftpFileProvider.class) {
+            return new BracketSafeSftpFileProvider();
+        }
+        if (provider.getClass() == FtpsFileProvider.class) {
+            return new BracketSafeFtpsFileProvider();
+        }
+        if (provider.getClass() == FtpFileProvider.class) {
+            return new BracketSafeFtpFileProvider();
+        }
+        return provider;
+    }
+
+    private static boolean isBracket(char ch) {
+        return ch == '[' || ch == ']';
+    }
+
+    private static final class BracketSafeSftpFileProvider extends SftpFileProvider {
+        BracketSafeSftpFileProvider() {
+            setFileNameParser(new SftpFileNameParser() {
+                @Override
+                public boolean encodeCharacter(char ch) {
+                    return super.encodeCharacter(ch) || isBracket(ch);
+                }
+            });
+        }
+    }
+
+    private static final class BracketSafeFtpFileProvider extends FtpFileProvider {
+        BracketSafeFtpFileProvider() {
+            setFileNameParser(new BracketSafeFtpFileNameParser());
+        }
+    }
+
+    private static final class BracketSafeFtpsFileProvider extends FtpsFileProvider {
+        BracketSafeFtpsFileProvider() {
+            setFileNameParser(new BracketSafeFtpFileNameParser());
+        }
+    }
+
+    private static final class BracketSafeFtpFileNameParser extends FtpFileNameParser {
+        @Override
+        public boolean encodeCharacter(char ch) {
+            return super.encodeCharacter(ch) || isBracket(ch);
+        }
     }
 
     /**
