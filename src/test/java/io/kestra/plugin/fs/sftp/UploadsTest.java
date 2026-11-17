@@ -11,7 +11,11 @@ import jakarta.inject.Inject;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
@@ -194,6 +198,62 @@ class UploadsTest {
         assertThat(uploadsRun.getFiles().stream().map(URI::getPath).toList(), Matchers.everyItem(
                 Matchers.is(Matchers.in(remoteFileUris))
         ));
+    }
+
+    @Test
+    void run_withKeyfileShouldBuildKeyFileOnlyOnce() throws Exception {
+        var key = Files.readString(Path.of("src/test/resources/ssh/id_ed25519"), StandardCharsets.UTF_8);
+        var dir = "/upload/" + IdUtils.create();
+        var uris = List.of(
+            sftpUtils.uploadToStorage().toString(),
+            sftpUtils.uploadToStorage().toString(),
+            sftpUtils.uploadToStorage().toString()
+        );
+        var uploads = Uploads.builder()
+            .id(IdUtils.create())
+            .type(Uploads.class.getName())
+            .from(uris)
+            .to(Property.ofValue(dir))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .keyfile(Property.ofValue(key))
+            .build();
+        var runContext = TestsUtils.mockRunContext(runContextFactory, uploads, Map.of());
+
+        var output = uploads.run(runContext);
+
+        assertThat(output.getFiles().size(), is(3));
+
+        // VfsService.upload also creates one temp file per upload, so match on key content
+        long keyFiles;
+        try (var stream = Files.list(runContext.workingDir().path())) {
+            keyFiles = stream
+                .filter(Files::isRegularFile)
+                .filter(f -> {
+                    try {
+                        return Files.readString(f).equals(key);
+                    } catch (IOException e) {
+                        return false;
+                    }
+                })
+                .count();
+        }
+        assertThat(keyFiles, is(1L));
+
+        var list = io.kestra.plugin.fs.sftp.List.builder()
+            .id(IdUtils.create())
+            .type(io.kestra.plugin.fs.sftp.List.class.getName())
+            .from(Property.ofValue(dir + "/"))
+            .host(Property.ofValue("localhost"))
+            .port(Property.ofValue("6622"))
+            .username(USERNAME)
+            .keyfile(Property.ofValue(key))
+            .build();
+        var listed = list.run(TestsUtils.mockRunContext(runContextFactory, list, Map.of()));
+        assertThat(listed.getFiles().size(), is(3));
+
+        cleanupDir(dir);
     }
 
     @Test
