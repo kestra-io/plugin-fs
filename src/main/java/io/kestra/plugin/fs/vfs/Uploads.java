@@ -98,12 +98,13 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
             UploadUtils.validateUniqueDestinationFilenames(fileMappings);
 
             boolean rOverwrite = runContext.render(this.overwrite).as(Boolean.class).orElse(true);
+            var rTo = runContext.render(this.to).as(String.class).orElseThrow();
+            // Built once: key-based auth writes a temp key file per build
+            var options = this.fsOptions(runContext);
 
             java.util.List<Upload.Output> outputs = fileMappings.stream().map(throwFunction(entry -> {
                 String destFileName = entry.getKey();
                 String fromURI = entry.getValue();
-                var rTo = runContext.render(this.to).as(String.class).orElseThrow();
-
                 String destPath;
                 if (destFileName != null) {
                     // Map-based: use the provided filename
@@ -116,7 +117,7 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
                 return VfsService.upload(
                     runContext,
                     fsm,
-                    this.fsOptions(runContext),
+                    options,
                     URI.create(fromURI),
                     this.uri(runContext, destPath),
                     rOverwrite
