@@ -98,7 +98,7 @@ public abstract class Uploads extends AbstractVfsTask implements RunnableTask<Up
             UploadUtils.validateUniqueDestinationFilenames(fileMappings);
 
             boolean rOverwrite = runContext.render(this.overwrite).as(Boolean.class).orElse(true);
-            var rTo = runContext.render(this.to).as(String.class).orElseThrow();
+            var rTo = runContext.render(this.to).as(String.class).orElseThrow(() -> new IllegalArgumentException("The `to` property is required but rendered to an empty value; set the destination directory"));
             // Built once: key-based auth writes a temp key file per build
             var options = this.fsOptions(runContext);
 
