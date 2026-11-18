@@ -173,6 +173,68 @@ class TriggerTest extends AbstractTriggerTest {
             java.util.List<Object> rawFiles =
                 (java.util.List<Object>) execution.get().getTrigger().getVariables().get("files");
             assertThat(rawFiles, hasSize(1));
+
+            Optional<Execution> secondExecution = trigger.evaluate(context.getKey(), context.getValue());
+            assertThat(secondExecution.isPresent(), is(true));
+            @SuppressWarnings("unchecked")
+            java.util.List<Object> secondFiles =
+                (java.util.List<Object>) secondExecution.get().getTrigger().getVariables().get("files");
+            assertThat(secondFiles, hasSize(1));
+
+            Optional<Execution> thirdExecution = trigger.evaluate(context.getKey(), context.getValue());
+            assertThat(thirdExecution.isPresent(), is(false));
+        } finally {
+            cleanup(sourceDir);
+        }
+    }
+
+    @Test
+    void maxFilesShouldProcessAllFilesAcrossPolls() throws Exception {
+        Path sourceDir = Paths.get("/tmp/trigger-batch-files");
+        Files.createDirectories(sourceDir);
+
+        try {
+            for (int i = 1; i <= 30; i++) {
+                Files.writeString(sourceDir.resolve(String.format("file%02d.txt", i)), "content " + i);
+            }
+
+            io.kestra.plugin.fs.local.Trigger trigger = io.kestra.plugin.fs.local.Trigger.builder()
+                .id("local-" + FriendlyId.createFriendlyId())
+                .type(Trigger.class.getName())
+                .from(Property.ofValue(sourceDir.toString()))
+                .maxFiles(Property.ofValue(25))
+                .build();
+
+            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+
+            // First poll should process first 25 files
+            Optional<Execution> poll1 = trigger.evaluate(context.getKey(), context.getValue());
+            assertThat(poll1.isPresent(), is(true));
+            @SuppressWarnings("unchecked")
+            java.util.List<Object> poll1Files =
+                (java.util.List<Object>) poll1.get().getTrigger().getVariables().get("files");
+            assertThat(poll1Files, hasSize(25));
+
+            // Second poll should process remaining 5 files
+            Optional<Execution> poll2 = trigger.evaluate(context.getKey(), context.getValue());
+            assertThat(poll2.isPresent(), is(true));
+            @SuppressWarnings("unchecked")
+            java.util.List<Object> poll2Files =
+                (java.util.List<Object>) poll2.get().getTrigger().getVariables().get("files");
+            assertThat(poll2Files, hasSize(5));
+
+            // Third poll with no new files should be empty
+            Optional<Execution> poll3 = trigger.evaluate(context.getKey(), context.getValue());
+            assertThat(poll3.isPresent(), is(false));
+
+            // Adding a new file should fire on the next poll
+            Files.writeString(sourceDir.resolve("file31.txt"), "content 31");
+            Optional<Execution> poll4 = trigger.evaluate(context.getKey(), context.getValue());
+            assertThat(poll4.isPresent(), is(true));
+            @SuppressWarnings("unchecked")
+            java.util.List<Object> poll4Files =
+                (java.util.List<Object>) poll4.get().getTrigger().getVariables().get("files");
+            assertThat(poll4Files, hasSize(1));
         } finally {
             cleanup(sourceDir);
         }

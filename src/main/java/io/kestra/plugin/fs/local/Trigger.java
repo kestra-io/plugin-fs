@@ -144,77 +144,95 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .from(Property.ofValue(rFrom))
             .regExp(this.regExp)
             .recursive(this.recursive)
-            .maxFiles(this.maxFiles)
             .build();
 
-        io.kestra.plugin.fs.local.List.Output listOutput = listTask.run(runContext);
+        java.util.List<File> files = listTask.findFiles(runContext);
 
-        if (listOutput.getFiles().isEmpty()) {
-            return Optional.empty();
-        }
-
-        Map<String, StatefulTriggerService.Entry> state = readState(runContext, rStateKey, rStateTtl);
-
-        java.util.List<TriggeredFile> toFire = listOutput.getFiles().stream()
-            .flatMap(throwFunction(fileItem -> {
-                if (fileItem.isDirectory()) {
-                    return Stream.empty();
-                }
-
-                var uri = Optional.ofNullable(fileItem.getUri().toString()).orElse(fileItem.getLocalPath().toUri().toString());
-                var attrs = Files.readAttributes(fileItem.getLocalPath(), BasicFileAttributes.class);
-                var modifiedAt = attrs.lastModifiedTime().toInstant();
-                var key = Optional.ofNullable(attrs.fileKey()).map(Object::toString).orElseGet(() -> fileItem.getLocalPath().toUri().toString());
-                var version = String.format("%d_%s", modifiedAt.toEpochMilli(), uri);
-
-                var candidate = StatefulTriggerService.Entry.candidate(key, version, modifiedAt);
-
-                var change = computeAndUpdateState(state, candidate, rOn);
-
-                if (change.fire()) {
-                    var changeType = change.isNew() ? ChangeType.CREATE : ChangeType.UPDATE;
-
-                    var downloadTask = Download.builder()
-                        .id(Download.class.getSimpleName())
-                        .type(Download.class.getName())
-                        .from(Property.ofValue(fileItem.getLocalPath().toString()))
-                        .build();
-
-                    var downloadOutput = downloadTask.run(runContext);
-                    var downloaded = fileItem.withUri(downloadOutput.getUri());
-
-                    return Stream.of(TriggeredFile.builder()
-                        .file(downloaded)
-                        .changeType(changeType)
-                        .build());
-                }
-                return Stream.empty();
-            }))
-            .toList();
-
-        writeState(runContext, rStateKey, state, rStateTtl);
-
-        if (toFire.isEmpty()) {
-            return Optional.empty();
-        }
-
-        int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
-        java.util.List<TriggeredFile> limitedToFire = toFire;
-        if (toFire.size() > rMaxFiles) {
-            logger.warn("Too many files to process ({}), limiting to {}", toFire.size(), rMaxFiles);
-            limitedToFire = toFire.subList(0, rMaxFiles);
-        }
-
-        if (limitedToFire.isEmpty()) {
+        if (files.isEmpty()) {
             return Optional.empty();
         }
 
         Downloads.Action selectedAction = this.action != null ?
             runContext.render(this.action).as(Downloads.Action.class).orElse(Downloads.Action.NONE) :
             Downloads.Action.NONE;
+        boolean shouldRemoveFiles = selectedAction == Downloads.Action.DELETE || selectedAction == Downloads.Action.MOVE;
+
+        Map<String, StatefulTriggerService.Entry> state = readState(runContext, rStateKey, rStateTtl);
+
+        record PendingFile(File file, StatefulTriggerService.Entry candidate, ChangeType changeType) {}
+        java.util.List<PendingFile> pendingFiles = new ArrayList<>();
+
+        for (File fileItem : files) {
+            if (fileItem.isDirectory()) {
+                continue;
+            }
+
+            BasicFileAttributes attrs;
+            try {
+                attrs = Files.readAttributes(fileItem.getLocalPath(), BasicFileAttributes.class);
+            } catch (Exception e) {
+                logger.warn("Could not read attributes for file {}: {}", fileItem.getLocalPath(), e.getMessage());
+                continue;
+            }
+
+            var uri = Optional.ofNullable(fileItem.getUri()).map(Object::toString).orElseGet(() -> fileItem.getLocalPath().toUri().toString());
+            var modifiedAt = attrs.lastModifiedTime().toInstant();
+            var key = Optional.ofNullable(attrs.fileKey()).map(Object::toString).orElseGet(() -> fileItem.getLocalPath().toUri().toString());
+            var version = String.format("%d_%s", modifiedAt.toEpochMilli(), uri);
+
+            var candidate = StatefulTriggerService.Entry.candidate(key, version, modifiedAt);
+
+            if (shouldRemoveFiles) {
+                pendingFiles.add(new PendingFile(fileItem, candidate, ChangeType.CREATE));
+                continue;
+            }
+
+            var prev = state.get(key);
+            if (!shouldFire(prev, version, rOn)) {
+                computeAndUpdateState(state, candidate, rOn);
+                continue;
+            }
+
+            var changeType = prev == null ? ChangeType.CREATE : ChangeType.UPDATE;
+            pendingFiles.add(new PendingFile(fileItem, candidate, changeType));
+        }
+
+        int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
+        java.util.List<PendingFile> limitedPending = pendingFiles;
+        if (pendingFiles.size() > rMaxFiles) {
+            logger.warn("Too many files to process ({}), limiting to {}", pendingFiles.size(), rMaxFiles);
+            limitedPending = pendingFiles.subList(0, rMaxFiles);
+        }
+
+        if (limitedPending.isEmpty()) {
+            writeState(runContext, rStateKey, state, rStateTtl);
+            return Optional.empty();
+        }
+
+        java.util.List<TriggeredFile> toFire = new ArrayList<>();
+        for (PendingFile pending : limitedPending) {
+            var fileItem = pending.file();
+            var downloadTask = Download.builder()
+                .id(Download.class.getSimpleName())
+                .type(Download.class.getName())
+                .from(Property.ofValue(fileItem.getLocalPath().toString()))
+                .build();
+
+            var downloadOutput = downloadTask.run(runContext);
+            var downloaded = fileItem.withUri(downloadOutput.getUri());
+
+            computeAndUpdateState(state, pending.candidate(), rOn);
+
+            toFire.add(TriggeredFile.builder()
+                .file(downloaded)
+                .changeType(pending.changeType())
+                .build());
+        }
+
+        writeState(runContext, rStateKey, state, rStateTtl);
 
         if (selectedAction != Downloads.Action.NONE) {
-            java.util.List<TriggeredFile> triggeredFiles = limitedToFire;
+            java.util.List<TriggeredFile> triggeredFiles = toFire;
 
             var sourceBaseDir = AbstractLocalTask.resolveLocalPath(rFrom, runContext);
 
@@ -228,7 +246,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
                 runContext
             );
 
-            limitedToFire = IntStream.range(0, triggeredFiles.size())
+            toFire = IntStream.range(0, triggeredFiles.size())
                 .mapToObj(i -> TriggeredFile.builder()
                     .file(processed.get(i))
                     .changeType(triggeredFiles.get(i).getChangeType())
@@ -236,7 +254,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
                 .toList();
         }
 
-        return Optional.of(TriggerService.generateExecution(this, conditionContext, triggerContext, Output.builder().files(limitedToFire).count(limitedToFire.size()).build()));
+        return Optional.of(TriggerService.generateExecution(this, conditionContext, triggerContext, Output.builder().files(toFire).count(toFire.size()).build()));
     }
 
     public enum ChangeType {
