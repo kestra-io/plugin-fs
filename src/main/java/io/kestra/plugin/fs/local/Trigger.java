@@ -14,16 +14,15 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 import static io.kestra.core.models.triggers.StatefulTriggerService.*;
-import static io.kestra.core.utils.Rethrow.throwFunction;
 import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
@@ -152,25 +151,19 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             return Optional.empty();
         }
 
-        Downloads.Action selectedAction = this.action != null ?
-            runContext.render(this.action).as(Downloads.Action.class).orElse(Downloads.Action.NONE) :
-            Downloads.Action.NONE;
-        boolean shouldRemoveFiles = selectedAction == Downloads.Action.DELETE || selectedAction == Downloads.Action.MOVE;
+        var rAction = runContext.render(this.action).as(Downloads.Action.class).orElse(Downloads.Action.NONE);
+        var shouldRemoveFiles = rAction == Downloads.Action.DELETE || rAction == Downloads.Action.MOVE;
 
-        Map<String, StatefulTriggerService.Entry> state = readState(runContext, rStateKey, rStateTtl);
+        var state = readState(runContext, rStateKey, rStateTtl);
 
         record PendingFile(File file, StatefulTriggerService.Entry candidate, ChangeType changeType) {}
-        java.util.List<PendingFile> pendingFiles = new ArrayList<>();
+        var pendingFiles = new ArrayList<PendingFile>();
 
-        for (File fileItem : files) {
-            if (fileItem.isDirectory()) {
-                continue;
-            }
-
+        for (var fileItem : files) {
             BasicFileAttributes attrs;
             try {
                 attrs = Files.readAttributes(fileItem.getLocalPath(), BasicFileAttributes.class);
-            } catch (Exception e) {
+            } catch (IOException e) {
                 logger.warn("Could not read attributes for file {}: {}", fileItem.getLocalPath(), e.getMessage());
                 continue;
             }
@@ -178,7 +171,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             var uri = Optional.ofNullable(fileItem.getUri()).map(Object::toString).orElseGet(() -> fileItem.getLocalPath().toUri().toString());
             var modifiedAt = attrs.lastModifiedTime().toInstant();
             var key = Optional.ofNullable(attrs.fileKey()).map(Object::toString).orElseGet(() -> fileItem.getLocalPath().toUri().toString());
-            var version = String.format("%d_%s", modifiedAt.toEpochMilli(), uri);
+            var version = "%d_%s".formatted(modifiedAt.toEpochMilli(), uri);
 
             var candidate = StatefulTriggerService.Entry.candidate(key, version, modifiedAt);
 
@@ -231,7 +224,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
         writeState(runContext, rStateKey, state, rStateTtl);
 
-        if (selectedAction != Downloads.Action.NONE) {
+        if (rAction != Downloads.Action.NONE) {
             java.util.List<TriggeredFile> triggeredFiles = toFire;
 
             var sourceBaseDir = AbstractLocalTask.resolveLocalPath(rFrom, runContext);
@@ -240,7 +233,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             // a `localPath` that the action just made obsolete
             java.util.List<File> processed = Downloads.performAction(
                 triggeredFiles.stream().map(TriggeredFile::getFile).toList(),
-                selectedAction,
+                rAction,
                 this.moveDirectory,
                 sourceBaseDir,
                 runContext

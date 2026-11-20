@@ -17,7 +17,6 @@ import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Comparator;
 import java.util.Objects;
-import java.util.stream.Stream;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -105,7 +104,7 @@ public class List extends AbstractLocalTask implements RunnableTask<List.Output>
     @PluginProperty(group = "processing")
     private Property<Sort> sort = Property.ofValue(Sort.NONE);
 
-    public java.util.List<File> findFiles(RunContext runContext) throws Exception {
+    java.util.List<File> findFiles(RunContext runContext) throws Exception {
         String resolvedDirectory = runContext.render(this.from).as(String.class).orElseThrow();
 
         Path directoryPath = resolveLocalPath(resolvedDirectory, runContext);
@@ -118,10 +117,10 @@ public class List extends AbstractLocalTask implements RunnableTask<List.Output>
         int maxDepth = runContext.render(recursive).as(Boolean.class).orElse(false) ? Integer.MAX_VALUE : 1;
 
         java.util.List<File> files;
-        try (Stream<Path> stream = Files.find(directoryPath, maxDepth, (path, basicFileAttributes) -> basicFileAttributes.isRegularFile() && path.toString().matches(fileRegex))) {
+        try (var stream = Files.find(directoryPath, maxDepth, (path, basicFileAttributes) -> basicFileAttributes.isRegularFile() && path.toString().matches(fileRegex))) {
             files = stream
                 .map(throwFunction(path -> {
-                    BasicFileAttributes attrs = Files.readAttributes(path, BasicFileAttributes.class);
+                    var attrs = Files.readAttributes(path, BasicFileAttributes.class);
                     return File.from(path, attrs);
                 }))
                 .filter(Objects::nonNull)
