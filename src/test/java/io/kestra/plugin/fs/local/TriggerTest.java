@@ -4,6 +4,7 @@ import com.devskiller.friendly_id.FriendlyId;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.triggers.StatefulTriggerInterface;
+import io.kestra.core.models.triggers.StatefulTriggerService;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.vfs.models.File;
 import jakarta.inject.Inject;
@@ -14,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -173,9 +175,97 @@ class TriggerTest extends AbstractTriggerTest {
             java.util.List<Object> rawFiles =
                 (java.util.List<Object>) execution.get().getTrigger().getVariables().get("files");
             assertThat(rawFiles, hasSize(1));
+
+            var secondExecution = trigger.evaluate(context.getKey(), context.getValue());
+            assertThat(firedNames(secondExecution), hasSize(1));
+
+            var thirdExecution = trigger.evaluate(context.getKey(), context.getValue());
+            assertThat(thirdExecution.isPresent(), is(false));
         } finally {
             cleanup(sourceDir);
         }
+    }
+
+    @Test
+    void maxFilesShouldProcessAllFilesAcrossPolls() throws Exception {
+        var sourceDir = Paths.get("/tmp/trigger-batch-files");
+        Files.createDirectories(sourceDir);
+
+        try {
+            for (var i = 1; i <= 30; i++) {
+                Files.writeString(sourceDir.resolve("file%02d.txt".formatted(i)), "content %d".formatted(i));
+            }
+
+            var trigger = Trigger.builder()
+                .id("local-%s".formatted(FriendlyId.createFriendlyId()))
+                .type(Trigger.class.getName())
+                .from(Property.ofValue(sourceDir.toString()))
+                .maxFiles(Property.ofValue(25))
+                .build();
+
+            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+
+            var poll1 = firedNames(trigger.evaluate(context.getKey(), context.getValue()));
+            var poll2 = firedNames(trigger.evaluate(context.getKey(), context.getValue()));
+            assertThat(poll1, hasSize(25));
+            assertThat(poll2, hasSize(5));
+            var fired = new HashSet<>(poll1);
+            fired.addAll(poll2);
+            assertThat(fired, hasSize(30));
+
+            assertThat(trigger.evaluate(context.getKey(), context.getValue()).isPresent(), is(false));
+
+            Files.writeString(sourceDir.resolve("file31.txt"), "content 31");
+            assertThat(firedNames(trigger.evaluate(context.getKey(), context.getValue())), contains("file31.txt"));
+        } finally {
+            cleanup(sourceDir);
+        }
+    }
+
+    @Test
+    void maxFilesWithMoveShouldDrainWithoutWritingState() throws Exception {
+        var sourceDir = Paths.get("/tmp/trigger-move-batch");
+        var moveDir = Paths.get("/tmp/trigger-move-batch-out");
+        var stateKey = "local-move-%s".formatted(FriendlyId.createFriendlyId());
+        Files.createDirectories(sourceDir);
+        Files.createDirectories(moveDir);
+
+        try {
+            for (var i = 1; i <= 3; i++) {
+                Files.writeString(sourceDir.resolve("file%d.txt".formatted(i)), "content %d".formatted(i));
+            }
+
+            var trigger = Trigger.builder()
+                .id("local-%s".formatted(FriendlyId.createFriendlyId()))
+                .type(Trigger.class.getName())
+                .from(Property.ofValue(sourceDir.toString()))
+                .action(Property.ofValue(Downloads.Action.MOVE))
+                .moveDirectory(Property.ofValue(moveDir.toString()))
+                .maxFiles(Property.ofValue(2))
+                .stateKey(Property.ofValue(stateKey))
+                .build();
+
+            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+
+            assertThat(firedNames(trigger.evaluate(context.getKey(), context.getValue())), hasSize(2));
+            assertThat(firedNames(trigger.evaluate(context.getKey(), context.getValue())), hasSize(1));
+            assertThat(trigger.evaluate(context.getKey(), context.getValue()).isPresent(), is(false));
+
+            try (var moved = Files.list(moveDir)) {
+                assertThat(moved.map(path -> path.getFileName().toString()).toList(), containsInAnyOrder("file1.txt", "file2.txt", "file3.txt"));
+            }
+            assertThat(StatefulTriggerService.readState(context.getKey().getRunContext(), stateKey, Optional.empty()), anEmptyMap());
+        } finally {
+            cleanup(sourceDir);
+            cleanup(moveDir);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static java.util.List<String> firedNames(Optional<Execution> execution) {
+        assertThat(execution.isPresent(), is(true));
+        var files = (java.util.List<Map<String, Object>>) execution.get().getTrigger().getVariables().get("files");
+        return files.stream().map(file -> (String) file.get("name")).toList();
     }
 
     @Test
