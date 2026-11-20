@@ -145,7 +145,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .recursive(this.recursive)
             .build();
 
-        java.util.List<File> files = listTask.findFiles(runContext);
+        var files = listTask.findFiles(runContext);
 
         if (files.isEmpty()) {
             return Optional.empty();
@@ -154,9 +154,9 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         var rAction = runContext.render(this.action).as(Downloads.Action.class).orElse(Downloads.Action.NONE);
         var shouldRemoveFiles = rAction == Downloads.Action.DELETE || rAction == Downloads.Action.MOVE;
 
-        var state = readState(runContext, rStateKey, rStateTtl);
+        // MOVE and DELETE take the file out of the directory, so state is neither read nor written for them.
+        var state = shouldRemoveFiles ? new HashMap<String, StatefulTriggerService.Entry>() : readState(runContext, rStateKey, rStateTtl);
 
-        record PendingFile(File file, StatefulTriggerService.Entry candidate, ChangeType changeType) {}
         var pendingFiles = new ArrayList<PendingFile>();
 
         for (var fileItem : files) {
@@ -190,20 +190,21 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             pendingFiles.add(new PendingFile(fileItem, candidate, changeType));
         }
 
-        int rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
-        java.util.List<PendingFile> limitedPending = pendingFiles;
+        var rMaxFiles = runContext.render(this.maxFiles).as(Integer.class).orElse(25);
         if (pendingFiles.size() > rMaxFiles) {
             logger.warn("Too many files to process ({}), limiting to {}", pendingFiles.size(), rMaxFiles);
-            limitedPending = pendingFiles.subList(0, rMaxFiles);
         }
+        var limitedPending = pendingFiles.subList(0, Math.min(pendingFiles.size(), rMaxFiles));
 
         if (limitedPending.isEmpty()) {
-            writeState(runContext, rStateKey, state, rStateTtl);
+            if (!shouldRemoveFiles) {
+                writeState(runContext, rStateKey, state, rStateTtl);
+            }
             return Optional.empty();
         }
 
         java.util.List<TriggeredFile> toFire = new ArrayList<>();
-        for (PendingFile pending : limitedPending) {
+        for (var pending : limitedPending) {
             var fileItem = pending.file();
             var downloadTask = Download.builder()
                 .id(Download.class.getSimpleName())
@@ -222,7 +223,9 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
                 .build());
         }
 
-        writeState(runContext, rStateKey, state, rStateTtl);
+        if (!shouldRemoveFiles) {
+            writeState(runContext, rStateKey, state, rStateTtl);
+        }
 
         if (rAction != Downloads.Action.NONE) {
             java.util.List<TriggeredFile> triggeredFiles = toFire;
@@ -249,6 +252,8 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
 
         return Optional.of(TriggerService.generateExecution(this, conditionContext, triggerContext, Output.builder().files(toFire).count(toFire.size()).build()));
     }
+
+    private record PendingFile(File file, StatefulTriggerService.Entry candidate, ChangeType changeType) {}
 
     public enum ChangeType {
         CREATE,

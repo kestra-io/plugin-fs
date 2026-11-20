@@ -4,6 +4,7 @@ import com.devskiller.friendly_id.FriendlyId;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.triggers.StatefulTriggerInterface;
+import io.kestra.core.models.triggers.StatefulTriggerService;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.fs.vfs.models.File;
 import jakarta.inject.Inject;
@@ -218,6 +219,45 @@ class TriggerTest extends AbstractTriggerTest {
             assertThat(firedNames(trigger.evaluate(context.getKey(), context.getValue())), contains("file31.txt"));
         } finally {
             cleanup(sourceDir);
+        }
+    }
+
+    @Test
+    void maxFilesWithMoveShouldDrainWithoutWritingState() throws Exception {
+        var sourceDir = Paths.get("/tmp/trigger-move-batch");
+        var moveDir = Paths.get("/tmp/trigger-move-batch-out");
+        var stateKey = "local-move-%s".formatted(FriendlyId.createFriendlyId());
+        Files.createDirectories(sourceDir);
+        Files.createDirectories(moveDir);
+
+        try {
+            for (var i = 1; i <= 3; i++) {
+                Files.writeString(sourceDir.resolve("file%d.txt".formatted(i)), "content %d".formatted(i));
+            }
+
+            var trigger = Trigger.builder()
+                .id("local-%s".formatted(FriendlyId.createFriendlyId()))
+                .type(Trigger.class.getName())
+                .from(Property.ofValue(sourceDir.toString()))
+                .action(Property.ofValue(Downloads.Action.MOVE))
+                .moveDirectory(Property.ofValue(moveDir.toString()))
+                .maxFiles(Property.ofValue(2))
+                .stateKey(Property.ofValue(stateKey))
+                .build();
+
+            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+
+            assertThat(firedNames(trigger.evaluate(context.getKey(), context.getValue())), hasSize(2));
+            assertThat(firedNames(trigger.evaluate(context.getKey(), context.getValue())), hasSize(1));
+            assertThat(trigger.evaluate(context.getKey(), context.getValue()).isPresent(), is(false));
+
+            try (var moved = Files.list(moveDir)) {
+                assertThat(moved.map(path -> path.getFileName().toString()).toList(), containsInAnyOrder("file1.txt", "file2.txt", "file3.txt"));
+            }
+            assertThat(StatefulTriggerService.readState(context.getKey().getRunContext(), stateKey, Optional.empty()), anEmptyMap());
+        } finally {
+            cleanup(sourceDir);
+            cleanup(moveDir);
         }
     }
 
