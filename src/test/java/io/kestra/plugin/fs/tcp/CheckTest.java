@@ -23,7 +23,7 @@ class CheckTest {
         return Check.builder()
             .host(Property.ofValue("127.0.0.1"))
             .port(Property.ofValue(port))
-            .timeout(Property.ofValue(Duration.ofSeconds(1)))
+            .connectTimeout(Property.ofValue(Duration.ofSeconds(1)))
             .expect(Property.ofValue(expect))
             .build();
     }

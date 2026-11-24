@@ -29,7 +29,7 @@ import java.time.Duration;
 @NoArgsConstructor
 @Schema(
     title = "Check if a TCP port is open",
-    description = "Opens a TCP connection to `host:port` and closes it right away without sending any payload. The port is open when the connection is established within `timeout`. A filtered port ends at the timeout and is reported as closed. Use `expect` to fail the task when the outcome is not the one you want; with the default `ANY` the task never fails on reachability."
+    description = "Opens a TCP connection to `host:port` and closes it right away without sending any payload. The port is open when the connection is established within `connectTimeout`. A filtered port ends at `connectTimeout` and is reported as closed. Use `expect` to fail the task when the outcome is not the one you want; with the default `ANY` the task never fails on reachability."
 )
 @Plugin(
     examples = {
@@ -45,7 +45,7 @@ import java.time.Duration;
                     type: io.kestra.plugin.fs.tcp.Check
                     host: db.example.com
                     port: 5432
-                    timeout: PT3S
+                    connectTimeout: PT3S
                     expect: REACHABLE
                 """
         )
@@ -71,10 +71,10 @@ public class Check extends Task implements RunnableTask<Check.Output> {
     @PluginProperty(group = "main")
     private Property<Integer> port;
 
-    @Schema(title = "Connection timeout")
+    @Schema(title = "Connection timeout", description = "Applies to the connection attempt only. The inherited task-level `timeout` is the overall limit.")
     @Builder.Default
     @PluginProperty(group = "execution")
-    private Property<Duration> timeout = Property.ofValue(Duration.ofSeconds(5));
+    private Property<Duration> connectTimeout = Property.ofValue(Duration.ofSeconds(5));
 
     @Schema(
         title = "Expected outcome",
@@ -88,7 +88,7 @@ public class Check extends Task implements RunnableTask<Check.Output> {
     public Output run(RunContext runContext) throws Exception {
         String rHost = runContext.render(this.host).as(String.class).orElseThrow(() -> new IllegalArgumentException("`host` cannot be null or empty"));
         Integer rPort = runContext.render(this.port).as(Integer.class).orElseThrow(() -> new IllegalArgumentException("`port` cannot be null or empty"));
-        Duration rTimeout = runContext.render(this.timeout).as(Duration.class).orElse(Duration.ofSeconds(5));
+        Duration rTimeout = runContext.render(this.connectTimeout).as(Duration.class).orElse(Duration.ofSeconds(5));
         ReachabilityExpectation rExpect = runContext.render(this.expect).as(ReachabilityExpectation.class).orElse(ReachabilityExpectation.ANY);
 
         boolean open = false;

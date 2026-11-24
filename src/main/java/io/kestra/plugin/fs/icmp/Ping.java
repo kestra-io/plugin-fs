@@ -52,7 +52,7 @@ import java.util.List;
                       - 192.168.1.1
                       - example.com
                     count: 4
-                    timeout: PT1S
+                    probeTimeout: PT1S
 
                   - id: log
                     type: io.kestra.plugin.core.log.Log
@@ -111,10 +111,10 @@ public class Ping extends Task implements RunnableTask<Ping.Output> {
     @PluginProperty(group = "execution")
     private Property<Integer> count = Property.ofValue(4);
 
-    @Schema(title = "Timeout per probe")
+    @Schema(title = "Timeout per probe", description = "Applies to each probe only. The inherited task-level `timeout` is the overall limit and is not set by default.")
     @Builder.Default
     @PluginProperty(group = "execution")
-    private Property<Duration> timeout = Property.ofValue(Duration.ofSeconds(1));
+    private Property<Duration> probeTimeout = Property.ofValue(Duration.ofSeconds(1));
 
     @Schema(title = "Delay between two probes of the same host")
     @Builder.Default
@@ -139,7 +139,7 @@ public class Ping extends Task implements RunnableTask<Ping.Output> {
         if (rCount < 1 || rCount > 100) {
             throw new IllegalArgumentException("`count` must be between 1 and 100, got " + rCount);
         }
-        Duration rTimeout = runContext.render(this.timeout).as(Duration.class).orElse(Duration.ofSeconds(1));
+        Duration rTimeout = runContext.render(this.probeTimeout).as(Duration.class).orElse(Duration.ofSeconds(1));
         Duration rInterval = runContext.render(this.interval).as(Duration.class).orElse(Duration.ofSeconds(1));
         ReachabilityExpectation rExpect = runContext.render(this.expect).as(ReachabilityExpectation.class).orElse(ReachabilityExpectation.ANY);
 

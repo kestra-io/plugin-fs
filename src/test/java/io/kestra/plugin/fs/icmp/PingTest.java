@@ -27,7 +27,7 @@ class PingTest {
         return Ping.builder()
             .hosts(Property.ofValue(List.of(host)))
             .count(Property.ofValue(2))
-            .timeout(Property.ofValue(Duration.ofMillis(200)))
+            .probeTimeout(Property.ofValue(Duration.ofMillis(200)))
             .interval(Property.ofValue(Duration.ZERO))
             .expect(Property.ofValue(expect));
     }
@@ -99,5 +99,21 @@ class PingTest {
         // Flow creation runs bean validation; constraints on Property<...> fields used to fail it with HV000030.
         Ping task = ping("127.0.0.1", ReachabilityExpectation.ANY).id("ping").type(Ping.class.getName()).build();
         assertThat(modelValidator.isValid(task).isPresent(), is(false));
+    }
+
+    @Test
+    void probeTimeoutDoesNotCollideWithTaskTimeout() throws Exception {
+        Ping task = Ping.builder()
+            .hosts(Property.ofValue(List.of("127.0.0.1")))
+            .count(Property.ofValue(2))
+            .interval(Property.ofValue(Duration.ofMillis(300)))
+            .build();
+
+        // Core Task.timeout must stay unset: it is the overall limit, not the per-probe one.
+        assertThat(task.getTimeout(), nullValue());
+        assertThat(task.getProbeTimeout(), notNullValue());
+        assertThat(Ping.class.getDeclaredFields().length > 0
+            && java.util.Arrays.stream(Ping.class.getDeclaredFields()).noneMatch(f -> f.getName().equals("timeout")), is(true));
+        assertThat(task.run(runContextFactory.of()).isAllReachable(), is(true));
     }
 }
