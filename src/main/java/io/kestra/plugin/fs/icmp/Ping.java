@@ -146,7 +146,7 @@ public class Ping extends Task implements RunnableTask<Ping.Output> {
     @Schema(
         title = "Expected outcome",
         description = """
-            `REACHABLE` fails the task if a host does not answer, `UNREACHABLE` fails it if a host answers, `ANY` never fails on reachability.""",
+            `REACHABLE` fails the task if a host does not answer, `UNREACHABLE` fails it if a host answers or cannot be probed (DNS failure, network error), `ANY` never fails on reachability.""",
         defaultValue = "ANY"
     )
     @Builder.Default
@@ -194,6 +194,9 @@ public class Ping extends Task implements RunnableTask<Ping.Output> {
         for (var r : results) {
             if (rExpect == ReachabilityExpectation.UNREACHABLE && r.isReachable()) {
                 violations.add("Expected UNREACHABLE but " + r.getHost() + " answered " + r.getPacketsReceived() + "/" + r.getPacketsSent() + " probes");
+            } else if (rExpect == ReachabilityExpectation.UNREACHABLE && r.getError() != null) {
+                // A probe that could not run proves nothing about the address being free.
+                violations.add("Expected UNREACHABLE but " + r.getHost() + " could not be probed (" + r.getError() + ")");
             } else if (rExpect == ReachabilityExpectation.REACHABLE && !r.isReachable()) {
                 violations.add("Expected REACHABLE but " + r.getHost() + " answered " + r.getPacketsReceived() + "/" + r.getPacketsSent() + " probes"
                     + (r.getError() != null ? " (" + r.getError() + ")" : ""));

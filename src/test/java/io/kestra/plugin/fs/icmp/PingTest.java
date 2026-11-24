@@ -161,4 +161,17 @@ class PingTest {
         var task = Ping.builder().hosts(Property.ofValue(List.of("127.0.0.1"))).probeTimeout(Property.ofValue(Duration.parse("PT0.0005S"))).build();
         assertThrows(IllegalArgumentException.class, () -> task.run(runContextFactory.of()));
     }
+
+    @Test
+    void expectUnreachableFailsWhenHostCannotBeProbed() {
+        var e = assertThrows(IllegalStateException.class,
+            () -> ping("no-such-host.invalid", ReachabilityExpectation.UNREACHABLE).run(runContextFactory.of()));
+        assertThat(e.getMessage(), is("Expected UNREACHABLE but no-such-host.invalid could not be probed (Cannot resolve host)"));
+    }
+
+    @Test
+    void expectUnreachablePassesOnPlainTimeout() throws Exception {
+        var output = ping("192.0.2.1", ReachabilityExpectation.UNREACHABLE).run(runContextFactory.of());
+        assertThat(output.getResults().getFirst().getError(), nullValue());
+    }
 }

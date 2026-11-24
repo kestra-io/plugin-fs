@@ -110,4 +110,18 @@ class CheckTest {
         var task = Check.builder().host(Property.ofValue("127.0.0.1")).port(Property.ofValue(80)).connectTimeout(Property.ofValue(Duration.parse("PT0.0005S"))).build();
         assertThrows(IllegalArgumentException.class, () -> task.run(runContextFactory.of()));
     }
+
+    @Test
+    void expectUnreachableFailsWhenHostCannotBeResolved() {
+        var task = Check.builder().host(Property.ofValue("no-such-host.invalid")).port(Property.ofValue(80))
+            .expect(Property.ofValue(ReachabilityExpectation.UNREACHABLE)).build();
+        var e = assertThrows(IllegalStateException.class, () -> task.run(runContextFactory.of()));
+        assertThat(e.getMessage(), is("Expected UNREACHABLE but no-such-host.invalid:80 could not be probed (Cannot resolve host)"));
+    }
+
+    @Test
+    void expectUnreachablePassesOnRefusedConnection() throws Exception {
+        var output = check(freePort(), ReachabilityExpectation.UNREACHABLE).run(runContextFactory.of());
+        assertThat(output.isOpen(), is(false));
+    }
 }

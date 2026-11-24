@@ -18,6 +18,7 @@ import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 
 import java.io.IOException;
+import java.net.ConnectException;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
@@ -80,7 +81,7 @@ public class Check extends Task implements RunnableTask<Check.Output> {
     @Schema(
         title = "Expected outcome",
         description = """
-            `REACHABLE` fails the task if the port is closed, `UNREACHABLE` fails it if the port is open, `ANY` never fails.""",
+            `REACHABLE` fails the task if the port is closed, `UNREACHABLE` fails it if the port is open or the host cannot be probed (DNS failure, no route), `ANY` never fails. A refused connection or a timeout counts as not open.""",
         defaultValue = "ANY"
     )
     @Builder.Default
@@ -105,6 +106,7 @@ public class Check extends Task implements RunnableTask<Check.Output> {
 
         var open = false;
         String error = null;
+        var probeFailed = false;
         Duration connectTime = null;
         var start = System.nanoTime();
         try (var ignored = TcpService.getInstance().connect(rHost, rPort, rTimeout)) {
@@ -112,16 +114,23 @@ public class Check extends Task implements RunnableTask<Check.Output> {
             open = true;
         } catch (UnknownHostException e) {
             error = "Cannot resolve host";
+            probeFailed = true;
         } catch (SocketTimeoutException e) {
             error = "Timed out after " + rTimeout;
         } catch (IOException e) {
             error = e.getMessage() != null ? e.getMessage() : "Connection failed";
+            // ConnectException covers refused and OS-level timeouts, both real "not open" answers.
+            // Other IO errors (NoRouteToHostException for host or network unreachable) are not.
+            probeFailed = !(e instanceof ConnectException);
         }
 
         runContext.logger().info("{}:{} is {}", rHost, rPort, open ? "open" : "closed or unreachable");
 
         if (rExpect == ReachabilityExpectation.UNREACHABLE && open) {
             throw new IllegalStateException("Expected UNREACHABLE but " + rHost + ":" + rPort + " accepted the connection");
+        }
+        if (rExpect == ReachabilityExpectation.UNREACHABLE && probeFailed) {
+            throw new IllegalStateException("Expected UNREACHABLE but " + rHost + ":" + rPort + " could not be probed (" + error + ")");
         }
         if (rExpect == ReachabilityExpectation.REACHABLE && !open) {
             throw new IllegalStateException("Expected REACHABLE but " + rHost + ":" + rPort + " is closed (" + error + ")");
