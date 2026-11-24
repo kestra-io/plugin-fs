@@ -54,6 +54,7 @@ Infrastructure dependencies (Docker Compose services):
 - `io.kestra.plugin.fs.ftps.Trigger`
 - `io.kestra.plugin.fs.ftps.Upload`
 - `io.kestra.plugin.fs.ftps.Uploads`
+- `io.kestra.plugin.fs.icmp.Ping`
 - `io.kestra.plugin.fs.local.Copy`
 - `io.kestra.plugin.fs.local.Delete`
 - `io.kestra.plugin.fs.local.Download`
@@ -86,6 +87,7 @@ Infrastructure dependencies (Docker Compose services):
 - `io.kestra.plugin.fs.smb.Upload`
 - `io.kestra.plugin.fs.smb.Uploads`
 - `io.kestra.plugin.fs.ssh.Command`
+- `io.kestra.plugin.fs.tcp.Check`
 - `io.kestra.plugin.fs.tcp.RealtimeTrigger`
 - `io.kestra.plugin.fs.tcp.Send`
 - `io.kestra.plugin.fs.udp.RealtimeTrigger`

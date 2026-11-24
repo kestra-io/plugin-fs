@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import java.net.ServerSocket;
 import java.time.Duration;
+import java.util.Map;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -68,5 +69,39 @@ class CheckTest {
             assertThrows(IllegalStateException.class,
                 () -> check(port, ReachabilityExpectation.UNREACHABLE).run(runContextFactory.of()));
         }
+    }
+
+    @Test
+    void rendersExpressions() throws Exception {
+        try (ServerSocket server = new ServerSocket(0)) {
+            Check task = Check.builder()
+                .host(Property.ofExpression("{{ inputs.host }}"))
+                .port(Property.ofExpression("{{ inputs.port }}"))
+                .build();
+
+            Check.Output output = task.run(runContextFactory.of(Map.of("inputs", Map.of("host", "127.0.0.1", "port", server.getLocalPort()))));
+
+            assertThat(output.isOpen(), is(true));
+        }
+    }
+
+    @Test
+    void blankHostIsRejected() {
+        Check task = Check.builder().host(Property.ofExpression("{{ inputs.host }}")).port(Property.ofValue(80)).build();
+        assertThrows(IllegalArgumentException.class, () -> task.run(runContextFactory.of(Map.of("inputs", Map.of("host", "")))));
+    }
+
+    @Test
+    void invalidPortFailsInsteadOfReportingClosed() {
+        for (int port : new int[]{0, 70000}) {
+            assertThrows(IllegalArgumentException.class,
+                () -> check(port, ReachabilityExpectation.UNREACHABLE).run(runContextFactory.of()));
+        }
+    }
+
+    @Test
+    void nonPositiveTimeoutIsRejected() {
+        Check task = Check.builder().host(Property.ofValue("127.0.0.1")).port(Property.ofValue(80)).connectTimeout(Property.ofValue(Duration.ZERO)).build();
+        assertThrows(IllegalArgumentException.class, () -> task.run(runContextFactory.of()));
     }
 }

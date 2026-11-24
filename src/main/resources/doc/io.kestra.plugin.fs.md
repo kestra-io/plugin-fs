@@ -38,6 +38,10 @@ Store secrets in [secrets](https://kestra.io/docs/concepts/secret) and set conne
 
 **TCP** — `tcp.Send` sends a `payload` to a `host` and `port`. Set `encoding` to `UTF-8` (default) or `BASE64`.
 
+`tcp.Check` opens and closes a connection to `host` and `port` and returns `open` and `connectTime`. Set `connectTimeout` for the connection attempt and `expect` to `REACHABLE` or `UNREACHABLE` to fail the task on the wrong outcome.
+
+**ICMP** — `icmp.Ping` probes each of `hosts` (at most 256) `count` times and returns packets sent and received, loss, and min/avg/max round-trip time per host. Set `probeTimeout`, `interval`, and `expect` (`ANY` by default, never fails). The worker needs root, `CAP_NET_RAW`, or a `net.ipv4.ping_group_range` that includes its group.
+
 **UDP** — `udp.Send` sends a `payload` to a `host` and `port`.
 
 **Local** — `local.Download`, `local.Upload`, `local.Copy`, `local.Move`, `local.Delete`, `local.List`, `local.Trigger`, and `local.RealtimeTrigger` operate on the local filesystem. Access is restricted to paths configured in `allowed-paths`. `local.List` supports `sort` like the remote `List` tasks.

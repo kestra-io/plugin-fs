@@ -17,7 +17,9 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 
+import java.io.IOException;
 import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -100,30 +102,42 @@ import java.util.List;
     }
 )
 public class Ping extends Task implements RunnableTask<Ping.Output> {
+    private static final int MAX_HOSTS = 256;
 
-    @Schema(title = "Hosts to ping", description = "Host names or IPv4/IPv6 addresses. Probed one after the other.")
+    @Schema(
+        title = "Hosts to ping",
+        description = """
+            Host names or IPv4/IPv6 addresses, probed one after the other. At most 256 hosts per task; use `ForEach` for larger lists."""
+    )
     @NotNull
     @PluginProperty(group = "main")
     private Property<List<String>> hosts;
 
-    @Schema(title = "Number of probes per host", description = "Between 1 and 100.")
+    @Schema(title = "Number of probes per host", description = "Between 1 and 100.", defaultValue = "4")
     @Builder.Default
     @PluginProperty(group = "execution")
     private Property<Integer> count = Property.ofValue(4);
 
-    @Schema(title = "Timeout per probe", description = "Applies to each probe only. The inherited task-level `timeout` is the overall limit and is not set by default.")
+    @Schema(
+        title = "Timeout per probe",
+        description = """
+            Between 1 millisecond and 1 minute. Applies to each probe only; the inherited task-level `timeout` is the overall limit and is not set by default.""",
+        defaultValue = "PT1S"
+    )
     @Builder.Default
     @PluginProperty(group = "execution")
     private Property<Duration> probeTimeout = Property.ofValue(Duration.ofSeconds(1));
 
-    @Schema(title = "Delay between two probes of the same host")
+    @Schema(title = "Delay between two probes of the same host", description = "Between 0 and 1 minute.", defaultValue = "PT1S")
     @Builder.Default
     @PluginProperty(group = "execution")
     private Property<Duration> interval = Property.ofValue(Duration.ofSeconds(1));
 
     @Schema(
         title = "Expected outcome",
-        description = "`REACHABLE` fails the task if a host does not answer, `UNREACHABLE` fails it if a host answers, `ANY` never fails on reachability."
+        description = """
+            `REACHABLE` fails the task if a host does not answer, `UNREACHABLE` fails it if a host answers, `ANY` never fails on reachability.""",
+        defaultValue = "ANY"
     )
     @Builder.Default
     @PluginProperty(group = "reliability")
@@ -131,23 +145,35 @@ public class Ping extends Task implements RunnableTask<Ping.Output> {
 
     @Override
     public Output run(RunContext runContext) throws Exception {
-        List<String> rHosts = runContext.render(this.hosts).asList(String.class);
+        var rHosts = runContext.render(this.hosts).asList(String.class);
         if (rHosts.isEmpty()) {
             throw new IllegalArgumentException("`hosts` cannot be empty");
         }
-        int rCount = runContext.render(this.count).as(Integer.class).orElse(4);
+        if (rHosts.size() > MAX_HOSTS) {
+            throw new IllegalArgumentException("`hosts` has " + rHosts.size() + " entries, the maximum is " + MAX_HOSTS + ". Split the list with a ForEach task.");
+        }
+        // InetAddress treats an empty name as loopback, which would report a never-checked host as reachable.
+        if (rHosts.stream().anyMatch(h -> h == null || h.isBlank())) {
+            throw new IllegalArgumentException("`hosts` contains an empty entry, check the rendered values");
+        }
+        var rCount = runContext.render(this.count).as(Integer.class).orElse(4);
         if (rCount < 1 || rCount > 100) {
             throw new IllegalArgumentException("`count` must be between 1 and 100, got " + rCount);
         }
-        Duration rTimeout = runContext.render(this.probeTimeout).as(Duration.class).orElse(Duration.ofSeconds(1));
-        Duration rInterval = runContext.render(this.interval).as(Duration.class).orElse(Duration.ofSeconds(1));
-        ReachabilityExpectation rExpect = runContext.render(this.expect).as(ReachabilityExpectation.class).orElse(ReachabilityExpectation.ANY);
+        var rProbeTimeout = runContext.render(this.probeTimeout).as(Duration.class).orElse(Duration.ofSeconds(1));
+        if (rProbeTimeout.isZero() || rProbeTimeout.isNegative() || rProbeTimeout.compareTo(Duration.ofMinutes(1)) > 0) {
+            throw new IllegalArgumentException("`probeTimeout` must be between 1 millisecond and 1 minute, got " + rProbeTimeout);
+        }
+        var rInterval = runContext.render(this.interval).as(Duration.class).orElse(Duration.ofSeconds(1));
+        if (rInterval.isNegative() || rInterval.compareTo(Duration.ofMinutes(1)) > 0) {
+            throw new IllegalArgumentException("`interval` must be between 0 and 1 minute, got " + rInterval);
+        }
+        var rExpect = runContext.render(this.expect).as(ReachabilityExpectation.class).orElse(ReachabilityExpectation.ANY);
 
-        // ponytail: hosts are probed sequentially to keep the worker footprint small;
-        // probing them in parallel is the upgrade path for large host lists.
-        List<HostResult> results = new ArrayList<>();
-        for (String host : rHosts) {
-            HostResult result = probe(host, rCount, rTimeout, rInterval);
+        // Hosts are probed one after the other.
+        var results = new ArrayList<HostResult>();
+        for (var host : rHosts) {
+            var result = probe(host, rCount, rProbeTimeout, rInterval);
             runContext.logger().info(
                 "{}: {}/{} probes answered ({}% loss)",
                 host, result.getPacketsReceived(), result.getPacketsSent(), result.getPacketLoss()
@@ -155,8 +181,8 @@ public class Ping extends Task implements RunnableTask<Ping.Output> {
             results.add(result);
         }
 
-        List<String> violations = new ArrayList<>();
-        for (HostResult r : results) {
+        var violations = new ArrayList<String>();
+        for (var r : results) {
             if (rExpect == ReachabilityExpectation.UNREACHABLE && r.isReachable()) {
                 violations.add("Expected UNREACHABLE but " + r.getHost() + " answered " + r.getPacketsReceived() + "/" + r.getPacketsSent() + " probes");
             } else if (rExpect == ReachabilityExpectation.REACHABLE && !r.isReachable()) {
@@ -175,35 +201,35 @@ public class Ping extends Task implements RunnableTask<Ping.Output> {
     }
 
     private static HostResult probe(String host, int count, Duration timeout, Duration interval) throws InterruptedException {
-        HostResult.HostResultBuilder builder = HostResult.builder().host(host);
+        var builder = HostResult.builder().host(host);
 
         InetAddress address;
         try {
             address = InetAddress.getByName(host);
-        } catch (Exception e) {
+        } catch (UnknownHostException e) {
             // DNS failure is a result, not a crash: the caller decides through `expect`.
-            return builder.reachable(false).packetsSent(0).packetsReceived(0).packetLoss(100.0).error(e.toString()).build();
+            return builder.reachable(false).packetsSent(0).packetsReceived(0).packetLoss(100.0).error("Cannot resolve host").build();
         }
 
-        int received = 0;
+        var received = 0;
         long min = Long.MAX_VALUE;
         long max = 0;
         long total = 0;
         String error = null;
-        for (int i = 0; i < count; i++) {
-            long start = System.nanoTime();
+        for (var i = 0; i < count; i++) {
+            var start = System.nanoTime();
             try {
                 if (address.isReachable((int) timeout.toMillis())) {
-                    long rtt = System.nanoTime() - start;
+                    var rtt = System.nanoTime() - start;
                     received++;
                     min = Math.min(min, rtt);
                     max = Math.max(max, rtt);
                     total += rtt;
                 }
-            } catch (Exception e) {
-                error = e.toString();
+            } catch (IOException e) {
+                error = e.getMessage() != null ? e.getMessage() : "Probe failed";
             }
-            if (i < count - 1 && !interval.isZero() && !interval.isNegative()) {
+            if (i < count - 1 && !interval.isZero()) {
                 Thread.sleep(interval.toMillis());
             }
         }
