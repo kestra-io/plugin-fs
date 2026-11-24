@@ -98,7 +98,7 @@ public class Check extends Task implements RunnableTask<Check.Output> {
             throw new IllegalArgumentException("`port` must be between 1 and 65535, got " + rPort);
         }
         var rTimeout = runContext.render(this.connectTimeout).as(Duration.class).orElse(Duration.ofSeconds(5));
-        if (rTimeout.isZero() || rTimeout.isNegative() || rTimeout.compareTo(Duration.ofMinutes(5)) > 0) {
+        if (rTimeout.toMillis() < 1 || rTimeout.compareTo(Duration.ofMinutes(5)) > 0) {
             throw new IllegalArgumentException("`connectTimeout` must be between 1 millisecond and 5 minutes, got " + rTimeout);
         }
         var rExpect = runContext.render(this.expect).as(ReachabilityExpectation.class).orElse(ReachabilityExpectation.ANY);
@@ -107,7 +107,7 @@ public class Check extends Task implements RunnableTask<Check.Output> {
         String error = null;
         Duration connectTime = null;
         var start = System.nanoTime();
-        try (Socket ignored = TcpService.getInstance().connect(rHost, rPort, rTimeout)) {
+        try (var ignored = TcpService.getInstance().connect(rHost, rPort, rTimeout)) {
             connectTime = Duration.ofNanos(System.nanoTime() - start);
             open = true;
         } catch (UnknownHostException e) {
@@ -136,7 +136,11 @@ public class Check extends Task implements RunnableTask<Check.Output> {
         @Schema(title = "Whether the connection was established")
         private final boolean open;
 
-        @Schema(title = "Time to establish the connection", description = "Empty when the port is closed.")
+        @Schema(
+            title = "Time to establish the connection",
+            description = """
+                Empty when the port is closed."""
+        )
         private final Duration connectTime;
 
         @Schema(title = "Error message when the connection failed")

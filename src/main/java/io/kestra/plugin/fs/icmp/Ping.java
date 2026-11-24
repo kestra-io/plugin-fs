@@ -113,7 +113,12 @@ public class Ping extends Task implements RunnableTask<Ping.Output> {
     @PluginProperty(group = "main")
     private Property<List<String>> hosts;
 
-    @Schema(title = "Number of probes per host", description = "Between 1 and 100.", defaultValue = "4")
+    @Schema(
+        title = "Number of probes per host",
+        description = """
+            Between 1 and 100.""",
+        defaultValue = "4"
+    )
     @Builder.Default
     @PluginProperty(group = "execution")
     private Property<Integer> count = Property.ofValue(4);
@@ -128,7 +133,12 @@ public class Ping extends Task implements RunnableTask<Ping.Output> {
     @PluginProperty(group = "execution")
     private Property<Duration> probeTimeout = Property.ofValue(Duration.ofSeconds(1));
 
-    @Schema(title = "Delay between two probes of the same host", description = "Between 0 and 1 minute.", defaultValue = "PT1S")
+    @Schema(
+        title = "Delay between two probes of the same host",
+        description = """
+            Between 0 and 1 minute.""",
+        defaultValue = "PT1S"
+    )
     @Builder.Default
     @PluginProperty(group = "execution")
     private Property<Duration> interval = Property.ofValue(Duration.ofSeconds(1));
@@ -161,7 +171,7 @@ public class Ping extends Task implements RunnableTask<Ping.Output> {
             throw new IllegalArgumentException("`count` must be between 1 and 100, got " + rCount);
         }
         var rProbeTimeout = runContext.render(this.probeTimeout).as(Duration.class).orElse(Duration.ofSeconds(1));
-        if (rProbeTimeout.isZero() || rProbeTimeout.isNegative() || rProbeTimeout.compareTo(Duration.ofMinutes(1)) > 0) {
+        if (rProbeTimeout.toMillis() < 1 || rProbeTimeout.compareTo(Duration.ofMinutes(1)) > 0) {
             throw new IllegalArgumentException("`probeTimeout` must be between 1 millisecond and 1 minute, got " + rProbeTimeout);
         }
         var rInterval = runContext.render(this.interval).as(Duration.class).orElse(Duration.ofSeconds(1));
@@ -170,7 +180,6 @@ public class Ping extends Task implements RunnableTask<Ping.Output> {
         }
         var rExpect = runContext.render(this.expect).as(ReachabilityExpectation.class).orElse(ReachabilityExpectation.ANY);
 
-        // Hosts are probed one after the other.
         var results = new ArrayList<HostResult>();
         for (var host : rHosts) {
             var result = probe(host, rCount, rProbeTimeout, rInterval);
@@ -263,13 +272,25 @@ public class Ping extends Task implements RunnableTask<Ping.Output> {
         @Schema(title = "Packet loss in percent")
         private final double packetLoss;
 
-        @Schema(title = "Minimum round-trip time", description = "Empty when no probe was answered.")
+        @Schema(
+            title = "Minimum round-trip time",
+            description = """
+                Empty when no probe was answered."""
+        )
         private final Duration rttMin;
 
-        @Schema(title = "Average round-trip time", description = "Empty when no probe was answered.")
+        @Schema(
+            title = "Average round-trip time",
+            description = """
+                Empty when no probe was answered."""
+        )
         private final Duration rttAvg;
 
-        @Schema(title = "Maximum round-trip time", description = "Empty when no probe was answered.")
+        @Schema(
+            title = "Maximum round-trip time",
+            description = """
+                Empty when no probe was answered."""
+        )
         private final Duration rttMax;
 
         @Schema(title = "Error message, for example a DNS failure")

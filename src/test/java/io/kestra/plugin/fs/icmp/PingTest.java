@@ -37,10 +37,10 @@ class PingTest {
 
     @Test
     void localhostIsReachable() throws Exception {
-        Ping.Output output = ping("127.0.0.1", ReachabilityExpectation.ANY).run(runContextFactory.of());
+        var output = ping("127.0.0.1", ReachabilityExpectation.ANY).run(runContextFactory.of());
 
         assertThat(output.isAllReachable(), is(true));
-        Ping.HostResult r = output.getResults().getFirst();
+        var r = output.getResults().getFirst();
         assertThat(r.isReachable(), is(true));
         assertThat(r.getPacketsSent(), is(2));
         assertThat(r.getPacketsReceived(), is(2));
@@ -51,10 +51,10 @@ class PingTest {
     @Test
     void unroutableHostIsUnreachable() throws Exception {
         // 192.0.2.1 is TEST-NET-1 (RFC 5737), never routed.
-        Ping.Output output = ping("192.0.2.1", ReachabilityExpectation.ANY).run(runContextFactory.of());
+        var output = ping("192.0.2.1", ReachabilityExpectation.ANY).run(runContextFactory.of());
 
         assertThat(output.isAllReachable(), is(false));
-        Ping.HostResult r = output.getResults().getFirst();
+        var r = output.getResults().getFirst();
         assertThat(r.isReachable(), is(false));
         assertThat(r.getPacketLoss(), is(100.0));
         assertThat(r.getRttAvg(), nullValue());
@@ -62,7 +62,7 @@ class PingTest {
 
     @Test
     void unknownHostGivesErrorWithoutThrowing() throws Exception {
-        Ping.Output output = ping("no-such-host.invalid", ReachabilityExpectation.ANY).run(runContextFactory.of());
+        var output = ping("no-such-host.invalid", ReachabilityExpectation.ANY).run(runContextFactory.of());
 
         assertThat(output.getResults().getFirst().isReachable(), is(false));
         assertThat(output.getResults().getFirst().getError(), notNullValue());
@@ -70,29 +70,29 @@ class PingTest {
 
     @Test
     void expectReachableThrowsOnUnreachable() {
-        IllegalStateException e = assertThrows(IllegalStateException.class,
+        var e = assertThrows(IllegalStateException.class,
             () -> ping("192.0.2.1", ReachabilityExpectation.REACHABLE).run(runContextFactory.of()));
         assertThat(e.getMessage(), containsString("Expected REACHABLE but 192.0.2.1"));
     }
 
     @Test
     void expectUnreachableThrowsOnLocalhost() {
-        IllegalStateException e = assertThrows(IllegalStateException.class,
+        var e = assertThrows(IllegalStateException.class,
             () -> ping("127.0.0.1", ReachabilityExpectation.UNREACHABLE).run(runContextFactory.of()));
         assertThat(e.getMessage(), is("Expected UNREACHABLE but 127.0.0.1 answered 2/2 probes"));
     }
 
     @Test
     void emptyHostsIsRejected() {
-        Ping task = Ping.builder().hosts(Property.ofValue(List.of())).build();
+        var task = Ping.builder().hosts(Property.ofValue(List.of())).build();
         assertThrows(IllegalArgumentException.class, () -> task.run(runContextFactory.of()));
     }
 
     @Test
     void outOfRangeCountIsRejected() {
         for (int count : new int[]{0, 101}) {
-            Ping task = Ping.builder().hosts(Property.ofValue(List.of("127.0.0.1"))).count(Property.ofValue(count)).build();
-            IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> task.run(runContextFactory.of()));
+            var task = Ping.builder().hosts(Property.ofValue(List.of("127.0.0.1"))).count(Property.ofValue(count)).build();
+            var e = assertThrows(IllegalArgumentException.class, () -> task.run(runContextFactory.of()));
             assertThat(e.getMessage(), containsString("between 1 and 100"));
         }
     }
@@ -100,13 +100,13 @@ class PingTest {
     @Test
     void passesKestraValidation() {
         // Flow creation runs bean validation; constraints on Property<...> fields used to fail it with HV000030.
-        Ping task = Ping.builder().id("ping").type(Ping.class.getName()).hosts(Property.ofValue(List.of("127.0.0.1"))).build();
+        var task = Ping.builder().id("ping").type(Ping.class.getName()).hosts(Property.ofValue(List.of("127.0.0.1"))).build();
         assertThat(modelValidator.isValid(task).isPresent(), is(false));
     }
 
     @Test
     void probeTimeoutDoesNotCollideWithTaskTimeout() throws Exception {
-        Ping task = Ping.builder()
+        var task = Ping.builder()
             .hosts(Property.ofValue(List.of("127.0.0.1")))
             .count(Property.ofValue(2))
             .interval(Property.ofValue(Duration.ofMillis(300)))
@@ -120,39 +120,45 @@ class PingTest {
 
     @Test
     void rendersExpressions() throws Exception {
-        Ping task = Ping.builder()
+        var task = Ping.builder()
             .hosts(Property.ofExpression("{{ inputs.hosts }}"))
             .count(Property.ofExpression("{{ inputs.count }}"))
             .expect(Property.ofExpression("{{ inputs.expect }}"))
             .interval(Property.ofValue(Duration.ZERO))
             .build();
 
-        Ping.Output output = task.run(runContextFactory.of(Map.of("inputs", Map.of("hosts", List.of("127.0.0.1"), "count", 3, "expect", "REACHABLE"))));
+        var output = task.run(runContextFactory.of(Map.of("inputs", Map.of("hosts", List.of("127.0.0.1"), "count", 3, "expect", "REACHABLE"))));
 
         assertThat(output.getResults().getFirst().getPacketsSent(), is(3));
     }
 
     @Test
     void blankRenderedHostIsRejected() {
-        Ping task = Ping.builder().hosts(Property.ofExpression("{{ inputs.hosts }}")).build();
-        IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+        var task = Ping.builder().hosts(Property.ofExpression("{{ inputs.hosts }}")).build();
+        var e = assertThrows(IllegalArgumentException.class,
             () -> task.run(runContextFactory.of(Map.of("inputs", Map.of("hosts", List.of(""))))));
         assertThat(e.getMessage(), containsString("empty entry"));
     }
 
     @Test
     void tooManyHostsIsRejected() {
-        Ping task = Ping.builder().hosts(Property.ofValue(Collections.nCopies(257, "127.0.0.1"))).build();
-        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> task.run(runContextFactory.of()));
+        var task = Ping.builder().hosts(Property.ofValue(Collections.nCopies(257, "127.0.0.1"))).build();
+        var e = assertThrows(IllegalArgumentException.class, () -> task.run(runContextFactory.of()));
         assertThat(e.getMessage(), containsString("maximum is 256"));
     }
 
     @Test
     void invalidDurationsAreRejected() {
-        Ping zeroTimeout = Ping.builder().hosts(Property.ofValue(List.of("127.0.0.1"))).probeTimeout(Property.ofValue(Duration.ZERO)).build();
+        var zeroTimeout = Ping.builder().hosts(Property.ofValue(List.of("127.0.0.1"))).probeTimeout(Property.ofValue(Duration.ZERO)).build();
         assertThrows(IllegalArgumentException.class, () -> zeroTimeout.run(runContextFactory.of()));
 
-        Ping negativeInterval = Ping.builder().hosts(Property.ofValue(List.of("127.0.0.1"))).interval(Property.ofValue(Duration.ofSeconds(-1))).build();
+        var negativeInterval = Ping.builder().hosts(Property.ofValue(List.of("127.0.0.1"))).interval(Property.ofValue(Duration.ofSeconds(-1))).build();
         assertThrows(IllegalArgumentException.class, () -> negativeInterval.run(runContextFactory.of()));
+    }
+
+    @Test
+    void subMillisecondProbeTimeoutIsRejected() {
+        var task = Ping.builder().hosts(Property.ofValue(List.of("127.0.0.1"))).probeTimeout(Property.ofValue(Duration.parse("PT0.0005S"))).build();
+        assertThrows(IllegalArgumentException.class, () -> task.run(runContextFactory.of()));
     }
 }

@@ -38,7 +38,7 @@ class CheckTest {
     @Test
     void openPort() throws Exception {
         try (ServerSocket server = new ServerSocket(0)) {
-            Check.Output output = check(server.getLocalPort(), ReachabilityExpectation.ANY).run(runContextFactory.of());
+            var output = check(server.getLocalPort(), ReachabilityExpectation.ANY).run(runContextFactory.of());
 
             assertThat(output.isOpen(), is(true));
             assertThat(output.getConnectTime(), notNullValue());
@@ -48,7 +48,7 @@ class CheckTest {
 
     @Test
     void closedPort() throws Exception {
-        Check.Output output = check(freePort(), ReachabilityExpectation.ANY).run(runContextFactory.of());
+        var output = check(freePort(), ReachabilityExpectation.ANY).run(runContextFactory.of());
 
         assertThat(output.isOpen(), is(false));
         assertThat(output.getConnectTime(), nullValue());
@@ -57,7 +57,7 @@ class CheckTest {
 
     @Test
     void expectReachableThrowsOnClosedPort() throws Exception {
-        int port = freePort();
+        var port = freePort();
         assertThrows(IllegalStateException.class,
             () -> check(port, ReachabilityExpectation.REACHABLE).run(runContextFactory.of()));
     }
@@ -65,7 +65,7 @@ class CheckTest {
     @Test
     void expectUnreachableThrowsOnOpenPort() throws Exception {
         try (ServerSocket server = new ServerSocket(0)) {
-            int port = server.getLocalPort();
+            var port = server.getLocalPort();
             assertThrows(IllegalStateException.class,
                 () -> check(port, ReachabilityExpectation.UNREACHABLE).run(runContextFactory.of()));
         }
@@ -74,12 +74,12 @@ class CheckTest {
     @Test
     void rendersExpressions() throws Exception {
         try (ServerSocket server = new ServerSocket(0)) {
-            Check task = Check.builder()
+            var task = Check.builder()
                 .host(Property.ofExpression("{{ inputs.host }}"))
                 .port(Property.ofExpression("{{ inputs.port }}"))
                 .build();
 
-            Check.Output output = task.run(runContextFactory.of(Map.of("inputs", Map.of("host", "127.0.0.1", "port", server.getLocalPort()))));
+            var output = task.run(runContextFactory.of(Map.of("inputs", Map.of("host", "127.0.0.1", "port", server.getLocalPort()))));
 
             assertThat(output.isOpen(), is(true));
         }
@@ -87,7 +87,7 @@ class CheckTest {
 
     @Test
     void blankHostIsRejected() {
-        Check task = Check.builder().host(Property.ofExpression("{{ inputs.host }}")).port(Property.ofValue(80)).build();
+        var task = Check.builder().host(Property.ofExpression("{{ inputs.host }}")).port(Property.ofValue(80)).build();
         assertThrows(IllegalArgumentException.class, () -> task.run(runContextFactory.of(Map.of("inputs", Map.of("host", "")))));
     }
 
@@ -101,7 +101,13 @@ class CheckTest {
 
     @Test
     void nonPositiveTimeoutIsRejected() {
-        Check task = Check.builder().host(Property.ofValue("127.0.0.1")).port(Property.ofValue(80)).connectTimeout(Property.ofValue(Duration.ZERO)).build();
+        var task = Check.builder().host(Property.ofValue("127.0.0.1")).port(Property.ofValue(80)).connectTimeout(Property.ofValue(Duration.ZERO)).build();
+        assertThrows(IllegalArgumentException.class, () -> task.run(runContextFactory.of()));
+    }
+
+    @Test
+    void subMillisecondConnectTimeoutIsRejected() {
+        var task = Check.builder().host(Property.ofValue("127.0.0.1")).port(Property.ofValue(80)).connectTimeout(Property.ofValue(Duration.parse("PT0.0005S"))).build();
         assertThrows(IllegalArgumentException.class, () -> task.run(runContextFactory.of()));
     }
 }
