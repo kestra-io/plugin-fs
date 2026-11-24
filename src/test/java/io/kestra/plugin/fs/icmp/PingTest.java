@@ -2,6 +2,7 @@ package io.kestra.plugin.fs.icmp;
 
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
+import io.kestra.core.models.validations.ModelValidator;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.plugin.fs.ReachabilityExpectation;
 import jakarta.inject.Inject;
@@ -18,6 +19,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class PingTest {
     @Inject
     private RunContextFactory runContextFactory;
+
+    @Inject
+    private ModelValidator modelValidator;
 
     private Ping.PingBuilder<?, ?> ping(String host, ReachabilityExpectation expect) {
         return Ping.builder()
@@ -79,5 +83,21 @@ class PingTest {
     void emptyHostsIsRejected() {
         Ping task = Ping.builder().hosts(Property.ofValue(List.of())).build();
         assertThrows(IllegalArgumentException.class, () -> task.run(runContextFactory.of()));
+    }
+
+    @Test
+    void outOfRangeCountIsRejected() {
+        for (int count : new int[]{0, 101}) {
+            Ping task = ping("127.0.0.1", ReachabilityExpectation.ANY).count(Property.ofValue(count)).build();
+            IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> task.run(runContextFactory.of()));
+            assertThat(e.getMessage(), containsString("between 1 and 100"));
+        }
+    }
+
+    @Test
+    void passesKestraValidation() {
+        // Flow creation runs bean validation; constraints on Property<...> fields used to fail it with HV000030.
+        Ping task = ping("127.0.0.1", ReachabilityExpectation.ANY).id("ping").type(Ping.class.getName()).build();
+        assertThat(modelValidator.isValid(task).isPresent(), is(false));
     }
 }

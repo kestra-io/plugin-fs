@@ -9,8 +9,6 @@ import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.fs.ReachabilityExpectation;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
@@ -85,10 +83,12 @@ import java.util.List;
 
                 tasks:
                   - id: wait_for_device
-                    type: io.kestra.plugin.core.flow.WaitFor
+                    type: io.kestra.plugin.core.flow.LoopUntil
                     condition: "{{ outputs.ping.results[0].reachable }}"
-                    interval: PT10S
-                    timeout: PT10M
+                    checkFrequency:
+                      interval: PT10S
+                      maxDuration: PT10M
+                    failOnMaxReached: true
                     tasks:
                       - id: ping
                         type: io.kestra.plugin.fs.icmp.Ping
@@ -108,8 +108,6 @@ public class Ping extends Task implements RunnableTask<Ping.Output> {
 
     @Schema(title = "Number of probes per host", description = "Between 1 and 100.")
     @Builder.Default
-    @Min(1)
-    @Max(100)
     @PluginProperty(group = "execution")
     private Property<Integer> count = Property.ofValue(4);
 
