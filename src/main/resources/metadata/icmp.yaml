@@ -1,0 +1,8 @@
+group: io.kestra.plugin.fs.icmp
+name: "icmp"
+title: "ICMP"
+description: "Tasks that check whether hosts answer to ICMP ping."
+body: "Provide a list of hosts, a probe count, and timeouts to get packets sent and received, packet loss, and round-trip times per host, and use the expected outcome to fail a flow when a device is down or when an address that should be free answers."
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"
