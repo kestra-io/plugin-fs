@@ -40,7 +40,7 @@ Store secrets in [secrets](https://kestra.io/docs/concepts/secret) and set conne
 
 `tcp.Check` opens and closes a connection to `host` and `port` and returns `open` and `connectTime`. Set `connectTimeout` for the connection attempt and `expect` to `REACHABLE` or `UNREACHABLE` to fail the task on the wrong outcome.
 
-**ICMP** — `icmp.Ping` probes each of `hosts` (at most 256) `count` times and returns packets sent and received, loss, and min/avg/max round-trip time per host. Set `probeTimeout`, `interval`, and `expect` (`ANY` by default, never fails). The worker needs root, `CAP_NET_RAW`, or a `net.ipv4.ping_group_range` that includes its group.
+**ICMP** — `icmp.Ping` probes each of `hosts` (at most 256) `count` times and returns packets sent and received, loss, and min/avg/max round-trip time per host. Set `probeTimeout`, `interval`, and `expect` (`ANY` by default, never fails). The worker needs root or `CAP_NET_RAW`.
 
 **UDP** — `udp.Send` sends a `payload` to a `host` and `port`.
 

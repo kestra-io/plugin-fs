@@ -36,7 +36,7 @@ import java.util.List;
 
         A host is reachable when at least one probe is answered. Use `expect` to fail the task when the outcome is not the one you want; for an "address must be free" check, set `expect: UNREACHABLE`. With the default `ANY` the task never fails because of reachability. All hosts are probed before the expectation is applied, and a single error lists every host that broke it.
 
-        **ICMP privileges.** The JDK does not run the `ping` binary. On Linux it first tries a raw ICMP socket, which needs root or the `CAP_NET_RAW` capability (in a container, add it with `--cap-add=NET_RAW`). If that is not allowed it tries an unprivileged ICMP datagram socket, which requires the worker group id to be inside `net.ipv4.ping_group_range`. If both are denied, the JDK silently falls back to a TCP connection to port 7 (echo), which most hosts refuse or filter; the host may then be reported unreachable even though it is up. Make sure the worker has one of the two privileges before relying on the result."""
+        **ICMP privileges.** The JDK does not run the `ping` binary. On Linux it needs a raw ICMP socket, which requires root or the `CAP_NET_RAW` capability (in a container, add it with `--cap-add=NET_RAW`). Setting `net.ipv4.ping_group_range` was not enough to enable ICMP in testing. Without that privilege, the JDK silently falls back to a TCP connection to port 7 (echo), which most hosts refuse or filter; the host may then be reported unreachable even though it is up. Make sure the worker has root or `CAP_NET_RAW` before relying on the result."""
 )
 @Plugin(
     examples = {
